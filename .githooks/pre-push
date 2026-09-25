@@ -1,0 +1,9 @@
+#!/bin/sh
+
+while read local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" = "refs/heads/main" ] && [ "${ALLOW_MAIN_PUSH:-0}" != "1" ]; then
+    echo "Direct pushes to main are blocked. Push develop and merge it through a pull request." >&2
+    echo "For an authorized setup or recovery only, set ALLOW_MAIN_PUSH=1 for this push." >&2
+    exit 1
+  fi
+done
