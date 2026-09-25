@@ -1,0 +1,9 @@
+#!/bin/sh
+
+branch="$(git symbolic-ref --quiet --short HEAD 2>/dev/null)"
+
+if [ "$branch" = "main" ] && [ "${ALLOW_MAIN_COMMIT:-0}" != "1" ]; then
+  echo "Direct commits to main are blocked. Create work on develop or a story branch." >&2
+  echo "For an authorized emergency only, set ALLOW_MAIN_COMMIT=1 for this commit." >&2
+  exit 1
+fi

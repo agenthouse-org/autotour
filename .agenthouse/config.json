@@ -8,6 +8,13 @@
   },
   "autonomy": "bounded",
   "documentationAuthority": "git",
+  "git": {
+    "branchNaming": {
+      "pattern": "{id}-{slug}",
+      "example": "capture-login-record-login-flow",
+      "baseDefault": "develop"
+    }
+  },
   "policySources": [
     ".agenthouse/policy.json"
   ],

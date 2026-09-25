@@ -64,6 +64,8 @@ npm run check
 npm pack --dry-run
 ```
 
+Active development is integrated on `develop`; `main` is reserved for release-ready changes. Product stories, acceptance criteria, and implementation evidence are managed as versioned AgentHouse records under `.agenthouse/work/`. See [docs/work-tracking.md](docs/work-tracking.md).
+
 ## License
 
 MIT
