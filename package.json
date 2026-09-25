@@ -1,0 +1,58 @@
+{
+  "name": "autotour",
+  "version": "0.1.0",
+  "description": "Agent-driven modular walkthrough and product documentation generation for web applications.",
+  "type": "module",
+  "license": "MIT",
+  "author": {
+    "name": "Valerio Neri",
+    "email": "valerio.neri@neri.de"
+  },
+  "keywords": [
+    "playwright",
+    "product-documentation",
+    "walkthrough",
+    "browser-automation",
+    "coding-agent",
+    "agent-plugin"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "autotour": "bin/autotour.js"
+  },
+  "exports": {
+    ".": "./src/index.js",
+    "./schema": "./schemas/walkthrough.schema.json"
+  },
+  "files": [
+    "bin",
+    "src",
+    "schemas",
+    "skills",
+    "examples",
+    ".codex-plugin",
+    ".claude-plugin",
+    ".cursor",
+    ".agents/plugins/marketplace.json",
+    "plugin.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "check": "node scripts/check-package.mjs && npm test",
+    "prepack": "npm run check"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "playwright": "^1.63.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true,
+    "registry": "https://registry.npmjs.org/"
+  }
+}

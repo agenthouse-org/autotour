@@ -1,0 +1,36 @@
+{
+  "$schema": "../schemas/walkthrough.schema.json",
+  "schemaVersion": 1,
+  "id": "account-settings",
+  "title": "Update account settings",
+  "target": {
+    "baseUrl": "https://example.test",
+    "goal": "Show a signed-in user how to update their display name."
+  },
+  "publish": false,
+  "outputs": ["screenshots"],
+  "modules": [
+    {
+      "id": "open-profile",
+      "title": "Open profile settings",
+      "route": "/settings/profile",
+      "publish": true,
+      "steps": [
+        {
+          "id": "visit-profile",
+          "action": "goto",
+          "description": "Open the profile settings page."
+        }
+      ],
+      "dependencies": {
+        "views": ["ProfileSettings"],
+        "controllers": ["ProfileController"],
+        "apiEndpoints": ["GET /api/profile"],
+        "backend": ["profile-service"]
+      },
+      "assets": {
+        "screenshots": ["output/account-settings/open-profile.png"]
+      }
+    }
+  ]
+}

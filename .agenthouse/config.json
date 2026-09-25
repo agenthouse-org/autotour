@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "project": "agenthouse-autotour",
+  "artifacts": {
+    "outputs": [],
+    "baselines": [],
+    "cleanup": []
+  },
+  "autonomy": "bounded",
+  "documentationAuthority": "git",
+  "policySources": [
+    ".agenthouse/policy.json"
+  ],
+  "evaluators": [
+    {
+      "id": "readiness",
+      "kind": "work-item",
+      "file": ".agenthouse/work/package-bootstrap.json",
+      "stage": "plan"
+    },
+    {
+      "id": "package-metadata",
+      "kind": "command",
+      "executable": "node",
+      "args": [
+        "scripts/check-package.mjs"
+      ],
+      "result": "exit-code"
+    },
+    {
+      "id": "tests",
+      "kind": "command",
+      "executable": "node",
+      "args": [
+        "--test"
+      ],
+      "result": "exit-code"
+    }
+  ],
+  "profiles": {
+    "pull-request": {
+      "checks": [
+        {
+          "evaluator": "readiness",
+          "required": true
+        },
+        {
+          "evaluator": "package-metadata",
+          "required": true
+        },
+        {
+          "evaluator": "tests",
+          "required": true
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autotour.dev/schemas/walkthrough.schema.json",
+  "title": "AutoTour modular walkthrough",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "title", "target", "outputs", "modules"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "id": { "$ref": "#/$defs/id" },
+    "title": { "type": "string", "minLength": 1 },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseUrl", "goal"],
+      "properties": {
+        "baseUrl": { "type": "string", "format": "uri" },
+        "goal": { "type": "string", "minLength": 1 }
+      }
+    },
+    "publish": { "type": "boolean", "default": false },
+    "outputs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["dom", "video", "screenshots"] }
+    },
+    "modules": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/module" }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "stringList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "views": { "$ref": "#/$defs/stringList" },
+        "controllers": { "$ref": "#/$defs/stringList" },
+        "apiEndpoints": { "$ref": "#/$defs/stringList" },
+        "backend": { "$ref": "#/$defs/stringList" }
+      }
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "action", "description"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "action": { "enum": ["goto", "click", "fill", "select", "assert", "wait"] },
+        "description": { "type": "string", "minLength": 1 },
+        "selector": { "type": "string", "minLength": 1 },
+        "valueEnv": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" }
+      }
+    },
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "route", "steps", "dependencies", "assets"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "title": { "type": "string", "minLength": 1 },
+        "route": { "type": "string", "minLength": 1 },
+        "publish": { "type": "boolean" },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/step" }
+        },
+        "dependencies": { "$ref": "#/$defs/dependencies" },
+        "assets": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "dom": { "type": "string" },
+            "video": { "type": "string" },
+            "screenshots": { "$ref": "#/$defs/stringList" }
+          }
+        }
+      }
+    }
+  }
+}

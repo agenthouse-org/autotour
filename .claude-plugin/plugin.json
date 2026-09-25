@@ -1,0 +1,11 @@
+{
+  "name": "autotour",
+  "version": "0.1.0",
+  "description": "Create modular walkthroughs and product documentation from web applications.",
+  "author": {
+    "name": "Valerio Neri",
+    "email": "valerio.neri@neri.de"
+  },
+  "license": "MIT",
+  "skills": "./skills/"
+}

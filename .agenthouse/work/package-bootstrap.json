@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "id": "package-bootstrap",
+  "title": "Bootstrap AutoTour as a cross-agent installable package",
+  "kind": "feature",
+  "stage": "plan",
+  "revision": 1,
+  "fields": {
+    "outcome": "Package maintainers can initialize, install, validate, and extend AutoTour from a clean Git repository across Claude, Codex, Cursor, and portable Agent Plugin hosts.",
+    "scope": "Initialize Git on main; add an MIT-licensed npm package scaffold, portable and compatibility plugin metadata, a reusable AutoTour skill, a minimal CLI, a modular walkthrough schema, tests, and CI. Browser capture, DOM replay, rendering, and dependency tracing are excluded from this bootstrap.",
+    "acceptance": "Git identity, npm packing and installation, agent metadata, project initialization, the walkthrough contract, and automated verification behave as the criteria specify.",
+    "decisions": "Use Node.js ESM and the unscoped npm name autotour, which was unclaimed when checked. Treat root plugin.json and skills/ as canonical portable metadata, with Codex, Claude, and Cursor compatibility files. Keep credentials out of committed JSON and local output ignored.",
+    "verification": "Run the Node test suite, package validation, npm pack dry-run, CLI smoke checks, plugin manifest validation, AgentHouse frozen evaluation, and Git housekeeping inspection.",
+    "dependencies": "Node.js 20 or newer, Playwright 1.63, Ajv 8.20, and Ajv Formats 3.0.",
+    "risks": "The unclaimed npm name is not reserved until publication. Host plugin formats can evolve. Browser capture and rendering remain future work and are stated as unavailable in the README."
+  },
+  "criteria": [
+    {
+      "id": "git-metadata",
+      "expectation": "The repository uses main and has local author metadata for Valerio Neri without changing global Git settings."
+    },
+    {
+      "id": "npm-package",
+      "expectation": "npm can pack an MIT-licensed public package named autotour with a working autotour executable."
+    },
+    {
+      "id": "agent-portability",
+      "expectation": "The package contains valid portable, Codex, Claude, and Cursor discovery metadata plus at least one usable skill."
+    },
+    {
+      "id": "project-init",
+      "expectation": "autotour init creates a repository-managed JSON configuration without storing credentials."
+    },
+    {
+      "id": "walkthrough-contract",
+      "expectation": "A published JSON Schema describes modular walkthroughs, outputs, publication choices, and source dependencies."
+    },
+    {
+      "id": "verification",
+      "expectation": "Automated tests and CI verify CLI behavior, metadata consistency, schema samples, and package contents."
+    }
+  ],
+  "evidence": [],
+  "history": []
+}

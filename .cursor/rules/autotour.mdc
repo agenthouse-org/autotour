@@ -1,0 +1,7 @@
+---
+description: Use AutoTour when creating or maintaining modular walkthroughs and product documentation for a web application.
+globs:
+alwaysApply: false
+---
+
+Use the workflow in `skills/create-autotour/SKILL.md`. Keep credentials in environment variables, keep generated private captures out of Git, and preserve stable module IDs when updating a walkthrough.

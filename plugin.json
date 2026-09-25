@@ -1,0 +1,29 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "autotour",
+  "version": "0.1.0",
+  "description": "Create modular walkthroughs and product documentation from web applications.",
+  "author": {
+    "name": "Valerio Neri",
+    "email": "valerio.neri@neri.de"
+  },
+  "license": "MIT",
+  "keywords": [
+    "playwright",
+    "walkthroughs",
+    "product-documentation"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "AutoTour",
+        "shortDescription": "Generate modular product walkthroughs",
+        "longDescription": "Explore a web application with Playwright and produce maintainable walkthrough manifests, screenshots, DOM replay, and video outputs.",
+        "developerName": "Valerio Neri",
+        "category": "Developer Tools",
+        "capabilities": [],
+        "defaultPrompt": "Create a modular AutoTour walkthrough for this web application."
+      }
+    }
+  }
+}

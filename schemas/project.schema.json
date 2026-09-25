@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autotour.dev/schemas/project.schema.json",
+  "title": "AutoTour project configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "project", "walkthroughs", "output", "auth", "publish"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "project": { "type": "string", "minLength": 1 },
+    "walkthroughs": { "type": "string", "minLength": 1 },
+    "output": { "type": "string", "minLength": 1 },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["usernameEnv", "passwordEnv"],
+      "properties": {
+        "usernameEnv": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+        "passwordEnv": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" }
+      }
+    },
+    "publish": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default"],
+      "properties": {
+        "default": { "type": "boolean" }
+      }
+    }
+  }
+}

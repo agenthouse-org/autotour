@@ -1,0 +1,18 @@
+{
+  "name": "autotour",
+  "owner": {
+    "name": "Valerio Neri",
+    "email": "valerio.neri@neri.de"
+  },
+  "plugins": [
+    {
+      "name": "autotour",
+      "source": "./",
+      "description": "Create modular walkthroughs and product documentation from web applications.",
+      "version": "0.1.0"
+    }
+  ],
+  "metadata": {
+    "description": "AutoTour agent workflows and package metadata"
+  }
+}
