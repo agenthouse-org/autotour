@@ -6,6 +6,8 @@
     "name": "Valerio Neri",
     "email": "valerio.neri@neri.de"
   },
+  "homepage": "https://github.com/agenthouse-org/autotour#readme",
+  "repository": "https://github.com/agenthouse-org/autotour",
   "license": "MIT",
   "skills": "./skills/"
 }

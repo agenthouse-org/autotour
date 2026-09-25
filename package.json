@@ -19,6 +19,14 @@
   "engines": {
     "node": ">=20"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agenthouse-org/autotour.git"
+  },
+  "homepage": "https://github.com/agenthouse-org/autotour#readme",
+  "bugs": {
+    "url": "https://github.com/agenthouse-org/autotour/issues"
+  },
   "bin": {
     "autotour": "bin/autotour.js"
   },
