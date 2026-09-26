@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { CaptureError } from "./errors.js";
 import { executeStep } from "./execute.js";
@@ -14,8 +14,8 @@ import { collectSecretValues, containsSecret, redactValue } from "./redact.js";
 
 /**
  * @typedef {object} CaptureOptions
- * @property {string} baseUrl
- * @property {string} goal
+ * @property {string} [baseUrl]
+ * @property {string} [goal]
  * @property {string} [usernameEnv]
  * @property {string} [passwordEnv]
  * @property {string} [displayName]
@@ -24,6 +24,7 @@ import { collectSecretValues, containsSecret, redactValue } from "./redact.js";
  * @property {NodeJS.ProcessEnv} [env]
  * @property {import('playwright').Page} [page]
  * @property {() => Promise<{ page: import('playwright').Page, close?: () => Promise<void> }>} [createSession]
+ * @property {false | { size?: { width: number, height: number }, viewport?: { width: number, height: number }, showActions?: object }} [recordVideo]
  */
 
 /**
@@ -35,8 +36,8 @@ import { collectSecretValues, containsSecret, redactValue } from "./redact.js";
  */
 export async function captureJourney(options = {}) {
   const {
-    baseUrl,
-    goal,
+    baseUrl: requestedBaseUrl,
+    goal: requestedGoal,
     usernameEnv = "AUTOTOUR_USERNAME",
     passwordEnv = "AUTOTOUR_PASSWORD",
     displayName,
@@ -44,8 +45,15 @@ export async function captureJourney(options = {}) {
     env = process.env,
     page: injectedPage,
     createSession,
-    journey: journeyOverride
+    journey: journeyOverride,
+    recordVideo = false
   } = options;
+
+  const journey = normalizeExecutableJourney(
+    journeyOverride ?? createProfileJourney({ usernameEnv, passwordEnv, displayName })
+  );
+  const baseUrl = requestedBaseUrl ?? journey.target?.baseUrl;
+  const goal = requestedGoal ?? journey.target?.goal;
 
   if (typeof baseUrl !== "string" || baseUrl.trim() === "") {
     throw new CaptureError({
@@ -70,80 +78,104 @@ export async function captureJourney(options = {}) {
     });
   }
 
-  const username = env[usernameEnv];
-  const password = env[passwordEnv];
-  const secrets = collectSecretValues([username, password]);
+  const environmentNames = collectEnvironmentNames(journey);
+  const secrets = collectSecretValues(environmentNames.map((name) => env[name]));
+  for (const name of environmentNames) {
+    if (typeof env[name] !== "string" || env[name].length === 0) {
+      throw new CaptureError({
+        message: `Missing credential environment variable ${name}.`,
+        cause: `${name} is unset or empty`,
+        secrets
+      });
+    }
+  }
 
-  if (typeof username !== "string" || username.length === 0) {
+  if (recordVideo && injectedPage) {
     throw new CaptureError({
-      message: `Missing credential environment variable ${usernameEnv}.`,
-      cause: `${usernameEnv} is unset or empty`,
+      message: "Video capture cannot use an injected page.",
+      cause: "Playwright video recording must be configured when the browser context is created",
       secrets
     });
   }
-  if (typeof password !== "string" || password.length === 0) {
+  if (recordVideo && createSession) {
     throw new CaptureError({
-      message: `Missing credential environment variable ${passwordEnv}.`,
-      cause: `${passwordEnv} is unset or empty`,
+      message: "Video capture cannot use a custom single-page session.",
+      cause: "module video recording requires AutoTour to own the Playwright browser context",
       secrets
     });
   }
 
-  const journey =
-    journeyOverride ??
-    createProfileJourney({ usernameEnv, passwordEnv, displayName });
-
-  let sessionClose = async () => {};
-  let page = injectedPage;
-  if (!page) {
-    const session = createSession
-      ? await createSession()
-      : await openPlaywrightSession();
-    page = session.page;
-    sessionClose = session.close ?? sessionClose;
-  }
-
-  const observer = observeSameOriginRequests(page, parsedBase);
+  await mkdir(outputDir, { recursive: true });
+  const session = await createCaptureSession({
+    injectedPage,
+    createSession,
+    recordVideo,
+    outputDir
+  });
   /** @type {object[]} */
   const capturedModules = [];
+  /** @type {Record<string, string>} */
+  const videoPaths = {};
+  let captureError;
 
   try {
     for (const module of journey.modules) {
+      const handle = await session.openModule(module);
+      const page = handle.page;
+      const observer = observeSameOriginRequests(page, parsedBase);
       const moduleRequests = [];
       const capturedSteps = [];
 
-      for (const step of module.steps) {
-        const before = observer.snapshot();
-        await executeStep({
-          page,
-          baseUrl: parsedBase.toString(),
-          module,
-          step,
-          env,
-          secrets
-        });
-        // Allow microtasks/network handlers attached by page doubles to flush.
-        await Promise.resolve();
-        const observedRequests = uniquePreserve(diffObservations(before, observer.snapshot()));
+      let assets = {};
+      let moduleError;
+      try {
+        for (const step of module.steps) {
+          const before = observer.snapshot();
+          await executeStep({
+            page,
+            baseUrl: parsedBase.toString(),
+            module,
+            step,
+            env,
+            secrets
+          });
+          // Allow microtasks/network handlers attached by page doubles to flush.
+          await Promise.resolve();
+          const observedRequests = uniquePreserve(diffObservations(before, observer.snapshot()));
 
-        for (const entry of observedRequests) {
-          if (!moduleRequests.includes(entry)) {
-            moduleRequests.push(entry);
+          for (const entry of observedRequests) {
+            if (!moduleRequests.includes(entry)) {
+              moduleRequests.push(entry);
+            }
           }
-        }
 
-        capturedSteps.push({
-          ...step,
-          observedRequests
-        });
+          capturedSteps.push({
+            ...step,
+            observedRequests
+          });
+        }
+      } catch (error) {
+        moduleError = error;
+        throw error;
+      } finally {
+        observer.stop();
+        try {
+          assets = await handle.close();
+        } catch (error) {
+          if (!moduleError) throw error;
+        }
       }
 
+      if (assets.videoPath) videoPaths[module.id] = assets.videoPath;
       capturedModules.push({
         id: module.id,
         title: module.title,
         route: module.route,
         steps: capturedSteps,
-        observedRequests: moduleRequests
+        observedRequests: moduleRequests,
+        dependencies: module.dependencies,
+        publish: module.publish,
+        assets: assets.video ? { video: assets.video } : {}
       });
     }
 
@@ -153,6 +185,8 @@ export async function captureJourney(options = {}) {
       baseUrl: parsedBase.toString().replace(/\/$/, ""),
       goal,
       modules: capturedModules,
+      outputs: recordVideo ? ["video"] : ["screenshots"],
+      publish: journey.publish,
       secrets
     });
 
@@ -166,7 +200,6 @@ export async function captureJourney(options = {}) {
     }
 
     const captureSteps = buildCaptureSteps(capturedModules, secrets);
-    await mkdir(outputDir, { recursive: true });
     const paths = await writeCaptureArtifacts(outputDir, walkthrough, captureSteps);
 
     const result = {
@@ -181,6 +214,7 @@ export async function captureJourney(options = {}) {
         })),
         secrets
       ),
+      videoPaths,
       ...paths
     };
 
@@ -193,9 +227,15 @@ export async function captureJourney(options = {}) {
     }
 
     return result;
+  } catch (error) {
+    captureError = error;
+    throw error;
   } finally {
-    observer.stop();
-    await sessionClose();
+    try {
+      await session.close();
+    } catch (error) {
+      if (!captureError) throw error;
+    }
   }
 }
 
@@ -211,14 +251,145 @@ function uniquePreserve(values) {
   return out;
 }
 
+function collectEnvironmentNames(journey) {
+  return [...new Set(
+    journey.modules.flatMap((module) =>
+      module.steps.flatMap((step) => step.valueEnv ? [step.valueEnv] : [])
+    )
+  )];
+}
+
+function normalizeExecutableJourney(journey) {
+  if (!journey || typeof journey !== "object" || !Array.isArray(journey.modules)) {
+    throw new CaptureError({
+      message: "capture requires a journey with modules",
+      cause: "journey.modules is missing or invalid"
+    });
+  }
+
+  return {
+    ...journey,
+    modules: journey.modules.map((module) => ({
+      ...module,
+      steps: module.steps.map((step) => ({
+        ...step,
+        target: step.target ?? parseSelector(step.selector)
+      }))
+    }))
+  };
+}
+
+function parseSelector(selector) {
+  if (selector === undefined) return undefined;
+  if (typeof selector !== "string") {
+    throw new CaptureError({
+      message: "Journey selector must be a string.",
+      cause: "selector is not a string"
+    });
+  }
+  const roleMatch = /^role=([a-z][a-z0-9-]*)\[name=(.+)\]$/.exec(selector);
+  const textMatch = /^text=(.+)$/.exec(selector);
+  if (!roleMatch && !textMatch) {
+    throw new CaptureError({
+      message: `Unsupported journey selector: ${selector}`,
+      cause: "expected role=<role>[name=<JSON string>] or text=<JSON string>"
+    });
+  }
+  try {
+    if (roleMatch) return { role: roleMatch[1], name: JSON.parse(roleMatch[2]) };
+    return { text: JSON.parse(textMatch[1]) };
+  } catch (error) {
+    throw new CaptureError({
+      message: `Unsupported journey selector: ${selector}`,
+      cause: `selector name is not valid JSON: ${error.message}`
+    });
+  }
+}
+
+async function createCaptureSession({ injectedPage, createSession, recordVideo, outputDir }) {
+  if (injectedPage) return createSharedPageSession(injectedPage);
+  if (createSession) {
+    const custom = await createSession();
+    const session = createSharedPageSession(custom.page);
+    session.close = custom.close ?? session.close;
+    return session;
+  }
+  if (recordVideo) return openPlaywrightVideoSession(recordVideo, outputDir);
+  return openPlaywrightSession();
+}
+
+function createSharedPageSession(page) {
+  return {
+    async openModule() {
+      return {
+        page,
+        async close() {
+          return {};
+        }
+      };
+    },
+    async close() {}
+  };
+}
+
 async function openPlaywrightSession() {
   const { chromium } = await import("playwright");
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   return {
-    page,
+    async openModule() {
+      return {
+        page,
+        async close() {
+          return {};
+        }
+      };
+    },
     async close() {
       await browser.close();
+    }
+  };
+}
+
+async function openPlaywrightVideoSession(options, outputDir) {
+  const { chromium } = await import("playwright");
+  const temporaryDir = path.join(outputDir, ".video-temp");
+  await mkdir(temporaryDir, { recursive: true });
+  const browser = await chromium.launch({ headless: true });
+  const recordVideo = { dir: temporaryDir };
+  if (options.size) recordVideo.size = options.size;
+  if (options.showActions) recordVideo.showActions = options.showActions;
+  const context = await browser.newContext({
+    viewport: options.viewport ?? options.size ?? { width: 1280, height: 720 },
+    recordVideo,
+    reducedMotion: "reduce"
+  });
+
+  return {
+    async openModule(module) {
+      const page = await context.newPage();
+      const video = page.video();
+      let closed = false;
+      return {
+        page,
+        async close() {
+          if (closed) return {};
+          closed = true;
+          await page.close();
+          const temporaryPath = await video.path();
+          const relativePath = path.posix.join("modules", module.id, "video.webm");
+          const videoPath = path.join(outputDir, "modules", module.id, "video.webm");
+          await mkdir(path.dirname(videoPath), { recursive: true });
+          await rm(videoPath, { force: true });
+          await rename(temporaryPath, videoPath);
+          return { video: relativePath, videoPath };
+        }
+      };
+    },
+    async close() {
+      await context.close();
+      await browser.close();
+      await rm(temporaryDir, { recursive: true, force: true });
     }
   };
 }

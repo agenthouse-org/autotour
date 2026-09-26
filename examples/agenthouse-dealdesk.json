@@ -1,0 +1,139 @@
+{
+  "$schema": "../schemas/walkthrough.schema.json",
+  "schemaVersion": 1,
+  "id": "discover-dealdesk",
+  "title": "Discover DealDesk",
+  "target": {
+    "baseUrl": "https://agenthouse.org/en/",
+    "goal": "Introduce prospective customers to DealDesk by moving from the agenthouse homepage through Automation and Agentic Applications, then showing the opening DealDesk story."
+  },
+  "publish": false,
+  "outputs": ["video"],
+  "modules": [
+    {
+      "id": "find-dealdesk",
+      "title": "Find DealDesk",
+      "route": "/en/",
+      "publish": true,
+      "steps": [
+        {
+          "id": "open-homepage",
+          "action": "goto",
+          "description": "Open the English agenthouse homepage.",
+          "path": "/en/"
+        },
+        {
+          "id": "settle-homepage",
+          "action": "wait",
+          "description": "Let the homepage settle.",
+          "durationMs": 800
+        },
+        {
+          "id": "explore-homepage",
+          "action": "scroll",
+          "description": "Briefly explore the homepage.",
+          "scroll": { "mode": "by", "x": 0, "y": 640, "durationMs": 700 }
+        },
+        {
+          "id": "pause-on-homepage",
+          "action": "wait",
+          "description": "Pause on the homepage content.",
+          "durationMs": 600
+        },
+        {
+          "id": "return-to-navigation",
+          "action": "scroll",
+          "description": "Return to the main navigation.",
+          "scroll": { "mode": "to", "x": 0, "y": 0, "durationMs": 700 }
+        },
+        {
+          "id": "open-automation",
+          "action": "click",
+          "description": "Open the Automation navigation group.",
+          "selector": "role=button[name=\"Automation\"]"
+        },
+        {
+          "id": "show-automation",
+          "action": "wait",
+          "description": "Show the Automation choices.",
+          "durationMs": 500
+        },
+        {
+          "id": "open-agentic-applications",
+          "action": "click",
+          "description": "Open Agentic Applications.",
+          "selector": "role=button[name=\"Agentic Applications\"]"
+        },
+        {
+          "id": "show-agentic-applications",
+          "action": "wait",
+          "description": "Show the available agentic applications.",
+          "durationMs": 500
+        },
+        {
+          "id": "open-dealdesk",
+          "action": "click",
+          "description": "Open DealDesk.",
+          "selector": "role=link[name=\"DealDesk\"]"
+        },
+        {
+          "id": "confirm-dealdesk",
+          "action": "assert",
+          "description": "Confirm that DealDesk opened.",
+          "url": "/en/dealdesk/",
+          "timeoutMs": 10000
+        },
+        {
+          "id": "pause-on-dealdesk",
+          "action": "wait",
+          "description": "Pause on the DealDesk introduction.",
+          "durationMs": 900
+        }
+      ],
+      "dependencies": {},
+      "assets": {}
+    },
+    {
+      "id": "dealdesk-overview",
+      "title": "DealDesk overview",
+      "route": "/en/dealdesk/",
+      "publish": true,
+      "steps": [
+        {
+          "id": "open-dealdesk-overview",
+          "action": "goto",
+          "description": "Open the DealDesk product page.",
+          "path": "/en/dealdesk/"
+        },
+        {
+          "id": "confirm-dealdesk-heading",
+          "action": "assert",
+          "description": "Confirm the DealDesk introduction is visible.",
+          "selector": "role=heading[name=\"Less time in your CRM\"]",
+          "state": "visible",
+          "timeoutMs": 10000
+        },
+        {
+          "id": "read-dealdesk-introduction",
+          "action": "wait",
+          "description": "Pause on the DealDesk introduction.",
+          "durationMs": 800
+        },
+        {
+          "id": "explore-dealdesk",
+          "action": "scroll",
+          "description": "Explore the opening DealDesk story.",
+          "scroll": { "mode": "by", "x": 0, "y": 720, "durationMs": 900 }
+        },
+        {
+          "id": "pause-on-dealdesk-story",
+          "action": "wait",
+          "description": "Pause on the DealDesk story.",
+          "durationMs": 900
+        }
+      ],
+      "dependencies": {},
+      "assets": {}
+    }
+  ]
+}

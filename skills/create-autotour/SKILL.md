@@ -15,4 +15,6 @@ Work from the target repository root. Read `autotour.json` or `.autotour/autotou
 5. Capture only the requested outputs. Put local captures and authentication state in ignored paths configured by AutoTour.
 6. Validate the walkthrough JSON against `schemas/walkthrough.schema.json` and report which modules were created, reused, or need re-recording.
 
+For raw modular video, execute the schema-shaped walkthrough with `captureJourney({ journey, recordVideo })`. Use a fixed viewport and create one video per module so unchanged modules remain reusable. In CI, install Playwright Chromium, keep credentials in secret environment variables, and upload `.autotour/output` as a workflow artifact only when requested by project policy.
+
 Treat the walkthrough manifest as the source of truth. Generated media is replaceable output. A code change should invalidate only modules whose recorded dependencies overlap the changed components.

@@ -8,7 +8,8 @@ export function createFixturePageDouble({
   baseUrl = "https://fixture.test",
   username = "capture-user@example.test",
   password = "capture-secret-value",
-  initialDisplayName = "Original Name"
+  initialDisplayName = "Original Name",
+  hiddenTargets = []
 } = {}) {
   const origin = new URL(baseUrl);
   const emitter = new EventEmitter();
@@ -18,6 +19,7 @@ export function createFixturePageDouble({
   let displayName = initialDisplayName;
   /** @type {string[]} */
   const actions = [];
+  const hidden = new Set(hiddenTargets);
 
   function emitApi(method, pathname) {
     const url = new URL(pathname, origin).toString();
@@ -54,6 +56,16 @@ export function createFixturePageDouble({
           displayName = fields.get("textbox:Display name") ?? displayName;
           emitApi("PUT", "/api/profile");
         }
+      },
+      async selectOption(value) {
+        actions.push({ type: "select", role, name, value });
+        fields.set(key, value);
+      },
+      async waitFor({ state = "visible" } = {}) {
+        actions.push({ type: `assert-${state}`, role, name });
+        if (state === "visible" && hidden.has(key)) {
+          throw new Error(`${role} ${name} is not visible`);
+        }
       }
     };
   }
@@ -68,6 +80,9 @@ export function createFixturePageDouble({
     getByRole(role, { name } = {}) {
       return locatorFor(role, name);
     },
+    getByText(text) {
+      return locatorFor("text", text);
+    },
     async goto(url) {
       const target = new URL(url, origin);
       actions.push({ type: "goto", url: target.toString() });
@@ -77,6 +92,20 @@ export function createFixturePageDouble({
           throw new Error("Authentication required");
         }
         emitApi("GET", "/api/profile");
+      }
+    },
+    async evaluate(_callback, value) {
+      actions.push({ type: "scroll", ...value });
+    },
+    async waitForTimeout(durationMs) {
+      actions.push({ type: "wait", durationMs });
+    },
+    async waitForURL(expected) {
+      actions.push({ type: "assert-url", expected });
+      const current = new URL(route, origin);
+      const expectedUrl = new URL(expected, origin);
+      if (current.pathname !== expectedUrl.pathname) {
+        throw new Error(`Expected URL ${expectedUrl.pathname}, received ${current.pathname}`);
       }
     },
     url() {

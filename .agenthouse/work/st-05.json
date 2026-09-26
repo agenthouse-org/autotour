@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "id": "st-05",
+  "title": "Record modular walkthrough video",
+  "kind": "feature",
+  "stage": "verify",
+  "revision": 6,
+  "fields": {
+    "outcome": "A documentation author can render a generic AutoTour journey as independently replaceable module videos suitable for review and CI artifacts.",
+    "parentWork": "autotour-core",
+    "scope": "Record one deterministic Playwright WebM per journey module while preserving browser-context state between modules. Store stable asset references in the walkthrough manifest and expose a library API. Exclude MP4 transcoding, Remotion composition, audio, DOM replay, and publication hosting.",
+    "acceptance": "Executing a multi-module fixture journey with video enabled produces a playable non-empty WebM for every module and records deterministic module asset paths without exposing secrets.",
+    "decisions": "Use one browser context and a separate page per module. Playwright finalizes each module video when its page closes; stable output names are applied afterward. Video is generated media and remains ignored by Git by default.",
+    "verification": "Run the video capture against the local fixture in Chromium, assert one non-empty WebM per module, validate manifest asset references, and run package and frozen AgentHouse checks.",
+    "changes": "Implemented one Playwright WebM per module using separate pages in a shared browser context, deterministic module asset paths, environment-backed input masking, headless fixed-viewport capture, CI Chromium installation, and a live AgentHouse DealDesk example journey.",
+    "dependencies": "Consumes the generic executor from st-04 and Playwright video recording. CI publishing is a later story.",
+    "risks": "Video encoding depends on browser availability, page closure is required to finalize files, and animations or remote content can make output nondeterministic."
+  },
+  "criteria": [
+    {
+      "id": "module-videos",
+      "expectation": "Each executed module produces its own non-empty WebM file."
+    },
+    {
+      "id": "shared-session",
+      "expectation": "Authentication and browser-context state carry from one module recording to the next."
+    },
+    {
+      "id": "stable-assets",
+      "expectation": "Video files and manifest references use deterministic module-based paths."
+    },
+    {
+      "id": "safe-finalization",
+      "expectation": "Pages and browser context close on success or failure and finalized videos are not reported before they exist."
+    },
+    {
+      "id": "secret-safety",
+      "expectation": "Video metadata, paths, returned values, and diagnostics contain no credential values."
+    },
+    {
+      "id": "ci-ready",
+      "expectation": "Video capture runs headlessly with fixed viewport and generated files stay in ignored output paths."
+    }
+  ],
+  "evidence": [],
+  "history": [
+    {
+      "from": "discover",
+      "to": "define",
+      "at": "2026-09-26T19:30:50.697Z",
+      "previous": "2fb3d61ee3e8e63088ce4170a3b09b5b9c248ab849fbd1c1d8eb47d0d9fa057a",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "define",
+      "to": "design",
+      "at": "2026-09-26T19:30:51.951Z",
+      "previous": "4e3921d63d97d7a1c25485707627e7539b9b5c45cdd3ae449ae6168e742ab386",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "design",
+      "to": "plan",
+      "at": "2026-09-26T19:30:53.302Z",
+      "previous": "d68e1bd9fc005e2d4b36c834de1b07994d02983c54c406d530ce177abad865eb",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "plan",
+      "to": "implement",
+      "at": "2026-09-26T19:30:54.676Z",
+      "previous": "eb4717a6f03e35f5a67de6dd1d56dadc165efd95075c58385cdcb3e6594decee",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "implement",
+      "to": "verify",
+      "at": "2026-09-26T19:30:55.923Z",
+      "previous": "617e50dd4f54658bf9297b9511ef09559d33f5f3ff50d439b82fb46a9f598972",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    }
+  ]
+}

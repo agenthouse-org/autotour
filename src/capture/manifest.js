@@ -45,7 +45,16 @@ export async function validateWalkthroughDocument(document) {
  * @param {object[]} options.modules
  * @param {Iterable<string>} [options.secrets]
  */
-export function buildWalkthrough({ id, title, baseUrl, goal, modules, secrets = [] }) {
+export function buildWalkthrough({
+  id,
+  title,
+  baseUrl,
+  goal,
+  modules,
+  outputs = ["screenshots"],
+  publish = false,
+  secrets = []
+}) {
   const walkthrough = {
     schemaVersion: 1,
     id,
@@ -54,13 +63,13 @@ export function buildWalkthrough({ id, title, baseUrl, goal, modules, secrets = 
       baseUrl,
       goal
     },
-    publish: false,
-    outputs: ["screenshots"],
+    publish,
+    outputs,
     modules: modules.map((module) => ({
       id: module.id,
       title: module.title,
       route: module.route,
-      publish: true,
+      publish: module.publish ?? true,
       steps: module.steps.map((step) => {
         /** @type {Record<string, unknown>} */
         const entry = {
@@ -70,16 +79,17 @@ export function buildWalkthrough({ id, title, baseUrl, goal, modules, secrets = 
         };
         if (step.target?.name) {
           entry.selector = `role=${step.target.role}[name=${JSON.stringify(step.target.name)}]`;
+        } else if (step.target?.text) {
+          entry.selector = `text=${JSON.stringify(step.target.text)}`;
         }
         if (step.valueEnv) {
           entry.valueEnv = step.valueEnv;
         }
+        copyActionDetails(entry, step);
         return entry;
       }),
-      dependencies: {
-        apiEndpoints: [...new Set(module.observedRequests ?? [])]
-      },
-      assets: {}
+      dependencies: mergeDependencies(module.dependencies, module.observedRequests),
+      assets: { ...(module.assets ?? {}) }
     }))
   };
 
@@ -109,14 +119,14 @@ export function buildCaptureSteps(modules, secrets = []) {
         }
       };
       if (step.target) {
-        entry.target = {
-          role: step.target.role,
-          name: step.target.name
-        };
+        entry.target = step.target.text
+          ? { text: step.target.text }
+          : { role: step.target.role, name: step.target.name };
       }
       if (step.valueEnv) {
         entry.valueEnv = step.valueEnv;
       }
+      copyActionDetails(entry, step);
       steps.push(entry);
     }
   }
@@ -139,3 +149,27 @@ export async function writeCaptureArtifacts(outputDir, walkthrough, captureSteps
 }
 
 export { schemaPath };
+
+function copyActionDetails(entry, step) {
+  for (const key of ["path", "value", "durationMs", "timeoutMs", "url", "state"]) {
+    if (step[key] !== undefined) entry[key] = step[key];
+  }
+  if (step.scroll) {
+    entry.scroll = {
+      mode: step.scroll.mode ?? "by",
+      x: step.scroll.x ?? 0,
+      y: step.scroll.y ?? 0,
+      durationMs: step.scroll.durationMs ?? 0
+    };
+  }
+}
+
+function mergeDependencies(existing = {}, observedRequests = []) {
+  const dependencies = { ...existing };
+  const apiEndpoints = [...new Set([
+    ...(existing.apiEndpoints ?? []),
+    ...observedRequests
+  ])];
+  if (apiEndpoints.length > 0) dependencies.apiEndpoints = apiEndpoints;
+  return dependencies;
+}

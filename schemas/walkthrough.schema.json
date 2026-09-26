@@ -55,10 +55,27 @@
       "required": ["id", "action", "description"],
       "properties": {
         "id": { "$ref": "#/$defs/id" },
-        "action": { "enum": ["goto", "click", "fill", "select", "assert", "wait"] },
+        "action": { "enum": ["goto", "click", "fill", "select", "scroll", "assert", "wait"] },
         "description": { "type": "string", "minLength": 1 },
         "selector": { "type": "string", "minLength": 1 },
-        "valueEnv": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" }
+        "path": { "type": "string", "minLength": 1 },
+        "value": { "type": "string" },
+        "valueEnv": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+        "durationMs": { "type": "integer", "minimum": 0, "maximum": 30000 },
+        "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 30000 },
+        "url": { "type": "string", "minLength": 1 },
+        "state": { "enum": ["attached", "detached", "visible", "hidden"] },
+        "scroll": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "x", "y", "durationMs"],
+          "properties": {
+            "mode": { "enum": ["by", "to"] },
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "durationMs": { "type": "integer", "minimum": 0, "maximum": 30000 }
+          }
+        }
       }
     },
     "module": {

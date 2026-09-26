@@ -6,8 +6,11 @@ import { CaptureError } from "./errors.js";
  * @param {{ role: string, name: string }} target
  */
 export function resolveTarget(page, target) {
+  if (typeof target?.text === "string" && target.text.length > 0) {
+    return page.getByText(target.text, { exact: true });
+  }
   if (!target?.role || !target?.name) {
-    throw new Error("target requires role and name");
+    throw new Error("target requires role/name or exact text");
   }
   return page.getByRole(target.role, { name: target.name, exact: true });
 }
@@ -65,6 +68,12 @@ export async function executeStep({ page, baseUrl, module, step, env, secrets })
           throw new Error("fill steps require valueEnv or value");
         }
         const locator = resolveTarget(page, step.target);
+        if (step.valueEnv && typeof locator.evaluate === "function") {
+          await locator.evaluate((element) => {
+            element.style.setProperty("-webkit-text-security", "disc");
+            element.setAttribute("data-autotour-sensitive", "true");
+          });
+        }
         await locator.fill(value);
         break;
       }
@@ -73,10 +82,83 @@ export async function executeStep({ page, baseUrl, module, step, env, secrets })
         await locator.click();
         break;
       }
-      case "assert":
-      case "wait":
       case "select": {
-        throw new Error(`action ${step.action} is not supported by the MVP capture journey`);
+        const value = resolveStepValue(step, env, secrets, context);
+        if (value === undefined) {
+          throw new Error("select steps require valueEnv or value");
+        }
+        const locator = resolveTarget(page, step.target);
+        await locator.selectOption(value);
+        break;
+      }
+      case "scroll": {
+        const scroll = normalizeScroll(step.scroll);
+        await page.evaluate(async ({ mode, x, y, durationMs }) => {
+          const startX = window.scrollX;
+          const startY = window.scrollY;
+          const targetX = mode === "by" ? startX + x : x;
+          const targetY = mode === "by" ? startY + y : y;
+
+          if (durationMs === 0) {
+            window.scrollTo(targetX, targetY);
+            return;
+          }
+
+          await new Promise((resolve) => {
+            const started = performance.now();
+            const tick = (now) => {
+              const progress = Math.min(1, (now - started) / durationMs);
+              const eased = progress < 0.5
+                ? 2 * progress * progress
+                : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+              window.scrollTo(
+                startX + (targetX - startX) * eased,
+                startY + (targetY - startY) * eased
+              );
+              if (progress < 1) requestAnimationFrame(tick);
+              else resolve();
+            };
+            requestAnimationFrame(tick);
+          });
+        }, scroll);
+        break;
+      }
+      case "wait": {
+        if (step.target) {
+          const timeoutMs = normalizeDuration(step.timeoutMs ?? 5000, "wait timeoutMs", {
+            minimum: 1
+          });
+          const locator = resolveTarget(page, step.target);
+          await locator.waitFor({
+            state: step.state ?? "visible",
+            timeout: timeoutMs
+          });
+        } else {
+          const durationMs = normalizeDuration(step.durationMs, "wait durationMs", {
+            minimum: 0
+          });
+          await page.waitForTimeout(durationMs);
+        }
+        break;
+      }
+      case "assert": {
+        const timeoutMs = normalizeDuration(step.timeoutMs ?? 5000, "assert timeoutMs", {
+          minimum: 1
+        });
+        if (step.url) {
+          const expectedUrl = new URL(step.url, baseUrl).toString();
+          await page.waitForURL(expectedUrl, { timeout: timeoutMs });
+          break;
+        }
+        if (step.target) {
+          const locator = resolveTarget(page, step.target);
+          await locator.waitFor({
+            state: step.state ?? "visible",
+            timeout: timeoutMs
+          });
+          break;
+        }
+        throw new Error("assert steps require url or target");
       }
       default:
         throw new Error(`unknown action ${step.action}`);
@@ -94,4 +176,34 @@ export async function executeStep({ page, baseUrl, module, step, env, secrets })
       original: error
     });
   }
+}
+
+function normalizeScroll(value) {
+  if (!value || typeof value !== "object") {
+    throw new Error("scroll steps require a scroll object");
+  }
+  const mode = value.mode ?? "by";
+  if (mode !== "by" && mode !== "to") {
+    throw new Error('scroll mode must be "by" or "to"');
+  }
+  const x = normalizeCoordinate(value.x ?? 0, "scroll x");
+  const y = normalizeCoordinate(value.y ?? 0, "scroll y");
+  const durationMs = normalizeDuration(value.durationMs ?? 0, "scroll durationMs", {
+    minimum: 0
+  });
+  return { mode, x, y, durationMs };
+}
+
+function normalizeCoordinate(value, label) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`${label} must be a finite number`);
+  }
+  return value;
+}
+
+function normalizeDuration(value, label, { minimum }) {
+  if (!Number.isInteger(value) || value < minimum || value > 30000) {
+    throw new Error(`${label} must be an integer between ${minimum} and 30000`);
+  }
+  return value;
 }

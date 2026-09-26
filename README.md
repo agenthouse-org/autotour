@@ -4,6 +4,29 @@ AutoTour is an open-source toolkit for coding agents that turns a web applicatio
 
 The intended outputs are dynamic DOM walkthroughs, rendered video, and annotated screenshots. Each walkthrough module records the application views, controllers, API endpoints, and backend components it depends on so affected modules can be re-recorded independently after a change.
 
+## Modular video capture
+
+Schema-shaped walkthrough JSON can be executed directly. With `recordVideo` enabled, AutoTour uses one shared browser context and records a separate WebM for each module, preserving authentication while keeping modules independently replaceable.
+
+```js
+import { readFile } from "node:fs/promises";
+import { captureJourney } from "autotour";
+
+const journey = JSON.parse(await readFile("examples/agenthouse-dealdesk.json", "utf8"));
+const result = await captureJourney({
+  journey,
+  outputDir: ".autotour/output/dealdesk",
+  recordVideo: {
+    viewport: { width: 1280, height: 720 },
+    size: { width: 1280, height: 720 }
+  }
+});
+
+console.log(result.videoPaths);
+```
+
+Generated videos remain under the ignored `.autotour/output/` directory by default. CI must install Playwright Chromium before capture.
+
 > AutoTour is in its package-bootstrap phase. The CLI, plugin metadata, and walkthrough contract are usable; browser capture and rendering are not implemented yet.
 
 ## Install
