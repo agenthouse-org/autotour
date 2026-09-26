@@ -4,8 +4,8 @@
   "title": "Capture a journey as stable walkthrough modules",
   "author": "codex",
   "kind": "feature",
-  "stage": "implement",
-  "revision": 2,
+  "stage": "verify",
+  "revision": 3,
   "fields": {
     "outcome": "A developer can capture an authorized browser journey as deterministic, stable walkthrough modules without writing Playwright code for that journey.",
     "parentWork": "autotour-core",
@@ -13,6 +13,7 @@
     "acceptance": "Given the agreed fixture contract and journey definition, capture produces a deterministic schema-valid manifest with stable module and step IDs and no secret values.",
     "decisions": "Own files under src/capture and capture-specific tests. Develop against the route and API contract in docs/contracts/mvp-interfaces.md; use a test double or data URL when ST-01 is unavailable. Do not modify shared schemas or package metadata; report integration changes instead.",
     "verification": "Run capture twice against equivalent fixture state, validate both manifests, compare stable identities, assert observed routes and requests, and scan output for supplied secret values.",
+    "changes": "Implemented deterministic journey capture, observed API recording, manifest validation, redaction, safe failures, and capture-specific tests in commit 7c28291095ed86d3a5a32b6163ab3face0b9ee1d, then integrated it into develop via merge commit 503432b.",
     "dependencies": "The contract defined by st-01 and the existing walkthrough schema and Playwright dependency.",
     "risks": "Browser timing and generated identifiers can make output nondeterministic; request observation alone does not prove backend ownership."
   },
@@ -53,6 +54,14 @@
       "to": "implement",
       "at": "2026-09-26T17:12:50.246Z",
       "previous": "854dffa6921e862951d1b44a7830398d0f50ffac8fb8a9acc22ec188e54c2195",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "implement",
+      "to": "verify",
+      "at": "2026-09-26T17:25:10.069Z",
+      "previous": "10b6cef10119bfd944d652de7222db3561d51d0045b62f06b71e37465ae2b367",
       "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
       "decision": null
     }
