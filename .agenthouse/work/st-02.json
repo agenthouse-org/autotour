@@ -2,9 +2,10 @@
   "schemaVersion": 1,
   "id": "st-02",
   "title": "Capture a journey as stable walkthrough modules",
+  "author": "codex",
   "kind": "feature",
-  "stage": "plan",
-  "revision": 1,
+  "stage": "implement",
+  "revision": 2,
   "fields": {
     "outcome": "A developer can capture an authorized browser journey as deterministic, stable walkthrough modules without writing Playwright code for that journey.",
     "parentWork": "autotour-core",
@@ -16,14 +17,44 @@
     "risks": "Browser timing and generated identifiers can make output nondeterministic; request observation alone does not prove backend ownership."
   },
   "criteria": [
-    { "id": "capture-input", "expectation": "Capture accepts a base URL, journey goal, and environment-variable names for authorized credentials." },
-    { "id": "capture-execution", "expectation": "Capture performs login and the profile update journey using stable user-visible controls." },
-    { "id": "capture-modules", "expectation": "The result contains stable module and step IDs that remain unchanged across equivalent runs." },
-    { "id": "capture-observations", "expectation": "The manifest records actions, routes, and observed login/profile API endpoints without claiming unobserved ownership." },
-    { "id": "capture-schema", "expectation": "The generated walkthrough validates against schemas/walkthrough.schema.json." },
-    { "id": "capture-secrets", "expectation": "Generated files and diagnostics do not contain credential values, cookies, tokens, or storage state." },
-    { "id": "capture-failure", "expectation": "A failed step identifies the module, step, and observable cause without exposing secrets." }
+    {
+      "id": "capture-input",
+      "expectation": "Capture accepts a base URL, journey goal, and environment-variable names for authorized credentials."
+    },
+    {
+      "id": "capture-execution",
+      "expectation": "Capture performs login and the profile update journey using stable user-visible controls."
+    },
+    {
+      "id": "capture-modules",
+      "expectation": "The result contains stable module and step IDs that remain unchanged across equivalent runs."
+    },
+    {
+      "id": "capture-observations",
+      "expectation": "The manifest records actions, routes, and observed login/profile API endpoints without claiming unobserved ownership."
+    },
+    {
+      "id": "capture-schema",
+      "expectation": "The generated walkthrough validates against schemas/walkthrough.schema.json."
+    },
+    {
+      "id": "capture-secrets",
+      "expectation": "Generated files and diagnostics do not contain credential values, cookies, tokens, or storage state."
+    },
+    {
+      "id": "capture-failure",
+      "expectation": "A failed step identifies the module, step, and observable cause without exposing secrets."
+    }
   ],
   "evidence": [],
-  "history": []
+  "history": [
+    {
+      "from": "plan",
+      "to": "implement",
+      "at": "2026-09-26T17:12:50.246Z",
+      "previous": "854dffa6921e862951d1b44a7830398d0f50ffac8fb8a9acc22ec188e54c2195",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    }
+  ]
 }
