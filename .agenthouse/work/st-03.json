@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "st-03",
+  "title": "Generate annotated walkthrough screenshots",
+  "kind": "feature",
+  "stage": "plan",
+  "revision": 1,
+  "fields": {
+    "outcome": "A content collaborator can inspect clear annotated screenshots for captured walkthrough steps while retaining editable narrative text.",
+    "parentWork": "autotour-core",
+    "scope": "Implement screenshot annotation for the agreed capture-step contract, including target highlighting, numbered callouts, captions, deterministic asset paths, and configurable redaction. Exclude general image editing, a review UI, DOM replay, video, and publishing adapters.",
+    "acceptance": "Given a captured step with a target and caption, rendering produces a readable annotated screenshot and manifest asset reference without leaking configured sensitive content.",
+    "decisions": "Own files under src/annotations and annotation-specific tests. Render against synthetic pages or data URLs so work does not depend on ST-01 or ST-02 implementation. Consume the interface in docs/contracts/mvp-interfaces.md and do not modify shared schemas or package metadata; report integration changes instead.",
+    "verification": "Render representative desktop screenshots from deterministic synthetic content, inspect resulting images, assert stable paths and dimensions, and verify configured redactions are absent from output and diagnostics.",
+    "dependencies": "The capture-step contract, Playwright screenshot capability, and later integration with st-02 output.",
+    "risks": "Annotations can obscure important UI, redaction may be incomplete, and image assertions alone cannot establish readability without inspection."
+  },
+  "criteria": [
+    { "id": "annotation-input", "expectation": "The renderer accepts a step ID, target locator contract, editable caption, callout number, viewport, and output path." },
+    { "id": "annotation-highlight", "expectation": "The target element is visibly highlighted and associated with the correct numbered callout." },
+    { "id": "annotation-caption", "expectation": "The screenshot contains a readable caption without covering the target or leaving the viewport." },
+    { "id": "annotation-assets", "expectation": "Output uses deterministic module/step paths and returns the asset reference needed by a manifest." },
+    { "id": "annotation-redaction", "expectation": "Configured selectors and text values are redacted before the screenshot is written." },
+    { "id": "annotation-determinism", "expectation": "Equivalent input produces stable dimensions, placement metadata, and asset naming." },
+    { "id": "annotation-evidence", "expectation": "Automated behavior checks and explicit image inspection are recorded separately." }
+  ],
+  "evidence": [],
+  "history": []
+}
