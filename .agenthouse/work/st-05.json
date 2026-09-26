@@ -12,7 +12,7 @@
     "acceptance": "Executing a multi-module fixture journey with video enabled produces a playable non-empty WebM for every module and records deterministic module asset paths without exposing secrets.",
     "decisions": "Use one browser context and a separate page per module. Playwright finalizes each module video when its page closes; stable output names are applied afterward. Video is generated media and remains ignored by Git by default.",
     "verification": "Run the video capture against the local fixture in Chromium, assert one non-empty WebM per module, validate manifest asset references, and run package and frozen AgentHouse checks.",
-    "changes": "Implemented one Playwright WebM per module using separate pages in a shared browser context, deterministic module asset paths, environment-backed input masking, headless fixed-viewport capture, CI Chromium installation, and a live AgentHouse DealDesk example journey.",
+    "changes": "Implemented in commit 25d1306: one Playwright WebM per module using separate pages in a shared browser context, deterministic module asset paths, environment-backed input masking, headless fixed-viewport capture, CI Chromium installation, and a live AgentHouse DealDesk example journey.",
     "dependencies": "Consumes the generic executor from st-04 and Playwright video recording. CI publishing is a later story.",
     "risks": "Video encoding depends on browser availability, page closure is required to finalize files, and animations or remote content can make output nondeterministic."
   },

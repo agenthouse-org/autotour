@@ -12,7 +12,7 @@
     "acceptance": "A representative public-site-style journey executes deterministically, validates expected visible state and URLs, records stable module and step identities, and does not require credentials unless a step references a credential environment variable.",
     "decisions": "Keep the journey object as the executable source of truth. Use user-visible role/name locators and explicit postconditions. Treat action timing as declarative input so the same journey can feed video and DOM renderers.",
     "verification": "Unit-test every added action with a Playwright-compatible page double, run a real Chromium fixture journey, validate the generated manifest, and retain failure diagnostics for incorrect postconditions.",
-    "changes": "Implemented schema-shaped JSON execution, credential-optional public journeys, role/name and exact-text targets, select, deterministic timed scroll, bounded waits, visible-state and URL assertions, preservation of publication and dependency metadata, and safe module/step diagnostics.",
+    "changes": "Implemented in commit 25d1306: schema-shaped JSON execution, credential-optional public journeys, role/name and exact-text targets, select, deterministic timed scroll, bounded waits, visible-state and URL assertions, preservation of publication and dependency metadata, and safe module/step diagnostics.",
     "dependencies": "Builds on st-02 capture and manifest behavior. Supplies the executor contract consumed by st-05.",
     "risks": "Ambiguous responsive controls and arbitrary waits can create plausible but incorrect tours; assertions and bounded timing are required."
   },
