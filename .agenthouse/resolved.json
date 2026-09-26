@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "frameworkVersion": "1.5.0",
+  "frameworkVersion": "1.6.0",
   "configDigest": "33f948b9ed1b18f905ae78264bfd5f2e110609aa212a900a7d10339014d26838",
   "sources": [
     {
@@ -16,5 +16,5 @@
   "authorities": {
     "project-owner": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEApanB+AA7Op9tkloXQS0Y38q+WVlLlL7A3vMeLLhjHiU=\n-----END PUBLIC KEY-----\n"
   },
-  "digest": "ce7adc3eb40b2fd219f44fe020afb7d02360c02457fdf631985b6b07f5173a66"
+  "digest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07"
 }
