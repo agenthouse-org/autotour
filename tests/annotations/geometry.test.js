@@ -62,6 +62,22 @@ test("placeCaption moves above when below does not fit", () => {
   assert.equal(rectsIntersect(caption, target), false);
 });
 
+test("placeCaption clamps a candidate without covering the target", () => {
+  const viewport = { width: 180, height: 500 };
+  const target = { x: 0, y: 200, width: 180, height: 40 };
+  const caption = placeCaption(target, viewport, "Save the updated profile.");
+  assert.equal(caption.placement, "below-clamped");
+  assert.equal(rectsIntersect(caption, target), false);
+  assert.equal(caption.x, 0);
+});
+
+test("placeCaption rejects layouts where every placement covers the target", () => {
+  assert.throws(
+    () => placeCaption({ x: 0, y: 0, width: 1280, height: 720 }, VIEWPORT, "No safe placement."),
+    /without covering the target/
+  );
+});
+
 test("estimateCaptionSize wraps long captions deterministically", () => {
   const long =
     "Save the updated profile after confirming the display name and email are correct for this account.";

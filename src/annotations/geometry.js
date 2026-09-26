@@ -264,23 +264,27 @@ export function placeCaption(targetBox, viewport, caption, options = {}) {
     }
   }
 
-  const clamped = clampRectToViewport(
-    {
-      x: target.x + target.width / 2 - width / 2,
-      y: target.y + target.height + gap,
-      width,
-      height
-    },
-    view
+  for (const candidate of candidates) {
+    const clamped = clampRectToViewport(
+      { x: candidate.x, y: candidate.y, width, height },
+      view
+    );
+    if (!rectsIntersect(clamped, target)) {
+      return {
+        ...clamped,
+        placement: `${candidate.id}-clamped`,
+        lines: estimated.lines,
+        fontSize: estimated.fontSize,
+        padding: estimated.padding,
+        lineHeight: estimated.lineHeight
+      };
+    }
+  }
+
+  throw createAnnotationError(
+    AnnotationErrorCode.INVALID_INPUT,
+    "Caption cannot be placed inside the viewport without covering the target."
   );
-  return {
-    ...clamped,
-    placement: "clamped",
-    lines: estimated.lines,
-    fontSize: estimated.fontSize,
-    padding: estimated.padding,
-    lineHeight: estimated.lineHeight
-  };
 }
 
 /**
