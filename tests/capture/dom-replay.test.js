@@ -65,6 +65,10 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
     const events = JSON.parse(eventsText);
     assert.ok(events.some((event) => event.type === 4), `${moduleId} needs a Meta event`);
     assert.ok(events.some((event) => event.type === 2), `${moduleId} needs a FullSnapshot event`);
+    assert.ok(
+      events.at(-1).timestamp - events[0].timestamp >= 1400,
+      `${moduleId} needs readable presentation pacing`
+    );
     assert.equal(eventsText.includes(DEFAULT_USERNAME), false);
     assert.equal(eventsText.includes(DEFAULT_PASSWORD), false);
   }
@@ -122,6 +126,23 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
     await browser.close();
     await replayServer.close();
   }
+});
+
+test("DOM capture rejects invalid presentation pacing before browsing", async () => {
+  await assert.rejects(
+    captureJourney({
+      baseUrl: "http://127.0.0.1:1",
+      goal: "Reject invalid pacing.",
+      outputDir: path.join(os.tmpdir(), "autotour-invalid-dom-pacing"),
+      env: {
+        AUTOTOUR_USERNAME: DEFAULT_USERNAME,
+        AUTOTOUR_PASSWORD: DEFAULT_PASSWORD
+      },
+      journey: createProfileJourney(),
+      recordDom: { stepDelayMs: -1 }
+    }),
+    /DOM step delay must be an integer between 0 and 30000 milliseconds/
+  );
 });
 
 async function startStaticServer(root) {

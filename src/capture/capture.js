@@ -27,7 +27,7 @@ import { writeWalkthroughReplay } from "../dom/walkthrough-player.js";
  * @property {import('playwright').Page} [page]
  * @property {() => Promise<{ page: import('playwright').Page, close?: () => Promise<void> }>} [createSession]
  * @property {false | { size?: { width: number, height: number }, viewport?: { width: number, height: number }, showActions?: object }} [recordVideo]
- * @property {false | { viewport?: { width: number, height: number } }} [recordDom]
+ * @property {false | { viewport?: { width: number, height: number }, stepDelayMs?: number }} [recordDom]
  */
 
 /**
@@ -122,6 +122,7 @@ export async function captureJourney(options = {}) {
       secrets
     });
   }
+  const domStepDelayMs = normalizeDomStepDelay(recordDom, secrets);
 
   await mkdir(outputDir, { recursive: true });
   const session = await createCaptureSession({
@@ -165,6 +166,12 @@ export async function captureJourney(options = {}) {
           });
           // Allow microtasks/network handlers attached by page doubles to flush.
           await Promise.resolve();
+          if (domStepDelayMs > 0) {
+            await page.waitForTimeout(domStepDelayMs);
+            await page.evaluate(() => {
+              globalThis.rrwebRecord.record.addCustomEvent("autotour:pacing", null);
+            });
+          }
           const observedRequests = uniquePreserve(diffObservations(before, observer.snapshot()));
 
           for (const entry of observedRequests) {
@@ -284,6 +291,21 @@ function uniquePreserve(values) {
     }
   }
   return out;
+}
+
+function normalizeDomStepDelay(recordDom, secrets) {
+  if (!recordDom) return 0;
+  const value = typeof recordDom === "object"
+    ? recordDom.stepDelayMs ?? 500
+    : 500;
+  if (!Number.isInteger(value) || value < 0 || value > 30000) {
+    throw new CaptureError({
+      message: "DOM step delay must be an integer between 0 and 30000 milliseconds.",
+      cause: "recordDom.stepDelayMs is invalid",
+      secrets
+    });
+  }
+  return value;
 }
 
 function collectEnvironmentNames(journey) {

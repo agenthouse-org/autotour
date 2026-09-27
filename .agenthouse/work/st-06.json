@@ -10,7 +10,7 @@
     "parentWork": "autotour-core",
     "scope": "Record rrweb DOM snapshots, mutations, pointer, input, and scroll events per module; generate an offline-capable sandboxed autoplay page and stable manifest asset reference; mask all form values and preserve module boundaries. Exclude external asset downloading, cross-origin iframe capture, editing UI, hosted publishing, and polished video rendering.",
     "acceptance": "Capturing the authenticated local fixture produces one replay package per module that autoplays after the fixture is stopped, performs no request to the original application, exposes basic playback controls, and contains no credential values.",
-    "changes": "Implemented in commit de03afe9057da48d7d9d56485b61c06c16869109: modular rrweb capture, a shared local replay runtime, sandboxed per-module autoplay players, manifest asset references, form-value masking, navigation-safe recorder shutdown, and an offline browser verification fixture. Follow-up work adds a walkthrough-level playlist that advances between independently replaceable modules.",
+    "changes": "Implemented in commit de03afe9057da48d7d9d56485b61c06c16869109: modular rrweb capture, a shared local replay runtime, sandboxed per-module autoplay players, manifest asset references, form-value masking, navigation-safe recorder shutdown, and an offline browser verification fixture. Follow-up work adds a walkthrough-level playlist that advances between independently replaceable modules and configurable default presentation pacing between recorded steps.",
     "decisions": "Use the official @rrweb/record and @rrweb/replay packages. Inject the recorder before application scripts, stream events to Node across navigations, share a local replay runtime across modules, and let rrweb rebuild application DOM inside its sandboxed iframe without executing captured scripts.",
     "verification": "Capture the existing two-module profile journey in Chromium, inspect event files for full snapshots and secret absence, stop the source fixture, serve only generated output, and verify both players render and autoplay while blocking unexpected network requests.",
     "dependencies": "Builds on st-04 generic execution and the module-session boundary introduced by st-05. Uses @rrweb/record and @rrweb/replay 2.1.6.",
@@ -28,6 +28,10 @@
     {
       "id": "continuous-playback",
       "expectation": "A walkthrough-level player advances through module players in order while preserving direct module navigation."
+    },
+    {
+      "id": "presentation-pacing",
+      "expectation": "DOM replay gives recorded actions enough dwell time to make cursor movement, clicks, and resulting states readable."
     },
     {
       "id": "offline-fixture",
