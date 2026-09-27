@@ -12,6 +12,7 @@ import {
 import { diffObservations, observeSameOriginRequests } from "./observe.js";
 import { collectSecretValues, containsSecret, redactValue } from "./redact.js";
 import { openPlaywrightDomSession } from "../dom/session.js";
+import { writeWalkthroughReplay } from "../dom/walkthrough-player.js";
 
 /**
  * @typedef {object} CaptureOptions
@@ -229,6 +230,9 @@ export async function captureJourney(options = {}) {
 
     const captureSteps = buildCaptureSteps(capturedModules, secrets);
     const paths = await writeCaptureArtifacts(outputDir, walkthrough, captureSteps);
+    const domIndexPath = recordDom
+      ? await writeWalkthroughReplay(outputDir, walkthrough)
+      : undefined;
 
     const result = {
       walkthrough,
@@ -245,6 +249,7 @@ export async function captureJourney(options = {}) {
       videoPaths,
       domPaths,
       domEventPaths,
+      ...(domIndexPath ? { domIndexPath } : {}),
       ...paths
     };
 

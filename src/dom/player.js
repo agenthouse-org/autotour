@@ -75,6 +75,15 @@ export function buildReplayHtml({ moduleId, title, events }) {
         replayer.pause(0);
         play(0);
       });
+      replayer.on("finish", () => {
+        status.textContent = "Complete";
+        if (window.parent !== window) {
+          window.parent.postMessage({
+            type: "autotour:module-finished",
+            moduleId: ${JSON.stringify(moduleId)}
+          }, "*");
+        }
+      });
       requestAnimationFrame(() => {
         play(0);
         document.body.dataset.autoplay = "started";

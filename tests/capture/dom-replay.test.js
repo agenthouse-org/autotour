@@ -44,6 +44,8 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
   }
 
   assert.deepEqual(Object.keys(result.domPaths), ["sign-in", "update-profile"]);
+  assert.equal(result.domIndexPath, path.join(outputDir, "index.html"));
+  assert.ok((await stat(result.domIndexPath)).size > 0);
   assert.deepEqual(result.walkthrough.outputs, ["dom"]);
   assert.equal((await validateWalkthroughDocument(result.walkthrough)).valid, true);
   assert.ok((await stat(path.join(outputDir, "runtime", "rrweb-LICENSE.txt"))).size > 0);
@@ -75,6 +77,17 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
   page.on("request", (request) => requestedUrls.push(request.url()));
 
   try {
+    await page.goto(`${replayServer.baseUrl}/index.html`);
+    await page.locator("body[data-current-module='sign-in']").waitFor();
+    await page.locator("body[data-current-module='update-profile']").waitFor({ timeout: 5000 });
+    assert.equal(await page.locator("#progress").innerText(), "2 / 2");
+    assert.equal(
+      await page.getByRole("tab", { name: "Update profile" }).getAttribute("aria-selected"),
+      "true"
+    );
+    await page.getByRole("tab", { name: "Sign in" }).click();
+    await page.locator("body[data-current-module='sign-in']").waitFor();
+
     await page.goto(`${replayServer.baseUrl}/modules/sign-in/dom/index.html`);
     await page.locator("body[data-autoplay='started']").waitFor();
     const replayFrame = page.locator("#replay iframe");

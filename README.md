@@ -41,9 +41,10 @@ const result = await captureJourney({
 });
 
 console.log(result.domPaths);
+console.log(result.domIndexPath);
 ```
 
-Serve the output directory as static files and open a module's `dom/index.html`. Form values are masked, captured scripts remain disabled inside rrweb's sandbox, and generated assets include the rrweb MIT notice. Remote fonts, images, canvas content, and cross-origin iframes are not yet guaranteed to work offline; asset harvesting is a later slice.
+Serve the output directory as static files and open its root `index.html` for continuous playback across modules. Individual module players remain available under `modules/<module-id>/dom/index.html` so one changed module can be replaced independently. Form values are masked, captured scripts remain disabled inside rrweb's sandbox, and generated assets include the rrweb MIT notice. Remote fonts, images, canvas content, and cross-origin iframes are not yet guaranteed to work offline; asset harvesting is a later slice.
 
 > AutoTour is in active development. The package supports modular screenshots, raw WebM video, and DOM autoplay capture; dependency-based invalidation, portable remote-asset harvesting, and polished publishing remain future slices.
 
