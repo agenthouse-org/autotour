@@ -11,6 +11,7 @@ import {
 } from "./manifest.js";
 import { diffObservations, observeSameOriginRequests } from "./observe.js";
 import { collectSecretValues, containsSecret, redactValue } from "./redact.js";
+import { openPlaywrightDomSession } from "../dom/session.js";
 
 /**
  * @typedef {object} CaptureOptions
@@ -25,6 +26,7 @@ import { collectSecretValues, containsSecret, redactValue } from "./redact.js";
  * @property {import('playwright').Page} [page]
  * @property {() => Promise<{ page: import('playwright').Page, close?: () => Promise<void> }>} [createSession]
  * @property {false | { size?: { width: number, height: number }, viewport?: { width: number, height: number }, showActions?: object }} [recordVideo]
+ * @property {false | { viewport?: { width: number, height: number } }} [recordDom]
  */
 
 /**
@@ -46,7 +48,8 @@ export async function captureJourney(options = {}) {
     page: injectedPage,
     createSession,
     journey: journeyOverride,
-    recordVideo = false
+    recordVideo = false,
+    recordDom = false
   } = options;
 
   const journey = normalizeExecutableJourney(
@@ -104,18 +107,38 @@ export async function captureJourney(options = {}) {
       secrets
     });
   }
+  if (recordDom && (injectedPage || createSession)) {
+    throw new CaptureError({
+      message: "DOM capture requires an AutoTour-owned browser context.",
+      cause: "rrweb must be installed before application scripts execute",
+      secrets
+    });
+  }
+  if (recordVideo && recordDom) {
+    throw new CaptureError({
+      message: "Combined DOM and video capture is not supported yet.",
+      cause: "select one recorded output per capture run",
+      secrets
+    });
+  }
 
   await mkdir(outputDir, { recursive: true });
   const session = await createCaptureSession({
     injectedPage,
     createSession,
     recordVideo,
+    recordDom,
+    secrets,
     outputDir
   });
   /** @type {object[]} */
   const capturedModules = [];
   /** @type {Record<string, string>} */
   const videoPaths = {};
+  /** @type {Record<string, string>} */
+  const domPaths = {};
+  /** @type {Record<string, string>} */
+  const domEventPaths = {};
   let captureError;
 
   try {
@@ -167,6 +190,8 @@ export async function captureJourney(options = {}) {
       }
 
       if (assets.videoPath) videoPaths[module.id] = assets.videoPath;
+      if (assets.domPath) domPaths[module.id] = assets.domPath;
+      if (assets.domEventsPath) domEventPaths[module.id] = assets.domEventsPath;
       capturedModules.push({
         id: module.id,
         title: module.title,
@@ -175,7 +200,10 @@ export async function captureJourney(options = {}) {
         observedRequests: moduleRequests,
         dependencies: module.dependencies,
         publish: module.publish,
-        assets: assets.video ? { video: assets.video } : {}
+        assets: {
+          ...(assets.video ? { video: assets.video } : {}),
+          ...(assets.dom ? { dom: assets.dom } : {})
+        }
       });
     }
 
@@ -185,7 +213,7 @@ export async function captureJourney(options = {}) {
       baseUrl: parsedBase.toString().replace(/\/$/, ""),
       goal,
       modules: capturedModules,
-      outputs: recordVideo ? ["video"] : ["screenshots"],
+      outputs: recordVideo ? ["video"] : recordDom ? ["dom"] : ["screenshots"],
       publish: journey.publish,
       secrets
     });
@@ -215,6 +243,8 @@ export async function captureJourney(options = {}) {
         secrets
       ),
       videoPaths,
+      domPaths,
+      domEventPaths,
       ...paths
     };
 
@@ -306,7 +336,14 @@ function parseSelector(selector) {
   }
 }
 
-async function createCaptureSession({ injectedPage, createSession, recordVideo, outputDir }) {
+async function createCaptureSession({
+  injectedPage,
+  createSession,
+  recordVideo,
+  recordDom,
+  secrets,
+  outputDir
+}) {
   if (injectedPage) return createSharedPageSession(injectedPage);
   if (createSession) {
     const custom = await createSession();
@@ -315,6 +352,7 @@ async function createCaptureSession({ injectedPage, createSession, recordVideo, 
     return session;
   }
   if (recordVideo) return openPlaywrightVideoSession(recordVideo, outputDir);
+  if (recordDom) return openPlaywrightDomSession(recordDom, outputDir, secrets);
   return openPlaywrightSession();
 }
 

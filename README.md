@@ -27,7 +27,25 @@ console.log(result.videoPaths);
 
 Generated videos remain under the ignored `.autotour/output/` directory by default. CI must install Playwright Chromium before capture.
 
-> AutoTour is in its package-bootstrap phase. The CLI, plugin metadata, and walkthrough contract are usable; browser capture and rendering are not implemented yet.
+## DOM autoplay replay
+
+Set `recordDom` to capture rrweb events and generate one sandboxed autoplay page per module. The generated output includes a shared local replay runtime, so the local fixture works after the source application is stopped.
+
+```js
+const result = await captureJourney({
+  journey,
+  outputDir: ".autotour/output/dealdesk-dom",
+  recordDom: {
+    viewport: { width: 1280, height: 720 }
+  }
+});
+
+console.log(result.domPaths);
+```
+
+Serve the output directory as static files and open a module's `dom/index.html`. Form values are masked, captured scripts remain disabled inside rrweb's sandbox, and generated assets include the rrweb MIT notice. Remote fonts, images, canvas content, and cross-origin iframes are not yet guaranteed to work offline; asset harvesting is a later slice.
+
+> AutoTour is in active development. The package supports modular screenshots, raw WebM video, and DOM autoplay capture; dependency-based invalidation, portable remote-asset harvesting, and polished publishing remain future slices.
 
 ## Install
 

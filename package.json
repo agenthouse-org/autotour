@@ -54,6 +54,8 @@
     "prepack": "npm run check"
   },
   "dependencies": {
+    "@rrweb/record": "^2.1.6",
+    "@rrweb/replay": "^2.1.6",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "playwright": "^1.63.0"

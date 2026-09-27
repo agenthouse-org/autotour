@@ -17,4 +17,6 @@ Work from the target repository root. Read `autotour.json` or `.autotour/autotou
 
 For raw modular video, execute the schema-shaped walkthrough with `captureJourney({ journey, recordVideo })`. Use a fixed viewport and create one video per module so unchanged modules remain reusable. In CI, install Playwright Chromium, keep credentials in secret environment variables, and upload `.autotour/output` as a workflow artifact only when requested by project policy.
 
+For modular DOM autoplay, execute the same walkthrough with `captureJourney({ journey, recordDom })`. Verify the generated player after the source application is unavailable, reject captures containing protected values, and report remote assets that still prevent a fully portable replay. DOM and video capture currently run as separate passes over the same journey.
+
 Treat the walkthrough manifest as the source of truth. Generated media is replaceable output. A code change should invalidate only modules whose recorded dependencies overlap the changed components.
