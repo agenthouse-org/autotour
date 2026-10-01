@@ -16,6 +16,7 @@ import {
   validateWalkthroughDocument
 } from "../../src/capture/index.js";
 import { run } from "../../src/cli.js";
+import { createInvalidationPlan } from "../../src/invalidation/index.js";
 import {
   RegenerationError,
   regenerateWalkthrough,
@@ -224,13 +225,26 @@ test("real DOM regeneration executes sign-in but replaces only update-profile", 
     const signInBefore = await readFile(signInPath);
     const profileBefore = await readFile(profilePath);
     const signInManifestBefore = structuredClone(initial.walkthrough.modules[0]);
+    const dependencyMap = JSON.parse(
+      await readFile(path.resolve("examples/dependency-map.json"), "utf8")
+    );
+    const invalidationPlan = createInvalidationPlan({
+      walkthrough: initial.walkthrough,
+      dependencyMap,
+      changedFiles: ["fixtures/demo-app/profile-content.js"]
+    });
+    assert.deepEqual(invalidationPlan.summary, {
+      regenerate: ["update-profile"],
+      reusable: ["sign-in"],
+      review: []
+    });
 
     const result = await regenerateWalkthrough({
       journey: {
         ...createProfileJourney({ displayName: "Regenerated User" }),
         target: { baseUrl: app.baseUrl, goal: "Show how to update a profile." }
       },
-      invalidationPlan: createPlan(initial.walkthrough.id),
+      invalidationPlan,
       outputDir,
       env,
       recordDom: { viewport: { width: 960, height: 540 }, stepDelayMs: 10 }
