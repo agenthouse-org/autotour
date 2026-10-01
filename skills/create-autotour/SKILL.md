@@ -21,4 +21,6 @@ For modular DOM autoplay, execute the same walkthrough with `captureJourney({ jo
 
 For change impact, maintain a reviewed dependency map that connects repository file globs to the exact dependency identifiers recorded in module manifests. Run `autotour invalidate` with an explicit Git base/head or changed-file list. Regenerate only modules classified `regenerate`; do not treat `review` modules as reusable until unmapped files or stale dependency names are resolved.
 
+Apply a certain plan with `autotour regenerate <journey.json> --plan <plan.json> --output-dir <existing-output>`. Let AutoTour execute reusable prerequisites for browser state while preserving their checked output. Treat status `2` as a review gate, and retain the existing output when capture or assembly fails.
+
 Treat the walkthrough manifest as the source of truth. Generated media is replaceable output. A code change should invalidate only modules whose recorded dependencies overlap the changed components.

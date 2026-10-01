@@ -28,6 +28,9 @@ import { writeWalkthroughReplay } from "../dom/walkthrough-player.js";
  * @property {() => Promise<{ page: import('playwright').Page, close?: () => Promise<void> }>} [createSession]
  * @property {false | { size?: { width: number, height: number }, viewport?: { width: number, height: number }, showActions?: object }} [recordVideo]
  * @property {false | { viewport?: { width: number, height: number }, stepDelayMs?: number }} [recordDom]
+ * @property {string[]} [moduleIds]
+ * @property {object} [previousWalkthrough]
+ * @property {object[]} [previousCaptureSteps]
  */
 
 /**
@@ -50,12 +53,21 @@ export async function captureJourney(options = {}) {
     createSession,
     journey: journeyOverride,
     recordVideo = false,
-    recordDom = false
+    recordDom = false,
+    moduleIds,
+    previousWalkthrough,
+    previousCaptureSteps
   } = options;
 
   const journey = normalizeExecutableJourney(
     journeyOverride ?? createProfileJourney({ usernameEnv, passwordEnv, displayName })
   );
+  const selection = normalizeModuleSelection({
+    journey,
+    moduleIds,
+    previousWalkthrough,
+    previousCaptureSteps
+  });
   const baseUrl = requestedBaseUrl ?? journey.target?.baseUrl;
   const goal = requestedGoal ?? journey.target?.goal;
 
@@ -144,8 +156,9 @@ export async function captureJourney(options = {}) {
   let captureError;
 
   try {
-    for (const module of journey.modules) {
-      const handle = await session.openModule(module);
+    for (const module of selection.modulesToExecute) {
+      const shouldCapture = selection.selectedIds.has(module.id);
+      const handle = await session.openModule(module, { capture: shouldCapture });
       const page = handle.page;
       const observer = observeSameOriginRequests(page, parsedBase);
       const moduleRequests = [];
@@ -166,11 +179,9 @@ export async function captureJourney(options = {}) {
           });
           // Allow microtasks/network handlers attached by page doubles to flush.
           await Promise.resolve();
-          if (domStepDelayMs > 0) {
+          if (domStepDelayMs > 0 && shouldCapture) {
             await page.waitForTimeout(domStepDelayMs);
-            await page.evaluate(() => {
-              globalThis.rrwebRecord.record.addCustomEvent("autotour:pacing", null);
-            });
+            await addDomPacingEvent(page);
           }
           const observedRequests = uniquePreserve(diffObservations(before, observer.snapshot()));
 
@@ -215,7 +226,7 @@ export async function captureJourney(options = {}) {
       });
     }
 
-    const walkthrough = buildWalkthrough({
+    const generatedWalkthrough = buildWalkthrough({
       id: journey.id,
       title: journey.title,
       baseUrl: parsedBase.toString().replace(/\/$/, ""),
@@ -225,6 +236,9 @@ export async function captureJourney(options = {}) {
       publish: journey.publish,
       secrets
     });
+    const walkthrough = selection.selective
+      ? mergeWalkthroughModules(generatedWalkthrough, previousWalkthrough, selection.selectedIds)
+      : generatedWalkthrough;
 
     const validation = await validateWalkthroughDocument(walkthrough);
     if (!validation.valid) {
@@ -235,7 +249,15 @@ export async function captureJourney(options = {}) {
       });
     }
 
-    const captureSteps = buildCaptureSteps(capturedModules, secrets);
+    const generatedCaptureSteps = buildCaptureSteps(capturedModules, secrets);
+    const captureSteps = selection.selective
+      ? mergeCaptureSteps(
+        journey.modules,
+        generatedCaptureSteps,
+        previousCaptureSteps,
+        selection.selectedIds
+      )
+      : generatedCaptureSteps;
     const paths = await writeCaptureArtifacts(outputDir, walkthrough, captureSteps);
     const domIndexPath = recordDom
       ? await writeWalkthroughReplay(outputDir, walkthrough)
@@ -256,6 +278,8 @@ export async function captureJourney(options = {}) {
       videoPaths,
       domPaths,
       domEventPaths,
+      regeneratedModuleIds: [...selection.selectedIds],
+      executedModuleIds: selection.modulesToExecute.map((module) => module.id),
       ...(domIndexPath ? { domIndexPath } : {}),
       ...paths
     };
@@ -306,6 +330,24 @@ function normalizeDomStepDelay(recordDom, secrets) {
     });
   }
   return value;
+}
+
+async function addDomPacingEvent(page) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      await page.evaluate(() => {
+        globalThis.rrwebRecord.record.addCustomEvent("autotour:pacing", null);
+      });
+      return;
+    } catch (error) {
+      if (!isNavigationRace(error) || attempt === 4) throw error;
+      await page.waitForTimeout(25);
+    }
+  }
+}
+
+function isNavigationRace(error) {
+  return error instanceof Error && /execution context was destroyed|cannot find context/i.test(error.message);
 }
 
 function collectEnvironmentNames(journey) {
@@ -431,7 +473,7 @@ async function openPlaywrightVideoSession(options, outputDir) {
   });
 
   return {
-    async openModule(module) {
+    async openModule(module, { capture = true } = {}) {
       const page = await context.newPage();
       const video = page.video();
       let closed = false;
@@ -441,6 +483,10 @@ async function openPlaywrightVideoSession(options, outputDir) {
           if (closed) return {};
           closed = true;
           await page.close();
+          if (!capture) {
+            await video.delete();
+            return {};
+          }
           const temporaryPath = await video.path();
           const relativePath = path.posix.join("modules", module.id, "video.webm");
           const videoPath = path.join(outputDir, "modules", module.id, "video.webm");
@@ -457,4 +503,84 @@ async function openPlaywrightVideoSession(options, outputDir) {
       await rm(temporaryDir, { recursive: true, force: true });
     }
   };
+}
+
+function normalizeModuleSelection({ journey, moduleIds, previousWalkthrough, previousCaptureSteps }) {
+  if (moduleIds === undefined) {
+    return {
+      selective: false,
+      selectedIds: new Set(journey.modules.map((module) => module.id)),
+      modulesToExecute: journey.modules
+    };
+  }
+  if (!Array.isArray(moduleIds) || moduleIds.length === 0) {
+    throw new CaptureError({
+      message: "Selective capture requires at least one module id.",
+      cause: "moduleIds is empty"
+    });
+  }
+  if (!previousWalkthrough || !Array.isArray(previousCaptureSteps)) {
+    throw new CaptureError({
+      message: "Selective capture requires previous walkthrough and capture-step artifacts.",
+      cause: "previous artifacts are missing"
+    });
+  }
+  const knownIds = new Set(journey.modules.map((module) => module.id));
+  const selectedIds = new Set(moduleIds);
+  if (selectedIds.size !== moduleIds.length || moduleIds.some((id) => !knownIds.has(id))) {
+    throw new CaptureError({
+      message: "Selective capture module ids must be unique journey modules.",
+      cause: "moduleIds contains duplicates or unknown modules"
+    });
+  }
+  const previousIds = previousWalkthrough.modules?.map((module) => module.id) ?? [];
+  if (previousWalkthrough.id !== journey.id ||
+      previousIds.length !== journey.modules.length ||
+      journey.modules.some((module, index) => previousIds[index] !== module.id)) {
+    throw new CaptureError({
+      message: "Previous walkthrough does not match the executable journey.",
+      cause: "walkthrough identity or ordered modules differ"
+    });
+  }
+  for (const module of previousWalkthrough.modules) {
+    if (selectedIds.has(module.id)) continue;
+    const expectedStepIds = module.steps.map((step) => step.id);
+    const previousStepIds = previousCaptureSteps
+      .filter((step) => step.moduleId === module.id)
+      .map((step) => step.id);
+    if (expectedStepIds.length !== previousStepIds.length ||
+        expectedStepIds.some((id, index) => previousStepIds[index] !== id)) {
+      throw new CaptureError({
+        message: `Previous capture steps are incomplete for reusable module ${module.id}.`,
+        cause: "capture-step ids do not match the previous walkthrough"
+      });
+    }
+  }
+  const lastSelectedIndex = Math.max(
+    ...journey.modules.map((module, index) => selectedIds.has(module.id) ? index : -1)
+  );
+  return {
+    selective: true,
+    selectedIds,
+    modulesToExecute: journey.modules.slice(0, lastSelectedIndex + 1)
+  };
+}
+
+function mergeWalkthroughModules(generated, previous, selectedIds) {
+  const generatedById = new Map(generated.modules.map((module) => [module.id, module]));
+  const previousById = new Map(previous.modules.map((module) => [module.id, module]));
+  return {
+    ...generated,
+    outputs: [...previous.outputs],
+    modules: previous.modules.map((module) =>
+      selectedIds.has(module.id) ? generatedById.get(module.id) : previousById.get(module.id)
+    )
+  };
+}
+
+function mergeCaptureSteps(modules, generatedSteps, previousSteps, selectedIds) {
+  return modules.flatMap((module) => {
+    const source = selectedIds.has(module.id) ? generatedSteps : previousSteps;
+    return source.filter((step) => step.moduleId === module.id);
+  });
 }

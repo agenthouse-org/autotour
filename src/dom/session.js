@@ -14,9 +14,18 @@ export async function openPlaywrightDomSession(options, outputDir, secrets = [])
   });
 
   return {
-    async openModule(module) {
+    async openModule(module, { capture = true } = {}) {
       const events = [];
       const page = await context.newPage();
+      if (!capture) {
+        return {
+          page,
+          async close() {
+            await page.close();
+            return {};
+          }
+        };
+      }
       await page.exposeBinding("__autotourRrwebEmit", (_source, event) => {
         events.push(event);
       });

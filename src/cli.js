@@ -9,6 +9,10 @@ import {
   validateDependencyMapDocument,
   writeInvalidationPlan
 } from "./invalidation/index.js";
+import {
+  RegenerationError,
+  regenerateWalkthrough
+} from "./regeneration/index.js";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const packageJson = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8"));
@@ -19,6 +23,7 @@ Usage:
   autotour init [directory] [--force]
   autotour validate <walkthrough.json>
   autotour invalidate <walkthrough.json> --map <dependency-map.json> (--changed-file <path>... | --base <ref> [--head <ref>]) [--output <plan.json>]
+  autotour regenerate <journey.json> --plan <invalidation-plan.json> --output-dir <directory>
   autotour doctor
   autotour --version
 
@@ -26,6 +31,7 @@ Commands:
   init      Create .autotour/autotour.json in a project
   validate  Validate a walkthrough manifest
   invalidate  Identify modules affected by repository changes
+  regenerate  Replace only modules marked for regeneration
   doctor    Check the local Node.js and Playwright installation
 `;
 
@@ -105,8 +111,58 @@ export async function run(args) {
     }
   }
 
+  if (command === "regenerate") {
+    try {
+      return await regenerate(rest);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      return error instanceof RegenerationError && error.code === "AUTOTOUR_REVIEW_REQUIRED" ? 2 : 1;
+    }
+  }
+
   console.error(`Unknown command: ${command}\n\n${help}`);
   return 1;
+}
+
+async function regenerate(args) {
+  const options = parseRegenerateArgs(args);
+  const [journey, invalidationPlan] = await Promise.all([
+    readJsonDocument(options.journeyFile),
+    readJsonDocument(options.planFile)
+  ]);
+  const result = await regenerateWalkthrough({
+    journey,
+    invalidationPlan,
+    outputDir: options.outputDir
+  });
+  console.log(JSON.stringify(result, null, 2));
+  return 0;
+}
+
+function parseRegenerateArgs(args) {
+  let journeyFile;
+  let planFile;
+  let outputDir;
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
+    if (argument === "--plan") planFile = requireOptionValue(args, ++index, argument);
+    else if (argument === "--output-dir") outputDir = requireOptionValue(args, ++index, argument);
+    else if (argument.startsWith("-")) {
+      throw new Error(`Unknown regenerate option: ${argument}`);
+    } else if (!journeyFile) {
+      journeyFile = path.resolve(argument);
+    } else {
+      throw new Error(`Unexpected regenerate argument: ${argument}`);
+    }
+  }
+  if (!journeyFile || !planFile || !outputDir) {
+    throw new Error("regenerate requires a journey file, --plan, and --output-dir");
+  }
+  return {
+    journeyFile,
+    planFile: path.resolve(planFile),
+    outputDir: path.resolve(outputDir)
+  };
 }
 
 async function invalidate(args) {

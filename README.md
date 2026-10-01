@@ -77,7 +77,21 @@ autotour invalidate .autotour/output/walkthrough.json \
 
 Use repeated `--changed-file <path>` options instead of `--base` for coding-agent or webhook integrations that already know the changed paths. The command exits with status `2` when unmapped files or stale dependency names require human review. A fully mapped change returns `0`, even when modules need regeneration, because the plan itself is a successful result.
 
-> AutoTour is in active development. The package supports modular screenshots, raw WebM video, DOM autoplay capture, and dependency-aware invalidation; selective regeneration, portable remote-asset harvesting, and polished publishing remain future slices.
+## Selective regeneration
+
+Apply an invalidation plan to an existing DOM or video output directory:
+
+```sh
+autotour regenerate .autotour/journey.json \
+  --plan .autotour/output/invalidation-plan.json \
+  --output-dir .autotour/output/capture
+```
+
+AutoTour infers the output mode from the existing `walkthrough.json`. It executes earlier modules when they are needed to establish authentication or application state, but replaces files only for modules classified `regenerate`. Reusable module assets and manifest entries are preserved. Plans containing `review` classifications exit with status `2` before a browser is launched.
+
+Regeneration happens in a sibling staging directory. The assembled walkthrough is schema-validated before AutoTour swaps it into place; capture or validation failure leaves the previous output intact. A plan containing no affected modules is a successful no-op.
+
+> AutoTour is in active development. The package supports modular screenshots, raw WebM video, DOM autoplay capture, dependency-aware invalidation, and selective DOM/video regeneration; portable remote-asset harvesting, presentation profiles, and polished publishing remain future slices.
 
 ## Install
 

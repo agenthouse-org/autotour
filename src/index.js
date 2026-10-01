@@ -17,3 +17,8 @@ export {
   validateDependencyMapDocument,
   writeInvalidationPlan
 } from "./invalidation/index.js";
+export {
+  RegenerationError,
+  regenerateWalkthrough,
+  validateRegenerationPlan
+} from "./regeneration/index.js";
