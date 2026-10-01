@@ -32,7 +32,8 @@
   },
   "exports": {
     ".": "./src/index.js",
-    "./schema": "./schemas/walkthrough.schema.json"
+    "./schema": "./schemas/walkthrough.schema.json",
+    "./dependency-map-schema": "./schemas/dependency-map.schema.json"
   },
   "files": [
     "bin",

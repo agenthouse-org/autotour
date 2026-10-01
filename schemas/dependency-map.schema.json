@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autotour.dev/schemas/dependency-map.schema.json",
+  "title": "AutoTour repository dependency map",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "rules"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "rules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/rule" }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "stringList": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "views": { "$ref": "#/$defs/stringList" },
+        "controllers": { "$ref": "#/$defs/stringList" },
+        "apiEndpoints": { "$ref": "#/$defs/stringList" },
+        "backend": { "$ref": "#/$defs/stringList" }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "files", "dependencies"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "files": { "$ref": "#/$defs/stringList" },
+        "dependencies": { "$ref": "#/$defs/dependencies" }
+      }
+    }
+  }
+}

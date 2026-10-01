@@ -2,6 +2,13 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { initializeProject, validateWalkthrough } from "./project.js";
+import {
+  collectGitChangedFiles,
+  createInvalidationPlan,
+  readJsonDocument,
+  validateDependencyMapDocument,
+  writeInvalidationPlan
+} from "./invalidation/index.js";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const packageJson = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8"));
@@ -11,12 +18,14 @@ const help = `AutoTour ${packageJson.version}
 Usage:
   autotour init [directory] [--force]
   autotour validate <walkthrough.json>
+  autotour invalidate <walkthrough.json> --map <dependency-map.json> (--changed-file <path>... | --base <ref> [--head <ref>]) [--output <plan.json>]
   autotour doctor
   autotour --version
 
 Commands:
   init      Create .autotour/autotour.json in a project
   validate  Validate a walkthrough manifest
+  invalidate  Identify modules affected by repository changes
   doctor    Check the local Node.js and Playwright installation
 `;
 
@@ -87,6 +96,89 @@ export async function run(args) {
     return 1;
   }
 
+  if (command === "invalidate") {
+    try {
+      return await invalidate(rest);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      return 1;
+    }
+  }
+
   console.error(`Unknown command: ${command}\n\n${help}`);
   return 1;
+}
+
+async function invalidate(args) {
+  const options = parseInvalidateArgs(args);
+  const walkthroughValidation = await validateWalkthrough(options.walkthroughFile);
+  if (!walkthroughValidation.valid) {
+    throw new Error(`Walkthrough is invalid: ${JSON.stringify(walkthroughValidation.errors)}`);
+  }
+  const [walkthrough, dependencyMap] = await Promise.all([
+    readJsonDocument(options.walkthroughFile),
+    readJsonDocument(options.mapFile)
+  ]);
+  const mapValidation = await validateDependencyMapDocument(dependencyMap);
+  if (!mapValidation.valid) {
+    throw new Error(`Dependency map is invalid: ${JSON.stringify(mapValidation.errors)}`);
+  }
+  const changedFiles = options.changedFiles.length > 0
+    ? options.changedFiles
+    : await collectGitChangedFiles({
+      cwd: process.cwd(),
+      base: options.base,
+      head: options.head
+    });
+  const plan = createInvalidationPlan({ walkthrough, dependencyMap, changedFiles });
+  if (options.outputFile) await writeInvalidationPlan(options.outputFile, plan);
+  console.log(JSON.stringify(plan, null, 2));
+  return plan.reviewRequired ? 2 : 0;
+}
+
+function parseInvalidateArgs(args) {
+  let walkthroughFile;
+  let mapFile;
+  let outputFile;
+  let base;
+  let head = "HEAD";
+  const changedFiles = [];
+
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
+    if (argument === "--map") mapFile = requireOptionValue(args, ++index, argument);
+    else if (argument === "--output") outputFile = requireOptionValue(args, ++index, argument);
+    else if (argument === "--base") base = requireOptionValue(args, ++index, argument);
+    else if (argument === "--head") head = requireOptionValue(args, ++index, argument);
+    else if (argument === "--changed-file") {
+      changedFiles.push(requireOptionValue(args, ++index, argument));
+    } else if (argument.startsWith("-")) {
+      throw new Error(`Unknown invalidate option: ${argument}`);
+    } else if (!walkthroughFile) {
+      walkthroughFile = path.resolve(argument);
+    } else {
+      throw new Error(`Unexpected invalidate argument: ${argument}`);
+    }
+  }
+
+  if (!walkthroughFile || !mapFile) {
+    throw new Error("invalidate requires a walkthrough file and --map");
+  }
+  if ((changedFiles.length > 0) === Boolean(base)) {
+    throw new Error("invalidate requires either --changed-file or --base, but not both");
+  }
+  return {
+    walkthroughFile,
+    mapFile: path.resolve(mapFile),
+    outputFile: outputFile ? path.resolve(outputFile) : undefined,
+    changedFiles,
+    base,
+    head
+  };
+}
+
+function requireOptionValue(args, index, option) {
+  const value = args[index];
+  if (!value || value.startsWith("--")) throw new Error(`${option} requires a value`);
+  return value;
 }

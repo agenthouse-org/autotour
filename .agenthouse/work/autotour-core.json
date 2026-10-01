@@ -14,7 +14,7 @@
     "dependencies": "Child work st-01 through st-03 for the first proof; later dependency mapping, invalidation, replay, video, and publishing stories.",
     "risks": "No external customer evidence exists yet. The epic spans multiple independent outcomes and must remain decomposed.",
     "sizeRisk": "oversized",
-    "relatedWork": ["st-01", "st-02", "st-03", "st-04", "st-05", "st-06"]
+    "relatedWork": ["st-01", "st-02", "st-03", "st-04", "st-05", "st-06", "st-07"]
   },
   "criteria": [
     { "id": "authorized-input", "expectation": "The product accepts an authorized application target, secret references, and a plain-language journey goal." },

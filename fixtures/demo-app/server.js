@@ -2,6 +2,7 @@ import http from "node:http";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { PROFILE_HEADING } from "./profile-content.js";
 
 /** Test-only defaults when AUTOTOUR_* env vars are unset. Never use outside local fixtures. */
 export const DEFAULT_USERNAME = "test-user@example.com";
@@ -157,7 +158,7 @@ export function createFixture(options = {}) {
   </style>
 </head>
 <body>
-  <h1>Profile settings</h1>
+  <h1>${PROFILE_HEADING}</h1>
   <form id="profile-form">
     <label for="display-name">Display name</label>
     <input id="display-name" name="displayName" type="text" autocomplete="nickname" required>

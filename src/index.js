@@ -9,3 +9,11 @@ export {
   AnnotationError,
   AnnotationErrorCode
 } from "./annotations/index.js";
+export {
+  collectGitChangedFiles,
+  createInvalidationPlan,
+  dependencyMapSchemaPath,
+  matchesFilePattern,
+  validateDependencyMapDocument,
+  writeInvalidationPlan
+} from "./invalidation/index.js";

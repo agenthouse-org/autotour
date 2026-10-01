@@ -1,0 +1,13 @@
+{
+  "$schema": "../schemas/dependency-map.schema.json",
+  "schemaVersion": 1,
+  "rules": [
+    {
+      "id": "profile-page",
+      "files": ["fixtures/demo-app/profile-content.js"],
+      "dependencies": {
+        "views": ["ProfileSettings"]
+      }
+    }
+  ]
+}

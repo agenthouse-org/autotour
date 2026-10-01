@@ -24,6 +24,9 @@ export function createProfileJourney({
         id: "sign-in",
         title: "Sign in",
         route: "/login",
+        dependencies: {
+          views: ["LoginPage"]
+        },
         steps: [
           {
             id: "open-login",
@@ -74,6 +77,9 @@ export function createProfileJourney({
         id: "update-profile",
         title: "Update profile",
         route: "/settings/profile",
+        dependencies: {
+          views: ["ProfileSettings"]
+        },
         steps: [
           {
             id: "open-profile",

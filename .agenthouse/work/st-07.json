@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "id": "st-07",
+  "title": "Identify walkthrough modules affected by code changes",
+  "kind": "feature",
+  "stage": "verify",
+  "revision": 6,
+  "fields": {
+    "outcome": "A maintainer or CI job can identify exactly which walkthrough modules need regeneration after an application code change and preserve modules proven unaffected.",
+    "parentWork": "autotour-core",
+    "scope": "Define a checked-in file-to-dependency map; compare changed repository paths to module views, controllers, API endpoints, and backend dependencies; emit deterministic regenerate, reusable, and review classifications through a library API and CLI. Support explicit changed paths and Git base/head ranges. Exclude source-language semantic analysis, automatic regeneration, remote asset harvesting, and publishing.",
+    "acceptance": "Given the captured profile walkthrough and a change mapped only to the profile view and endpoints, the invalidation plan marks update-profile for regeneration with concrete reasons and leaves sign-in reusable. Unmapped or stale mappings require review rather than being declared safe.",
+    "changes": "Implemented a dependency-map schema and example, deterministic library analyzer, conservative review classification, safe Git base/head collection including deletions and renames, an invalidate CLI with machine-readable output and CI exit status, fixture source ownership, package exports, documentation, and focused tests.",
+    "decisions": "Use a repository-owned JSON dependency map with portable glob rules and exact dependency identifiers. Keep matching deterministic and conservative: any unmapped file or dependency with no consumer prevents unaffected modules from being classified reusable.",
+    "verification": "Exercise exact and glob file matching, direct dependency matching, unknown-file handling, stale-map handling, deterministic JSON output, CLI explicit-file mode, and Git range collection. Prove the fixture profile page maps only to update-profile.",
+    "dependencies": "Builds on the module dependency fields captured by st-02 and the stable modular assets delivered by st-03 through st-06.",
+    "risks": "Repository maps can drift from source ownership. Broad globs can over-invalidate, while missing rules can under-invalidate; conservative review classification and stale-map reporting mitigate both."
+  },
+  "criteria": [
+    {
+      "id": "dependency-map",
+      "expectation": "A validated JSON document maps portable repository file globs to views, controllers, API endpoints, and backend dependencies."
+    },
+    {
+      "id": "exact-impact",
+      "expectation": "A mapped change identifies only modules that consume at least one mapped dependency and records the matching file, rule, dependency kind, and value."
+    },
+    {
+      "id": "safe-reuse",
+      "expectation": "Modules with no matching dependency are marked reusable only when every changed file and mapped dependency is accounted for."
+    },
+    {
+      "id": "review-unknowns",
+      "expectation": "Unmapped files and dependency mappings with no module consumer are reported and place otherwise unaffected modules into review."
+    },
+    {
+      "id": "git-input",
+      "expectation": "The analyzer can collect normalized changed paths from an explicit Git base and head without shell interpolation."
+    },
+    {
+      "id": "ci-output",
+      "expectation": "The CLI writes a deterministic machine-readable invalidation plan and returns a distinct nonzero status when review is required."
+    },
+    {
+      "id": "fixture-proof",
+      "expectation": "A profile-page fixture change regenerates update-profile while preserving sign-in."
+    }
+  ],
+  "evidence": [],
+  "history": [
+    {
+      "from": "discover",
+      "to": "define",
+      "at": "2026-10-01T08:16:58.883Z",
+      "previous": "d5e3a1544d1900235763778402ecd418a557103c09033c03fe3d9f6210c1e457",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "define",
+      "to": "design",
+      "at": "2026-10-01T08:17:00.059Z",
+      "previous": "7290253999beeb10e1ae9e7a51a7be45454fa9264bdc590b68b66255d11ecb8a",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "design",
+      "to": "plan",
+      "at": "2026-10-01T08:17:01.289Z",
+      "previous": "9c1ca3f156fca9b47fe389510b38f76076de9f81e16de69ac8cca50f02736ec4",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "plan",
+      "to": "implement",
+      "at": "2026-10-01T08:17:02.473Z",
+      "previous": "ec006989ea085a705233058ebc61d7fdba4217974453d8cf23bb968c3651ca19",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "implement",
+      "to": "verify",
+      "at": "2026-10-01T08:17:15.057Z",
+      "previous": "e44834e904da7c10a03f22dae73298adf811d92a51bd208dc4b89cbd6ff50866",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    }
+  ]
+}

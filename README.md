@@ -47,7 +47,37 @@ console.log(result.domIndexPath);
 
 Serve the output directory as static files and open its root `index.html` for continuous playback across modules. Individual module players remain available under `modules/<module-id>/dom/index.html` so one changed module can be replaced independently. DOM capture adds a 500 ms presentation delay after each step by default; set `stepDelayMs` to tune it or `0` to preserve raw execution timing. Form values are masked, captured scripts remain disabled inside rrweb's sandbox, and generated assets include the rrweb MIT notice. Remote fonts, images, canvas content, and cross-origin iframes are not yet guaranteed to work offline; asset harvesting is a later slice.
 
-> AutoTour is in active development. The package supports modular screenshots, raw WebM video, and DOM autoplay capture; dependency-based invalidation, portable remote-asset harvesting, and polished publishing remain future slices.
+## Dependency-aware invalidation
+
+Map repository files to the dependency names stored in walkthrough modules, then ask AutoTour which modules need regeneration:
+
+```json
+{
+  "schemaVersion": 1,
+  "rules": [
+    {
+      "id": "profile-page",
+      "files": ["src/profile/**"],
+      "dependencies": {
+        "views": ["ProfileSettings"],
+        "apiEndpoints": ["GET /api/profile", "PUT /api/profile"]
+      }
+    }
+  ]
+}
+```
+
+```sh
+autotour invalidate .autotour/output/walkthrough.json \
+  --map .autotour/dependency-map.json \
+  --base origin/develop \
+  --head HEAD \
+  --output .autotour/output/invalidation-plan.json
+```
+
+Use repeated `--changed-file <path>` options instead of `--base` for coding-agent or webhook integrations that already know the changed paths. The command exits with status `2` when unmapped files or stale dependency names require human review. A fully mapped change returns `0`, even when modules need regeneration, because the plan itself is a successful result.
+
+> AutoTour is in active development. The package supports modular screenshots, raw WebM video, DOM autoplay capture, and dependency-aware invalidation; selective regeneration, portable remote-asset harvesting, and polished publishing remain future slices.
 
 ## Install
 

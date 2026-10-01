@@ -24,3 +24,10 @@ test("the portable package contains a valid skill", async () => {
   assert.match(skill, /^---\r?\nname: create-autotour/m);
   assert.match(skill, /description:/);
 });
+
+test("the example dependency map is schema-valid", async () => {
+  const { validateDependencyMapDocument } = await import("../src/invalidation/index.js");
+  const dependencyMap = await readJson("examples/dependency-map.json");
+  const result = await validateDependencyMapDocument(dependencyMap);
+  assert.equal(result.valid, true, JSON.stringify(result.errors));
+});

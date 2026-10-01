@@ -131,7 +131,8 @@ test("manifest records observed routes and login/profile API endpoints only", as
     "GET /api/profile",
     "PUT /api/profile"
   ]);
-  assert.equal(byId["sign-in"].dependencies.views, undefined);
+  assert.deepEqual(byId["sign-in"].dependencies.views, ["LoginPage"]);
+  assert.deepEqual(byId["update-profile"].dependencies.views, ["ProfileSettings"]);
   assert.equal(byId["sign-in"].dependencies.controllers, undefined);
   assert.equal(byId["sign-in"].dependencies.backend, undefined);
 
