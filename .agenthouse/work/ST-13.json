@@ -3,8 +3,8 @@
   "id": "ST-13",
   "title": "Stabilize guided replay motion and cursor contrast",
   "kind": "bug",
-  "stage": "implement",
-  "revision": 5,
+  "stage": "verify",
+  "revision": 6,
   "fields": {
     "outcome": "Walkthrough viewers can follow a calm camera that remains focused across related actions and can always see the pointer on dark or light application screens.",
     "parentWork": "autotour-core",
@@ -15,7 +15,10 @@
     "dependencies": "Refines ST-12 guided motion and the create-autotour portable skill.",
     "risks": "Long focus holds can obscure global context and aggressive translation can expose empty edges. Bound scale and translation, retain explicit configuration, and restore full view after quiet time and lifecycle controls.",
     "observed": "The DealDesk example repeatedly zoomed in and out between nearby actions, and rrweb's default dark cursor became hard to see on the dark Agenthouse interface.",
-    "expected": "Related clicks should feel like one calm focused sequence with slight camera movement, followed by one zoom-out after an author-controlled quiet interval; the pointer should remain high contrast."
+    "expected": "Related clicks should feel like one calm focused sequence with slight camera movement, followed by one zoom-out after an author-controlled quiet interval; the pointer should remain high contrast.",
+    "audience": "Viewers of product walkthroughs and the teams producing them.",
+    "changes": "Implemented in commit 543aef8098e41e49640df341af2f607adf604f0a: click focus now uses bounded translate-and-scale camera movement, resets the quiet timer on each click, defaults to a 2.4-second hold and 650 ms transition, and renders a white cursor with a black edge. The create-autotour skill now starts with a complete Content index and routes detailed output and maintenance guidance into indexed reference files.",
+    "evidence": "Browser tests observed translated focus moving between two click targets without an intermediate zoom-out, verified the configured quiet reset and lifecycle controls, and inspected the white SVG cursor styling. The regenerated DealDesk example uses a 4-second quiet hold and produces a valid 1440x900, 19.64-second VP8 WebM. The full package suite passed 84 tests, and frozen Agenthouse evaluation for the exact build satisfied all seven configured checks."
   },
   "criteria": [
     {
@@ -43,7 +46,10 @@
       "expectation": "The create-autotour skill starts with a Content section linking every heading and routes detailed presentation guidance to reference files."
     }
   ],
-  "evidence": [],
+  "build": "543aef8098e41e49640df341af2f607adf604f0a",
+  "evidence": [
+    ".agenthouse/local/reports/4a1ecc2c-fef1-4f2f-bb4d-ec3ef19892c8/result.json"
+  ],
   "history": [
     {
       "from": "discover",
@@ -74,6 +80,14 @@
       "to": "implement",
       "at": "2026-10-02T21:44:22.423Z",
       "previous": "1fa017001f461a6dc0b558479af7f09b9880ab2d248a05b6f083ddeac9c3e8d5",
+      "policyDigest": "bcab04bfc726b0cdb82e15436b28897895dc68e6c454afd4b5a1ea5bfb6687b1",
+      "decision": null
+    },
+    {
+      "from": "implement",
+      "to": "verify",
+      "at": "2026-10-02T21:46:14.382Z",
+      "previous": "215417f88a1929bb228fd07794eca601abab29d2700ffb9bbf9d3f4fc33c47d8",
       "policyDigest": "bcab04bfc726b0cdb82e15436b28897895dc68e6c454afd4b5a1ea5bfb6687b1",
       "decision": null
     }
