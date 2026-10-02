@@ -2,9 +2,10 @@
   "schemaVersion": 1,
   "id": "st-08",
   "title": "Regenerate only affected walkthrough modules",
+  "author": "codex",
   "kind": "feature",
-  "stage": "verify",
-  "revision": 6,
+  "stage": "accept",
+  "revision": 7,
   "fields": {
     "outcome": "A maintainer or CI job can apply an approved invalidation plan so only affected walkthrough module assets are replaced while proven reusable modules remain unchanged.",
     "parentWork": "autotour-core",
@@ -16,6 +17,7 @@
     "dependencies": "Builds on st-07 invalidation plans and the modular DOM/video assets from st-05 and st-06.",
     "risks": "Later modules may rely on earlier browser state, so prerequisites must still execute. Filesystem swaps differ across platforms; failed swaps must restore the previous directory. Reusable module metadata must come from the existing walkthrough rather than newly observed prerequisite execution.",
     "evidence": "Frozen AgentHouse evaluation for build c5d5b595ceec9fce626681e8f9ab7e23195c627a passed package metadata, the full test suite, and the focused ST-08 regeneration check mapped to every acceptance criterion.",
+    "acceptanceEvidence": "Valerio Neri accepted build c5d5b595ceec9fce626681e8f9ab7e23195c627a on 2026-10-02 as meeting all seven ST-08 criteria and explicitly authorized the done decision.",
     "releasePlan": "Include selective regeneration in the next private 0.1.x pre-release from protected develop after the frozen AgentHouse evaluation and GitHub CI pass. Validate the packed npm artifact before any registry publication; this work item does not authorize an npm publish.",
     "rollbackPlan": "If selective regeneration corrupts or unexpectedly replaces reusable output, revert the ST-08 implementation and maintenance-loop commits and release the prior known-good package state. Existing walkthrough output remains recoverable because regeneration stages and validates the complete result before replacing the prior directory."
   },
@@ -93,6 +95,14 @@
       "previous": "f13eae2707688e04d8cedaab21e16aefd4b2b662b1a5cffe35b1041558c3303d",
       "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
       "decision": null
+    },
+    {
+      "from": "verify",
+      "to": "accept",
+      "at": "2026-10-02T07:25:32.092Z",
+      "previous": "f8ab074dedfa6124105e5c2e9b9233e91b671d0b87edc4722bdbca605563d1c5",
+      "policyDigest": "5c10db68160e09174fb9858ffa1d3aba39a12f859acd51aaa299b99d790ecf32",
+      "decision": ".agenthouse/local/decisions/st-08-accept.signed.json"
     }
   ]
 }
