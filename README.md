@@ -69,7 +69,7 @@ console.log(result.domPaths);
 console.log(result.domIndexPath);
 ```
 
-Serve the output directory as static files and open its root `index.html` for continuous playback across modules. Individual module players remain available under `modules/<module-id>/dom/index.html` so one changed module can be replaced independently. DOM capture adds a 500 ms presentation delay after each step by default; set `stepDelayMs` to tune it or `0` to preserve raw execution timing. Form values are masked, captured scripts remain disabled inside rrweb's sandbox, and generated assets include the rrweb MIT notice. Remote fonts, images, canvas content, and cross-origin iframes are not yet guaranteed to work offline; asset harvesting is a later slice.
+Serve the output directory as static files and open its root `index.html` for continuous playback across modules. Individual module players remain available under `modules/<module-id>/dom/index.html` so one changed module can be replaced independently. DOM capture adds a 500 ms presentation delay after each step by default; set `stepDelayMs` to tune it or `0` to preserve raw execution timing. Form values are masked, loaded images are embedded for offline replay, captured scripts remain disabled inside rrweb's sandbox, and generated assets include the rrweb MIT notice. Remote fonts, unloaded lazy media, canvas content, and cross-origin iframes are not yet guaranteed to work offline; broader asset harvesting is a later slice.
 
 ## Dependency-aware invalidation
 

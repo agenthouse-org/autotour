@@ -71,6 +71,10 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
     );
     assert.equal(eventsText.includes(DEFAULT_USERNAME), false);
     assert.equal(eventsText.includes(DEFAULT_PASSWORD), false);
+    if (moduleId === "sign-in") {
+      assert.match(eventsText, /rr_dataURL/);
+      assert.match(eventsText, /data:image\/png;base64/);
+    }
   }
 
   const replayServer = await startStaticServer(outputDir);
@@ -114,6 +118,9 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
     assert.ok(headingBox.height >= 20);
     const frameText = await frameBody.textContent();
     assert.match(frameText, /Sign in|Profile settings/);
+    const replayLogo = frameBody.getByRole("img", { name: "AutoTour" });
+    await replayLogo.waitFor({ state: "visible" });
+    assert.ok(await replayLogo.evaluate((image) => image.complete && image.naturalWidth > 0));
 
     await page.getByRole("button", { name: "Pause replay" }).click();
     assert.equal(await page.locator("#status").innerText(), "Paused");

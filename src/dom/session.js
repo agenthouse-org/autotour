@@ -91,6 +91,7 @@ function buildRecorderBootstrap(bundle) {
       },
       maskAllInputs: true,
       inlineStylesheet: true,
+      inlineImages: true,
       recordCanvas: false,
       collectFonts: true
     });

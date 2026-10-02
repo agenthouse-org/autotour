@@ -91,6 +91,14 @@ export function createFixture(options = {}) {
     res.end(html);
   }
 
+  function sendSvg(res, status, svg) {
+    res.writeHead(status, {
+      "Content-Type": "image/svg+xml; charset=utf-8",
+      "Content-Length": Buffer.byteLength(svg)
+    });
+    res.end(svg);
+  }
+
   function loginPage() {
     return `<!DOCTYPE html>
 <html lang="en">
@@ -106,6 +114,7 @@ export function createFixture(options = {}) {
   </style>
 </head>
 <body>
+  <img src="/assets/autotour-mark.svg" alt="AutoTour" width="96" height="24">
   <h1>Sign in</h1>
   <form id="login-form" method="post" action="/api/login">
     <label for="email">Email</label>
@@ -244,6 +253,15 @@ export function createFixture(options = {}) {
 
       if (req.method === "GET" && path === "/login") {
         sendHtml(res, 200, loginPage());
+        return;
+      }
+
+      if (req.method === "GET" && path === "/assets/autotour-mark.svg") {
+        sendSvg(
+          res,
+          200,
+          '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="24" viewBox="0 0 96 24"><rect width="24" height="24" rx="4" fill="#111827"/><path d="M6 17 12 5l6 12h-3l-1.2-2.5H10L8.8 17H6Zm5-5h2l-1-2.2L11 12Z" fill="#fff"/><text x="30" y="17" font-family="Arial,sans-serif" font-size="14" font-weight="700">AutoTour</text></svg>'
+        );
         return;
       }
 
