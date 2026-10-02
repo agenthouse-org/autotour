@@ -3,8 +3,8 @@
   "id": "ST-11",
   "title": "Apply reusable presentation profiles to walkthrough outputs",
   "kind": "feature",
-  "stage": "implement",
-  "revision": 5,
+  "stage": "verify",
+  "revision": 6,
   "fields": {
     "outcome": "Documentation producers can apply an optional, reusable presentation profile that places a walkthrough on a polished canvas or inside browser-like window chrome without changing the captured application.",
     "parentWork": "autotour-core",
@@ -14,7 +14,9 @@
     "verification": "Add option validation and generated-markup tests, exercise pure and window modes in Playwright at desktop and narrow widths, inspect the DealDesk window-mode replay, render it to WebM, run the full package checks, and run frozen AgentHouse evaluation.",
     "dependencies": "Builds on DOM autoplay capture and modular video assets. ST-12 adds motion within this presentation shell.",
     "risks": "Decorative framing can reduce useful viewport space or cause nested scrolling. Keep dimensions explicit, scale the replay within an overflow-hidden stage, and test representative desktop and narrow layouts.",
-    "audience": "Developers, support teams, product managers, and marketers producing polished walkthroughs."
+    "audience": "Developers, support teams, product managers, and marketers producing polished walkthroughs.",
+    "changes": "Implemented in commit 09c550b785a8ac7af2dcdb57887aaf5cd12bde48: validated presentation profiles add pure, background, and browser-window modes with responsive fitting, configurable canvas styling, and an exported DOM-to-WebM renderer that records the generated player in control-free render mode.",
+    "evidence": "The full package suite passed 84 tests, including a browser-backed presented replay, responsive overflow checks, invalid-profile handling, offline image replay, and a non-empty rendered WebM. The DealDesk example was inspected at 1440x900 and 390x844 with no page overflow. Its VP8 WebM is 1440x900, 19.52 seconds, and 2,199,692 bytes. Frozen Agenthouse evaluation for the exact build satisfied all seven configured checks."
   },
   "criteria": [
     {
@@ -42,7 +44,10 @@
       "expectation": "Validation failures are deterministic and presentation configuration remains machine-readable for local and CI workflows."
     }
   ],
-  "evidence": [],
+  "build": "09c550b785a8ac7af2dcdb57887aaf5cd12bde48",
+  "evidence": [
+    ".agenthouse/local/reports/129abb91-f35a-4b51-81fe-8ca7897e7706/result.json"
+  ],
   "history": [
     {
       "from": "discover",
@@ -73,6 +78,14 @@
       "to": "implement",
       "at": "2026-10-02T21:24:44.232Z",
       "previous": "e640e5db26d46ddf46d226aaae3e228240a2db6c47d51dafee2737d39f19aaf2",
+      "policyDigest": "bcab04bfc726b0cdb82e15436b28897895dc68e6c454afd4b5a1ea5bfb6687b1",
+      "decision": null
+    },
+    {
+      "from": "implement",
+      "to": "verify",
+      "at": "2026-10-02T21:26:26.274Z",
+      "previous": "e65e6b1d1e09c3ded5ea63f0cbec62458cd1e37a93f6a5866e21d725f9732f23",
       "policyDigest": "bcab04bfc726b0cdb82e15436b28897895dc68e6c454afd4b5a1ea5bfb6687b1",
       "decision": null
     }

@@ -3,8 +3,8 @@
   "id": "ST-12",
   "title": "Guide DOM replays with cursor and focus motion",
   "kind": "feature",
-  "stage": "implement",
-  "revision": 5,
+  "stage": "verify",
+  "revision": 6,
   "fields": {
     "outcome": "Walkthrough viewers can clearly follow user actions through an enlarged cursor, click emphasis, and smooth focus zoom synchronized with replay playback.",
     "parentWork": "autotour-core",
@@ -14,7 +14,9 @@
     "verification": "Add generated player tests for normalized cursor and focus settings, use Playwright to observe scale changes during a deterministic replay, verify reset states and reduced motion, inspect the DealDesk example, and run the full package and frozen AgentHouse checks.",
     "dependencies": "Uses the ST-11 presentation shell and existing rrweb playback events.",
     "risks": "Zoom can induce motion discomfort, obscure context, or leave a transformed player after controls are used. Keep it opt-in, provide conservative bounds, honor reduced motion, and reset on all lifecycle transitions.",
-    "audience": "Viewers of product walkthroughs and the teams producing them."
+    "audience": "Viewers of product walkthroughs and the teams producing them.",
+    "changes": "Implemented in commit 09c550b785a8ac7af2dcdb57887aaf5cd12bde48: DOM profiles can enlarge the rrweb cursor, retain or suppress click pulse, and apply click-synchronized focus zoom with bounded scale and timing. Focus resets on pause, restart, completion, resize, and reduced-motion changes.",
+    "evidence": "A real-browser test observed the configured 1.25 focus scale during a replayed click and verified reset on pause, responsive fitting, and successful composed WebM output. The live DealDesk example used a 1.8 cursor and 1.3 click focus and was visually inspected during focus and at completion. The full package suite passed 84 tests and frozen Agenthouse evaluation for the exact build satisfied all seven configured checks."
   },
   "criteria": [
     {
@@ -42,7 +44,10 @@
       "expectation": "Cursor and focus enhancements are disabled when omitted and existing replay behavior remains unchanged."
     }
   ],
-  "evidence": [],
+  "build": "09c550b785a8ac7af2dcdb57887aaf5cd12bde48",
+  "evidence": [
+    ".agenthouse/local/reports/129abb91-f35a-4b51-81fe-8ca7897e7706/result.json"
+  ],
   "history": [
     {
       "from": "discover",
@@ -73,6 +78,14 @@
       "to": "implement",
       "at": "2026-10-02T21:24:51.813Z",
       "previous": "0a73eda7bf709f46c09051b62f805738d3b0c11e98da7cdc621cb8e11206801b",
+      "policyDigest": "bcab04bfc726b0cdb82e15436b28897895dc68e6c454afd4b5a1ea5bfb6687b1",
+      "decision": null
+    },
+    {
+      "from": "implement",
+      "to": "verify",
+      "at": "2026-10-02T21:26:27.687Z",
+      "previous": "1bb89a27ff33356deac841b96ca646b9a1045685885107c8171651538b875a13",
       "policyDigest": "bcab04bfc726b0cdb82e15436b28897895dc68e6c454afd4b5a1ea5bfb6687b1",
       "decision": null
     }
