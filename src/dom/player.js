@@ -42,12 +42,27 @@ export function buildReplayHtml({ moduleId, title, events, presentation }) {
     #replay .replayer-mouse {
       width: 24px;
       height: 30px;
+      transition: left var(--cursor-move-duration) cubic-bezier(.22,.72,.24,1), top var(--cursor-move-duration) cubic-bezier(.22,.72,.24,1);
       transform: scale(var(--cursor-scale));
       transform-origin: top left;
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 50'%3E%3Cpath d='M4 2v40l10-10 9 16 7-4-9-15h15z' fill='%23fff' stroke='%23000' stroke-width='2.5' stroke-linejoin='round'/%3E%3C/svg%3E");
     }
-    #replay .replayer-mouse::after { background: rgba(255,255,255,.42); border: 2px solid #111; }
+    #replay .replayer-mouse::after {
+      width: 24px;
+      height: 24px;
+      background: rgba(158,255,61,.2);
+      border: 3px solid #9eff3d;
+      box-shadow: 0 0 0 2px rgba(0,0,0,.9);
+      opacity: 0;
+      transform: translate(-50%,-50%) scale(.4);
+    }
+    #replay .replayer-mouse.active::after { animation: autotour-click var(--click-duration) ease-out 1 !important; }
     body[data-click-pulse="false"] #replay .replayer-mouse.active::after { animation: none; }
+    @keyframes autotour-click {
+      0% { opacity: .95; transform: translate(-50%,-50%) scale(.4); }
+      30% { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+      100% { opacity: 0; transform: translate(-50%,-50%) scale(2.35); }
+    }
     body[data-frame-mode="window"] #window-bar { display: flex; }
     body[data-frame-mode="pure"] #canvas { background: #050706 !important; }
     body[data-frame-mode="pure"] #browser-frame { border-radius: 0; box-shadow: none; }
@@ -60,7 +75,11 @@ export function buildReplayHtml({ moduleId, title, events, presentation }) {
       #status { order: 3; width: 100%; text-align: left; }
       #canvas { padding: min(var(--canvas-padding), 16px); }
     }
-    @media (prefers-reduced-motion: reduce) { #replay { transition: none; } }
+    @media (prefers-reduced-motion: reduce) {
+      #replay, #replay .replayer-mouse { transition: none; }
+      #replay .replayer-mouse.active::after { animation: none !important; opacity: .85; transform: translate(-50%,-50%) scale(1); }
+      body[data-click-pulse="false"] #replay .replayer-mouse.active::after { opacity: 0; }
+    }
   </style>
 </head>
 <body data-module-id="${safeModuleId}">
@@ -113,6 +132,8 @@ export function buildReplayHtml({ moduleId, title, events, presentation }) {
       document.documentElement.style.setProperty("--frame-shadow", presentation.frame.shadow ? "0 22px 54px rgba(0,0,0,.38)" : "none");
       document.documentElement.style.setProperty("--frame-max-width", replayWidth + "px");
       document.documentElement.style.setProperty("--cursor-scale", String(presentation.cursor.scale));
+      document.documentElement.style.setProperty("--cursor-move-duration", presentation.cursor.moveDurationMs + "ms");
+      document.documentElement.style.setProperty("--click-duration", presentation.cursor.clickDurationMs + "ms");
       document.documentElement.style.setProperty("--focus-duration", presentation.focus.durationMs + "ms");
       replayRoot.style.width = replayWidth + "px";
       replayRoot.style.height = replayHeight + "px";

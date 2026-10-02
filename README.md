@@ -63,7 +63,7 @@ const result = await captureJourney({
     viewport: { width: 1280, height: 720 },
     stepDelayMs: 500,
     presentation: {
-      cursor: { scale: 1.6, clickPulse: true },
+      cursor: { scale: 1.6, moveDurationMs: 650, clickPulse: true, clickDurationMs: 700 },
       focus: { mode: "clicks", scale: 1.25, durationMs: 650, holdMs: 2400 },
       frame: { mode: "window", title: "Product walkthrough" },
       background: { mode: "gradient", from: "#111815", to: "#26342b" },

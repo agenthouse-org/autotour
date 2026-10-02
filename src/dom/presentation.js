@@ -36,7 +36,9 @@ export function normalizeDomPresentation(value, secrets = []) {
     padding: integerOption(value.padding ?? (mode === "pure" ? 12 : 48), 0, 120, "padding", secrets),
     cursor: {
       scale: numberOption(cursor.scale ?? 1, 1, 3, "cursor.scale", secrets),
-      clickPulse: booleanOption(cursor.clickPulse ?? true, "cursor.clickPulse", secrets)
+      moveDurationMs: integerOption(cursor.moveDurationMs ?? 650, 0, 2000, "cursor.moveDurationMs", secrets),
+      clickPulse: booleanOption(cursor.clickPulse ?? true, "cursor.clickPulse", secrets),
+      clickDurationMs: integerOption(cursor.clickDurationMs ?? 700, 100, 2000, "cursor.clickDurationMs", secrets)
     },
     focus: {
       mode: enumOption(focus.mode ?? "off", ["off", "clicks"], "focus.mode", secrets),

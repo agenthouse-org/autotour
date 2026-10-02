@@ -24,7 +24,12 @@ recordDom: {
   viewport: { width: 1440, height: 900 },
   stepDelayMs: 650,
   presentation: {
-    cursor: { scale: 1.8, clickPulse: true },
+    cursor: {
+      scale: 1.8,
+      moveDurationMs: 850,
+      clickPulse: true,
+      clickDurationMs: 800
+    },
     focus: {
       mode: "clicks",
       scale: 1.25,
@@ -50,6 +55,8 @@ recordDom: {
 - Keep `durationMs` around 500–800 ms for calm movement and use a conservative scale of 1.15–1.35.
 
 Inspect at least one multi-click sequence. Reject output that repeatedly returns to full view between related actions, jumps instead of panning, exposes empty edges, or makes text unreadable. The cursor should render white with a black edge over both dark and light content. Honor reduced-motion behavior.
+
+Treat pointer movement and camera movement as separate pacing choices. Use `cursor.moveDurationMs` to smooth travel between recorded positions; start around 650 ms and use 800–1000 ms for deliberate marketing walkthroughs. Use `cursor.clickDurationMs` around 650–900 ms so the expanding high-contrast click ring remains readable. Reject output where the pointer teleports, trails so far that it misses the clicked control, or the click ring disappears before a viewer can register it.
 
 ## Annotated screenshots
 

@@ -59,7 +59,7 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
       recordDom: {
         viewport: { width: 960, height: 540 },
         presentation: {
-          cursor: { scale: 1.7, clickPulse: true },
+          cursor: { scale: 1.7, moveDurationMs: 850, clickPulse: true, clickDurationMs: 800 },
           focus: { mode: "clicks", scale: 1.25, durationMs: 180, holdMs: 2400 },
           frame: { mode: "window", title: "AutoTour demo" },
           background: { mode: "gradient", from: "#111815", to: "#26342b" },
@@ -171,6 +171,21 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
     );
     assert.match(cursorBackground, /data:image\/svg\+xml/);
     assert.match(cursorBackground, /fff|255/);
+    const cursorMotion = await page.locator(".replayer-mouse").evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { property: style.transitionProperty, duration: style.transitionDuration };
+    });
+    assert.match(cursorMotion.property, /left/);
+    assert.match(cursorMotion.property, /top/);
+    assert.match(cursorMotion.duration, /0\.85s/);
+    await page.locator(".replayer-mouse.active").waitFor({ timeout: 5000 });
+    const clickEmphasis = await page.locator(".replayer-mouse.active", { timeout: 5000 }).evaluate((element) => {
+      const style = getComputedStyle(element, "::after");
+      return { name: style.animationName, duration: style.animationDuration, border: style.borderTopWidth };
+    });
+    assert.equal(clickEmphasis.name, "autotour-click");
+    assert.equal(clickEmphasis.duration, "0.8s");
+    assert.equal(clickEmphasis.border, "3px");
     await page.locator("body[data-focus-active='false']").waitFor({ timeout: 5000 });
     assert.equal(
       await page.locator("#replay").evaluate((element) => element.style.transform),
