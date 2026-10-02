@@ -39,7 +39,8 @@
       "kind": "command",
       "executable": "node",
       "args": [
-        "--test"
+        "--test",
+        "--test-force-exit"
       ],
       "result": "exit-code"
     },
@@ -49,6 +50,7 @@
       "executable": "node",
       "args": [
         "--test",
+        "--test-force-exit",
         "tests/regeneration/regenerate.test.js"
       ],
       "result": "exit-code",
@@ -68,6 +70,7 @@
       "executable": "node",
       "args": [
         "--test",
+        "--test-force-exit",
         "tests/publishing/markdown.test.js"
       ],
       "result": "exit-code",
@@ -87,6 +90,7 @@
       "executable": "node",
       "args": [
         "--test",
+        "--test-force-exit",
         "tests/capture/screenshots.test.js",
         "tests/capture/generic.test.js",
         "tests/annotations/annotate-step.test.js"
