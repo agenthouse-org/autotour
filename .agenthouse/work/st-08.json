@@ -15,6 +15,7 @@
     "verification": "Test plan and identity validation, review blocking before capture, prerequisite execution, selective asset replacement, byte-for-byte reusable asset preservation, no-op plans, transactional rollback on capture failure, CLI machine-readable output, and real DOM fixture regeneration.",
     "dependencies": "Builds on st-07 invalidation plans and the modular DOM/video assets from st-05 and st-06.",
     "risks": "Later modules may rely on earlier browser state, so prerequisites must still execute. Filesystem swaps differ across platforms; failed swaps must restore the previous directory. Reusable module metadata must come from the existing walkthrough rather than newly observed prerequisite execution.",
+    "evidence": "Frozen AgentHouse evaluation for build c5d5b595ceec9fce626681e8f9ab7e23195c627a passed package metadata, the full test suite, and the focused ST-08 regeneration check mapped to every acceptance criterion.",
     "releasePlan": "Include selective regeneration in the next private 0.1.x pre-release from protected develop after the frozen AgentHouse evaluation and GitHub CI pass. Validate the packed npm artifact before any registry publication; this work item does not authorize an npm publish.",
     "rollbackPlan": "If selective regeneration corrupts or unexpectedly replaces reusable output, revert the ST-08 implementation and maintenance-loop commits and release the prior known-good package state. Existing walkthrough output remains recoverable because regeneration stages and validates the complete result before replacing the prior directory."
   },
@@ -48,7 +49,10 @@
       "expectation": "A public library API and CLI command return deterministic machine-readable regeneration results suitable for CI."
     }
   ],
-  "evidence": [],
+  "build": "c5d5b595ceec9fce626681e8f9ab7e23195c627a",
+  "evidence": [
+    ".agenthouse/local/reports/2deb64d0-37d9-4963-af48-a54d957dab22/result.json"
+  ],
   "history": [
     {
       "from": "discover",
