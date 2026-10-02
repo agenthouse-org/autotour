@@ -436,17 +436,29 @@ function parseSelector(selector) {
       cause: "selector is not a string"
     });
   }
-  const roleMatch = /^role=([a-z][a-z0-9-]*)\[name=(.+)\]$/.exec(selector);
-  const textMatch = /^text=(.+)$/.exec(selector);
+  const indexMatch = / >> nth=(\d+)$/.exec(selector);
+  const locatorSelector = indexMatch ? selector.slice(0, indexMatch.index) : selector;
+  const index = indexMatch ? Number(indexMatch[1]) : undefined;
+  const roleMatch = /^role=([a-z][a-z0-9-]*)\[name=(.+)\]$/.exec(locatorSelector);
+  const textMatch = /^text=(.+)$/.exec(locatorSelector);
   if (!roleMatch && !textMatch) {
     throw new CaptureError({
       message: `Unsupported journey selector: ${selector}`,
-      cause: "expected role=<role>[name=<JSON string>] or text=<JSON string>"
+      cause: "expected role=<role>[name=<JSON string>] or text=<JSON string>, optionally followed by >> nth=<index>"
     });
   }
   try {
-    if (roleMatch) return { role: roleMatch[1], name: JSON.parse(roleMatch[2]) };
-    return { text: JSON.parse(textMatch[1]) };
+    if (roleMatch) {
+      return {
+        role: roleMatch[1],
+        name: JSON.parse(roleMatch[2]),
+        ...(index === undefined ? {} : { index })
+      };
+    }
+    return {
+      text: JSON.parse(textMatch[1]),
+      ...(index === undefined ? {} : { index })
+    };
   } catch (error) {
     throw new CaptureError({
       message: `Unsupported journey selector: ${selector}`,

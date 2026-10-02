@@ -4,10 +4,85 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { CaptureError, captureJourney } from "../../src/capture/index.js";
-import { executeStep } from "../../src/capture/execute.js";
+import { executeStep, resolveTarget } from "../../src/capture/execute.js";
 import { createFixturePageDouble } from "./fixture-page.js";
 
 const BASE_URL = "https://fixture.test";
+
+test("indexed accessible targets deliberately disambiguate duplicate controls", () => {
+  const selected = {};
+  const locator = {
+    nth(index) {
+      assert.equal(index, 1);
+      return selected;
+    }
+  };
+  const page = {
+    getByRole(role, options) {
+      assert.equal(role, "link");
+      assert.deepEqual(options, { name: "Sign in", exact: true });
+      return locator;
+    }
+  };
+
+  assert.equal(resolveTarget(page, { role: "link", name: "Sign in", index: 1 }), selected);
+  assert.throws(
+    () => resolveTarget(page, { role: "link", name: "Sign in", index: -1 }),
+    /non-negative integer/
+  );
+});
+
+test("indexed targets survive walkthrough serialization and replay", async () => {
+  const outputDir = await mkdtemp(path.join(os.tmpdir(), "autotour-indexed-target-"));
+  const journey = {
+    id: "indexed-target",
+    title: "Indexed target",
+    modules: [{
+      id: "open-login",
+      title: "Open login",
+      route: "/",
+      steps: [{
+        id: "choose-sign-in",
+        action: "click",
+        description: "Choose the first sign-in link.",
+        target: { role: "link", name: "Sign in", index: 0 }
+      }]
+    }]
+  };
+  const firstPage = createFixturePageDouble({ baseUrl: BASE_URL });
+  const initial = await captureJourney({
+    baseUrl: BASE_URL,
+    goal: "Choose one duplicate control.",
+    outputDir,
+    env: {},
+    page: firstPage,
+    journey
+  });
+
+  assert.equal(
+    initial.walkthrough.modules[0].steps[0].selector,
+    'role=link[name="Sign in"] >> nth=0'
+  );
+  assert.deepEqual(initial.captureSteps[0].target, {
+    role: "link",
+    name: "Sign in",
+    index: 0
+  });
+
+  const replayPage = createFixturePageDouble({ baseUrl: BASE_URL });
+  await captureJourney({
+    outputDir: path.join(outputDir, "replay"),
+    env: {},
+    page: replayPage,
+    journey: initial.walkthrough
+  });
+  assert.deepEqual(replayPage.actions()[0], {
+    type: "click",
+    role: "link",
+    name: "Sign in",
+    index: 0
+  });
+});
 
 function createPublicJourney() {
   return {

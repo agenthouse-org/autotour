@@ -27,6 +27,8 @@ console.log(result.videoPaths);
 
 Generated videos remain under the ignored `.autotour/output/` directory by default. CI must install Playwright Chromium before capture.
 
+Journey steps should prefer accessible role/name targets. When a page intentionally exposes duplicate controls with the same accessible name, set a zero-based `target.index` to choose one explicitly; AutoTour preserves that choice in the generated walkthrough selector as `>> nth=<index>`.
+
 ## Annotated screenshot capture
 
 Set `recordScreenshots` to generate one deterministic PNG for every journey step. Role/name targets receive the configured highlight, numbered callout, and caption; navigation and other untargeted steps capture the resulting page state.

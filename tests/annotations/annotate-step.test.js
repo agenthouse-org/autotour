@@ -58,8 +58,18 @@ test("normalizeRoleNameTarget accepts the capture-step locator contract", () => 
     role: "button",
     name: "Save profile"
   });
+  assert.deepEqual(normalizeRoleNameTarget({ role: "link", name: "Sign in", index: 0 }), {
+    role: "link",
+    name: "Sign in",
+    index: 0
+  });
   assert.throws(
     () => normalizeRoleNameTarget({ role: "button" }),
+    (error) =>
+      error instanceof AnnotationError && error.code === AnnotationErrorCode.INVALID_INPUT
+  );
+  assert.throws(
+    () => normalizeRoleNameTarget({ role: "link", name: "Sign in", index: -1 }),
     (error) =>
       error instanceof AnnotationError && error.code === AnnotationErrorCode.INVALID_INPUT
   );

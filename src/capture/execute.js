@@ -3,16 +3,22 @@ import { CaptureError } from "./errors.js";
 /**
  * Resolve a Playwright locator from a role/name target contract.
  * @param {import('playwright').Page} page
- * @param {{ role: string, name: string }} target
+ * @param {{ role?: string, name?: string, text?: string, index?: number }} target
  */
 export function resolveTarget(page, target) {
+  let locator;
   if (typeof target?.text === "string" && target.text.length > 0) {
-    return page.getByText(target.text, { exact: true });
-  }
-  if (!target?.role || !target?.name) {
+    locator = page.getByText(target.text, { exact: true });
+  } else if (target?.role && target?.name) {
+    locator = page.getByRole(target.role, { name: target.name, exact: true });
+  } else {
     throw new Error("target requires role/name or exact text");
   }
-  return page.getByRole(target.role, { name: target.name, exact: true });
+  if (target.index === undefined) return locator;
+  if (!Number.isInteger(target.index) || target.index < 0) {
+    throw new Error("target index must be a non-negative integer");
+  }
+  return locator.nth(target.index);
 }
 
 /**

@@ -29,15 +29,18 @@ export function createFixturePageDouble({
     });
   }
 
-  function locatorFor(role, name) {
+  function locatorFor(role, name, index) {
     const key = `${role}:${name}`;
     return {
+      nth(selectedIndex) {
+        return locatorFor(role, name, selectedIndex);
+      },
       async fill(value) {
-        actions.push({ type: "fill", role, name, value });
+        actions.push({ type: "fill", role, name, value, ...(index === undefined ? {} : { index }) });
         fields.set(key, value);
       },
       async click() {
-        actions.push({ type: "click", role, name });
+        actions.push({ type: "click", role, name, ...(index === undefined ? {} : { index }) });
         if (role === "button" && name === "Sign in") {
           const email = fields.get("textbox:Email");
           const pass = fields.get("textbox:Password");
@@ -58,11 +61,11 @@ export function createFixturePageDouble({
         }
       },
       async selectOption(value) {
-        actions.push({ type: "select", role, name, value });
+        actions.push({ type: "select", role, name, value, ...(index === undefined ? {} : { index }) });
         fields.set(key, value);
       },
       async waitFor({ state = "visible" } = {}) {
-        actions.push({ type: `assert-${state}`, role, name });
+        actions.push({ type: `assert-${state}`, role, name, ...(index === undefined ? {} : { index }) });
         if (state === "visible" && hidden.has(key)) {
           throw new Error(`${role} ${name} is not visible`);
         }

@@ -78,9 +78,9 @@ export function buildWalkthrough({
           description: step.description
         };
         if (step.target?.name) {
-          entry.selector = `role=${step.target.role}[name=${JSON.stringify(step.target.name)}]`;
+          entry.selector = `role=${step.target.role}[name=${JSON.stringify(step.target.name)}]${formatTargetIndex(step.target)}`;
         } else if (step.target?.text) {
-          entry.selector = `text=${JSON.stringify(step.target.text)}`;
+          entry.selector = `text=${JSON.stringify(step.target.text)}${formatTargetIndex(step.target)}`;
         }
         if (step.valueEnv) {
           entry.valueEnv = step.valueEnv;
@@ -94,6 +94,10 @@ export function buildWalkthrough({
   };
 
   return redactValue(walkthrough, secrets);
+}
+
+function formatTargetIndex(target) {
+  return target.index === undefined ? "" : ` >> nth=${target.index}`;
 }
 
 /**
@@ -119,9 +123,11 @@ export function buildCaptureSteps(modules, secrets = []) {
         }
       };
       if (step.target) {
-        entry.target = step.target.text
+        const target = step.target.text
           ? { text: step.target.text }
           : { role: step.target.role, name: step.target.name };
+        if (step.target.index !== undefined) target.index = step.target.index;
+        entry.target = target;
       }
       if (step.valueEnv) {
         entry.valueEnv = step.valueEnv;
