@@ -59,7 +59,7 @@ export async function executeStep({ page, baseUrl, module, step, env, secrets })
       case "goto": {
         const path = step.path ?? module.route;
         const url = new URL(path, baseUrl).toString();
-        await page.goto(url, { waitUntil: "domcontentloaded" });
+        await navigateToStableUrl(page, url);
         break;
       }
       case "fill": {
@@ -175,6 +175,43 @@ export async function executeStep({ page, baseUrl, module, step, env, secrets })
       secrets,
       original: error
     });
+  }
+}
+
+async function navigateToStableUrl(page, url) {
+  try {
+    await page.goto(url, { waitUntil: "domcontentloaded" });
+  } catch (error) {
+    if (!(error instanceof Error) ||
+        !/net::ERR_ABORTED|is interrupted by another navigation/i.test(error.message)) {
+      throw error;
+    }
+    if (typeof page.waitForURL === "function") {
+      try {
+        await page.waitForURL(url, { waitUntil: "domcontentloaded", timeout: 5000 });
+        return;
+      } catch {
+        // The competing navigation did not reach the requested URL; retry below.
+      }
+    }
+    if (typeof page.waitForLoadState === "function") {
+      await page.waitForLoadState("domcontentloaded");
+    }
+    if (samePageUrl(page.url?.(), url)) return;
+    await page.goto(url, { waitUntil: "domcontentloaded" });
+  }
+}
+
+function samePageUrl(current, expected) {
+  if (typeof current !== "string") return false;
+  try {
+    const left = new URL(current);
+    const right = new URL(expected);
+    return left.origin === right.origin &&
+      left.pathname === right.pathname &&
+      left.search === right.search;
+  } catch {
+    return false;
   }
 }
 

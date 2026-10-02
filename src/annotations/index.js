@@ -24,5 +24,5 @@ export {
   normalizeOutputRoot,
   resolveAnnotationOutputPath
 } from "./paths.js";
-export { applyRedaction, normalizeRedactionConfig } from "./redaction.js";
+export { applyRedaction, normalizeRedactionConfig, restoreRedaction } from "./redaction.js";
 export { locateByRoleName, normalizeRoleNameTarget } from "./target.js";

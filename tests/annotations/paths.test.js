@@ -16,6 +16,13 @@ test("buildAnnotationAssetPath uses deterministic module/step naming", () => {
     buildAnnotationAssetPath("update-profile", "save-profile", { outputRoot: "output/" }),
     "output/update-profile/save-profile.png"
   );
+  assert.equal(
+    buildAnnotationAssetPath("update-profile", "save-profile", {
+      outputRoot: "modules",
+      subdirectory: "screenshots"
+    }),
+    "modules/update-profile/screenshots/save-profile.png"
+  );
 });
 
 test("buildAnnotationAssetPath rejects invalid ids", () => {

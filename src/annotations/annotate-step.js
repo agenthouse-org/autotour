@@ -10,7 +10,7 @@ import {
 } from "./geometry.js";
 import { injectAnnotationOverlays, removeAnnotationOverlays } from "./overlays.js";
 import { buildAnnotationAssetPath, resolveAnnotationOutputPath } from "./paths.js";
-import { applyRedaction, normalizeRedactionConfig } from "./redaction.js";
+import { applyRedaction, normalizeRedactionConfig, restoreRedaction } from "./redaction.js";
 import { locateByRoleName, normalizeRoleNameTarget } from "./target.js";
 
 /**
@@ -42,7 +42,9 @@ import { locateByRoleName, normalizeRoleNameTarget } from "./target.js";
  *   outputRoot?: string,
  *   cwd?: string,
  *   redaction?: { selectors?: string[], texts?: string[] },
- *   keepOverlays?: boolean
+ *   keepOverlays?: boolean,
+ *   restorePage?: boolean,
+ *   subdirectory?: string
  * }} input
  * @returns {Promise<AnnotationResult>}
  */
@@ -58,12 +60,14 @@ export async function annotateStep(input) {
     viewport,
     outputRoot = "output",
     cwd = process.cwd(),
-    keepOverlays = false
+    keepOverlays = false,
+    restorePage = false,
+    subdirectory
   } = input;
 
   const target = normalizeRoleNameTarget(input.target);
   const redaction = normalizeRedactionConfig(input.redaction);
-  const assetPath = buildAnnotationAssetPath(moduleId, stepId, { outputRoot });
+  const assetPath = buildAnnotationAssetPath(moduleId, stepId, { outputRoot, subdirectory });
   const absolutePath = resolveAnnotationOutputPath(assetPath, cwd);
 
   const resolvedViewport = viewport
@@ -75,40 +79,40 @@ export async function annotateStep(input) {
   }
 
   await applyRedaction(page, redaction);
-
-  const locator = await locateByRoleName(page, target, { stepId });
-  await locator.scrollIntoViewIfNeeded();
-  const rawBox = await locator.boundingBox();
-  if (!rawBox) {
-    throw createAnnotationError(
-      AnnotationErrorCode.TARGET_OUTSIDE_VIEWPORT,
-      "Target element has no visible bounding box in the viewport.",
-      { details: { stepId, moduleId, role: target.role, name: target.name } }
-    );
-  }
-
-  const targetBox = clipRectToViewport(rawBox, resolvedViewport);
-  if (!targetBox) {
-    throw createAnnotationError(
-      AnnotationErrorCode.TARGET_OUTSIDE_VIEWPORT,
-      "Target element is outside the viewport after clipping.",
-      {
-        details: {
-          stepId,
-          moduleId,
-          role: target.role,
-          name: target.name,
-          viewportWidth: resolvedViewport.width,
-          viewportHeight: resolvedViewport.height
-        }
-      }
-    );
-  }
-
-  const calloutBox = placeCallout(targetBox, resolvedViewport);
-  const captionBox = placeCaption(targetBox, resolvedViewport, caption);
+  let targetBox;
 
   try {
+    const locator = await locateByRoleName(page, target, { stepId });
+    await locator.scrollIntoViewIfNeeded();
+    const rawBox = await locator.boundingBox();
+    if (!rawBox) {
+      throw createAnnotationError(
+        AnnotationErrorCode.TARGET_OUTSIDE_VIEWPORT,
+        "Target element has no visible bounding box in the viewport.",
+        { details: { stepId, moduleId, role: target.role, name: target.name } }
+      );
+    }
+
+    targetBox = clipRectToViewport(rawBox, resolvedViewport);
+    if (!targetBox) {
+      throw createAnnotationError(
+        AnnotationErrorCode.TARGET_OUTSIDE_VIEWPORT,
+        "Target element is outside the viewport after clipping.",
+        {
+          details: {
+            stepId,
+            moduleId,
+            role: target.role,
+            name: target.name,
+            viewportWidth: resolvedViewport.width,
+            viewportHeight: resolvedViewport.height
+          }
+        }
+      );
+    }
+
+    const calloutBox = placeCallout(targetBox, resolvedViewport);
+    const captionBox = placeCaption(targetBox, resolvedViewport, caption);
     await injectAnnotationOverlays(page, {
       targetBox,
       calloutBox,
@@ -138,6 +142,13 @@ export async function annotateStep(input) {
         await removeAnnotationOverlays(page);
       } catch {
         // Overlay cleanup must not mask a successful write or primary error.
+      }
+    }
+    if (restorePage) {
+      try {
+        await restoreRedaction(page);
+      } catch {
+        // Page restoration must not mask a successful write or primary error.
       }
     }
   }

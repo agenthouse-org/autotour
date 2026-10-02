@@ -27,6 +27,28 @@ console.log(result.videoPaths);
 
 Generated videos remain under the ignored `.autotour/output/` directory by default. CI must install Playwright Chromium before capture.
 
+## Annotated screenshot capture
+
+Set `recordScreenshots` to generate one deterministic PNG for every journey step. Role/name targets receive the configured highlight, numbered callout, and caption; navigation and other untargeted steps capture the resulting page state.
+
+```js
+const result = await captureJourney({
+  journey,
+  outputDir: ".autotour/output/dealdesk-screenshots",
+  recordScreenshots: {
+    viewport: { width: 1280, height: 720 },
+    redaction: {
+      selectors: ["[data-private]"],
+      texts: ["Internal account name"]
+    }
+  }
+});
+
+console.log(result.screenshotPaths);
+```
+
+Screenshots are written under `modules/<module-id>/screenshots/<step-id>.png` and listed in each module's manifest assets in journey order. Credential environment values are included in temporary screenshot redaction and restored in the live page before the next action. Review every generated image before publication.
+
 ## DOM autoplay replay
 
 Set `recordDom` to capture rrweb events and generate one sandboxed autoplay page per module. The generated output includes a shared local replay runtime, so the local fixture works after the source application is stopped.
@@ -79,7 +101,7 @@ Use repeated `--changed-file <path>` options instead of `--base` for coding-agen
 
 ## Selective regeneration
 
-Apply an invalidation plan to an existing DOM or video output directory:
+Apply an invalidation plan to an existing screenshot, DOM, or video output directory:
 
 ```sh
 autotour regenerate .autotour/journey.json \
@@ -111,7 +133,7 @@ autotour sync-markdown .autotour/output/profile/walkthrough.json \
 
 Use `--dry-run` to preview machine-readable changes without writing. Use `--check` in CI; it also performs no writes and exits with status `2` when the Markdown or copied assets are stale. Invalid, nested, duplicate, unknown, unpublished, or unpaired markers and unsafe source paths fail before the Markdown file is changed.
 
-> AutoTour is in active development. The package supports modular screenshots, raw WebM video, DOM autoplay capture, dependency-aware invalidation, selective DOM/video regeneration, and managed Markdown screenshot synchronization; portable remote-asset harvesting, presentation profiles, and hosted publishing remain future slices.
+> AutoTour is in active development. The package supports annotated modular screenshots, raw WebM video, DOM autoplay capture, dependency-aware invalidation, selective screenshot/DOM/video regeneration, and managed Markdown screenshot synchronization; portable remote-asset harvesting, presentation profiles, and hosted publishing remain future slices.
 
 ## Install
 

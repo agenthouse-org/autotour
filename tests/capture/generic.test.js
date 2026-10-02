@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { CaptureError, captureJourney } from "../../src/capture/index.js";
+import { executeStep } from "../../src/capture/execute.js";
 import { createFixturePageDouble } from "./fixture-page.js";
 
 const BASE_URL = "https://fixture.test";
@@ -195,5 +196,43 @@ test("schema-shaped walkthrough JSON can be executed directly", async () => {
   assert.equal(result.walkthrough.publish, true);
   assert.deepEqual(result.walkthrough.modules[0].dependencies.views, ["homepage-navigation"]);
   assert.deepEqual(page.actions().map((action) => action.type), ["goto", "click"]);
+});
+
+test("goto accepts overlapping redirects that reached the requested URL", async () => {
+  for (const message of [
+    "page.goto: net::ERR_ABORTED",
+    "Navigation is interrupted by another navigation to the same URL"
+  ]) {
+    let attempts = 0;
+    const page = {
+      async goto() {
+        attempts += 1;
+        throw new Error(message);
+      },
+      async waitForLoadState() {},
+      async waitForURL(expected) {
+        assert.equal(expected, "https://fixture.test/settings/profile");
+      },
+      url() {
+        return "https://fixture.test/login";
+      }
+    };
+
+    await executeStep({
+      page,
+      baseUrl: "https://fixture.test",
+      module: { id: "profile", route: "/settings/profile" },
+      step: {
+        id: "open-profile",
+        action: "goto",
+        description: "Open profile settings.",
+        path: "/settings/profile"
+      },
+      env: {},
+      secrets: []
+    });
+
+    assert.equal(attempts, 1);
+  }
 });
 

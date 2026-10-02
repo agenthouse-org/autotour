@@ -13,6 +13,12 @@ import { diffObservations, observeSameOriginRequests } from "./observe.js";
 import { collectSecretValues, containsSecret, redactValue } from "./redact.js";
 import { openPlaywrightDomSession } from "../dom/session.js";
 import { writeWalkthroughReplay } from "../dom/walkthrough-player.js";
+import {
+  hasAnnotatableTarget,
+  normalizeScreenshotOptions,
+  prepareStepScreenshot,
+  removeScreenshotTemporaryDirectory
+} from "./screenshots.js";
 
 /**
  * @typedef {object} CaptureOptions
@@ -28,6 +34,7 @@ import { writeWalkthroughReplay } from "../dom/walkthrough-player.js";
  * @property {() => Promise<{ page: import('playwright').Page, close?: () => Promise<void> }>} [createSession]
  * @property {false | { size?: { width: number, height: number }, viewport?: { width: number, height: number }, showActions?: object }} [recordVideo]
  * @property {false | { viewport?: { width: number, height: number }, stepDelayMs?: number }} [recordDom]
+ * @property {boolean | { viewport?: { width: number, height: number }, redaction?: { selectors?: string[], texts?: string[] } }} [recordScreenshots]
  * @property {string[]} [moduleIds]
  * @property {object} [previousWalkthrough]
  * @property {object[]} [previousCaptureSteps]
@@ -54,6 +61,7 @@ export async function captureJourney(options = {}) {
     journey: journeyOverride,
     recordVideo = false,
     recordDom = false,
+    recordScreenshots = false,
     moduleIds,
     previousWalkthrough,
     previousCaptureSteps
@@ -127,14 +135,15 @@ export async function captureJourney(options = {}) {
       secrets
     });
   }
-  if (recordVideo && recordDom) {
+  if ([recordVideo, recordDom, recordScreenshots].filter(Boolean).length > 1) {
     throw new CaptureError({
-      message: "Combined DOM and video capture is not supported yet.",
+      message: "Combined screenshot, DOM, and video capture is not supported yet.",
       cause: "select one recorded output per capture run",
       secrets
     });
   }
   const domStepDelayMs = normalizeDomStepDelay(recordDom, secrets);
+  const screenshotOptions = normalizeScreenshotOptions(recordScreenshots, secrets);
 
   await mkdir(outputDir, { recursive: true });
   const session = await createCaptureSession({
@@ -153,6 +162,8 @@ export async function captureJourney(options = {}) {
   const domPaths = {};
   /** @type {Record<string, string>} */
   const domEventPaths = {};
+  /** @type {Record<string, string[]>} */
+  const screenshotPaths = {};
   let captureError;
 
   try {
@@ -163,20 +174,53 @@ export async function captureJourney(options = {}) {
       const observer = observeSameOriginRequests(page, parsedBase);
       const moduleRequests = [];
       const capturedSteps = [];
+      const moduleScreenshotPaths = [];
+      const moduleScreenshotAssets = [];
 
       let assets = {};
       let moduleError;
       try {
         for (const step of module.steps) {
           const before = observer.snapshot();
-          await executeStep({
-            page,
-            baseUrl: parsedBase.toString(),
-            module,
-            step,
-            env,
-            secrets
-          });
+          let preparedScreenshot;
+          try {
+            if (screenshotOptions && shouldCapture && hasAnnotatableTarget(step)) {
+              preparedScreenshot = await prepareStepScreenshot({
+                page,
+                module,
+                step,
+                outputDir,
+                options: screenshotOptions,
+                secrets
+              });
+            }
+            await executeStep({
+              page,
+              baseUrl: parsedBase.toString(),
+              module,
+              step,
+              env,
+              secrets
+            });
+            if (screenshotOptions && shouldCapture && !hasAnnotatableTarget(step)) {
+              preparedScreenshot = await prepareStepScreenshot({
+                page,
+                module,
+                step,
+                outputDir,
+                options: screenshotOptions,
+                secrets
+              });
+            }
+            if (preparedScreenshot) {
+              await preparedScreenshot.commit();
+              moduleScreenshotAssets.push(preparedScreenshot.relativePath);
+              moduleScreenshotPaths.push(preparedScreenshot.absolutePath);
+            }
+          } catch (error) {
+            await preparedScreenshot?.discard();
+            throw error;
+          }
           // Allow microtasks/network handlers attached by page doubles to flush.
           await Promise.resolve();
           if (domStepDelayMs > 0 && shouldCapture) {
@@ -211,6 +255,7 @@ export async function captureJourney(options = {}) {
       if (assets.videoPath) videoPaths[module.id] = assets.videoPath;
       if (assets.domPath) domPaths[module.id] = assets.domPath;
       if (assets.domEventsPath) domEventPaths[module.id] = assets.domEventsPath;
+      if (moduleScreenshotPaths.length > 0) screenshotPaths[module.id] = moduleScreenshotPaths;
       capturedModules.push({
         id: module.id,
         title: module.title,
@@ -221,7 +266,8 @@ export async function captureJourney(options = {}) {
         publish: module.publish,
         assets: {
           ...(assets.video ? { video: assets.video } : {}),
-          ...(assets.dom ? { dom: assets.dom } : {})
+          ...(assets.dom ? { dom: assets.dom } : {}),
+          ...(moduleScreenshotAssets.length > 0 ? { screenshots: moduleScreenshotAssets } : {})
         }
       });
     }
@@ -278,6 +324,7 @@ export async function captureJourney(options = {}) {
       videoPaths,
       domPaths,
       domEventPaths,
+      screenshotPaths,
       regeneratedModuleIds: [...selection.selectedIds],
       executedModuleIds: selection.modulesToExecute.map((module) => module.id),
       ...(domIndexPath ? { domIndexPath } : {}),
@@ -297,11 +344,14 @@ export async function captureJourney(options = {}) {
     captureError = error;
     throw error;
   } finally {
+    let closeError;
     try {
       await session.close();
     } catch (error) {
-      if (!captureError) throw error;
+      if (!captureError) closeError = error;
     }
+    await removeScreenshotTemporaryDirectory(outputDir);
+    if (closeError) throw closeError;
   }
 }
 

@@ -19,9 +19,11 @@ For raw modular video, execute the schema-shaped walkthrough with `captureJourne
 
 For modular DOM autoplay, execute the same walkthrough with `captureJourney({ journey, recordDom })`. Verify the generated player after the source application is unavailable, reject captures containing protected values, and report remote assets that still prevent a fully portable replay. DOM and video capture currently run as separate passes over the same journey.
 
+For annotated screenshots, execute the journey with `captureJourney({ journey, recordScreenshots })`. Use a fixed viewport and configure selectors or text rules for sensitive page content. AutoTour also temporarily redacts values supplied through credential environment variables. Verify every generated image before publication; the manifest's ordered `assets.screenshots` list can then feed `autotour sync-markdown`.
+
 For change impact, maintain a reviewed dependency map that connects repository file globs to the exact dependency identifiers recorded in module manifests. Run `autotour invalidate` with an explicit Git base/head or changed-file list. Regenerate only modules classified `regenerate`; do not treat `review` modules as reusable until unmapped files or stale dependency names are resolved.
 
-Apply a certain plan with `autotour regenerate <journey.json> --plan <plan.json> --output-dir <existing-output>`. Let AutoTour execute reusable prerequisites for browser state while preserving their checked output. Treat status `2` as a review gate, and retain the existing output when capture or assembly fails.
+Apply a certain plan with `autotour regenerate <journey.json> --plan <plan.json> --output-dir <existing-output>`. Screenshot, DOM, and video modes are inferred from the existing manifest. Let AutoTour execute reusable prerequisites for browser state while preserving their checked output. Treat status `2` as a review gate, and retain the existing output when capture or assembly fails.
 
 For repository documentation, use standalone matching `<!-- autotour:module=<id>:start -->` and `<!-- autotour:module=<id>:end -->` comments. Run `autotour sync-markdown` only when the walkthrough and selected modules explicitly set `publish` to `true`. Use `--check` in CI to detect stale documentation without writing, or `--dry-run` to inspect proposed Markdown and asset changes. Do not edit outside managed regions or bypass marker and source-path validation.
 

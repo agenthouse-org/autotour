@@ -20,6 +20,7 @@ export async function regenerateWalkthrough(options) {
     env = process.env,
     recordDom,
     recordVideo,
+    recordScreenshots,
     capture = captureJourney
   } = options ?? {};
   const outputDir = path.resolve(requestedOutputDir ?? "");
@@ -38,7 +39,11 @@ export async function regenerateWalkthrough(options) {
     invalidationPlan,
     previousWalkthrough
   });
-  const mode = resolveCaptureMode(previousWalkthrough.outputs, { recordDom, recordVideo });
+  const mode = resolveCaptureMode(previousWalkthrough.outputs, {
+    recordDom,
+    recordVideo,
+    recordScreenshots
+  });
 
   if (selection.regenerate.length === 0) {
     return buildResult({
@@ -66,7 +71,8 @@ export async function regenerateWalkthrough(options) {
       previousWalkthrough,
       previousCaptureSteps,
       recordDom: mode.recordDom,
-      recordVideo: mode.recordVideo
+      recordVideo: mode.recordVideo,
+      recordScreenshots: mode.recordScreenshots
     });
     const validation = await validateWalkthroughDocument(captured.walkthrough);
     if (!validation.valid) {
@@ -160,26 +166,42 @@ async function readJson(file, label) {
 }
 
 function resolveCaptureMode(outputs, overrides) {
-  if (!Array.isArray(outputs) || outputs.length !== 1 || !["dom", "video"].includes(outputs[0])) {
-    throw new RegenerationError("Selective regeneration currently supports one DOM or video output.");
+  if (!Array.isArray(outputs) || outputs.length !== 1 ||
+      !["dom", "video", "screenshots"].includes(outputs[0])) {
+    throw new RegenerationError(
+      "Selective regeneration supports one screenshot, DOM, or video output."
+    );
   }
   if (outputs[0] === "dom") {
-    if (overrides.recordVideo) {
-      throw new RegenerationError("Existing DOM output cannot be regenerated as video.");
+    if (overrides.recordVideo || overrides.recordScreenshots) {
+      throw new RegenerationError("Existing DOM output cannot be regenerated in another mode.");
     }
     return {
       name: "dom",
       recordDom: overrides.recordDom === undefined ? {} : overrides.recordDom,
-      recordVideo: false
+      recordVideo: false,
+      recordScreenshots: false
     };
   }
-  if (overrides.recordDom) {
-    throw new RegenerationError("Existing video output cannot be regenerated as DOM.");
+  if (outputs[0] === "video") {
+    if (overrides.recordDom || overrides.recordScreenshots) {
+      throw new RegenerationError("Existing video output cannot be regenerated in another mode.");
+    }
+    return {
+      name: "video",
+      recordDom: false,
+      recordVideo: overrides.recordVideo === undefined ? {} : overrides.recordVideo,
+      recordScreenshots: false
+    };
+  }
+  if (overrides.recordDom || overrides.recordVideo) {
+    throw new RegenerationError("Existing screenshot output cannot be regenerated in another mode.");
   }
   return {
-    name: "video",
+    name: "screenshots",
     recordDom: false,
-    recordVideo: overrides.recordVideo === undefined ? {} : overrides.recordVideo
+    recordVideo: false,
+    recordScreenshots: overrides.recordScreenshots === undefined ? {} : overrides.recordScreenshots
   };
 }
 

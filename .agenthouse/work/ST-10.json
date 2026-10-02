@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "id": "ST-10",
+  "title": "Capture and selectively regenerate annotated walkthrough screenshots",
+  "kind": "feature",
+  "stage": "implement",
+  "revision": 5,
+  "fields": {
+    "outcome": "A documentation producer or CI job can capture ready-to-publish screenshots for every walkthrough step and refresh only the modules affected by a product change.",
+    "parentWork": "autotour-core",
+    "scope": "Integrate screenshot generation into captureJourney, using annotated target screenshots when a step has a role/name target and clean state screenshots for untargeted steps. Store deterministic module/step PNG paths in the walkthrough manifest, support redaction and viewport configuration, expose generated paths in capture results, and extend transactional selective regeneration to screenshot walkthroughs. Exclude presentation frames and backgrounds, cursor animation, DOM asset harvesting, video composition, Markdown synchronization changes, and hosted publishing.",
+    "acceptance": "Given an executable journey and screenshot capture enabled, every completed step produces one deterministic PNG in module and step order, targetable steps contain the configured annotation, the schema-valid manifest lists those files, secrets and configured sensitive content are redacted, and an invalidation plan replaces only affected module screenshots while preserving reusable module files byte-for-byte.",
+    "decisions": "Use modules/<module-id>/screenshots/<step-id>.png relative to the capture output. Capture role/name instruction targets immediately before the action so navigation cannot remove them, but publish the frame only after the action succeeds; capture untargeted state steps after the action. Reuse annotateStep for role/name targets and capture an unannotated state image for navigation, scrolling, waits, exact-text targets, and assertions that cannot use the role/name annotation contract. Keep screenshot capture explicit through recordScreenshots so existing injected page doubles remain lightweight, while retaining the current screenshots output type for non-DOM/non-video captures.",
+    "verification": "Add unit and browser-backed tests for ordered deterministic paths, annotated and clean screenshots, manifest validity, configured redaction, safe failure behavior, and selective screenshot regeneration. Run the full Node test suite, package metadata checks, npm pack dry-run, and frozen AgentHouse evaluation.",
+    "dependencies": "Builds on ST-03 annotation rendering, ST-07 dependency invalidation, ST-08 transactional regeneration, and ST-09 Markdown screenshot synchronization.",
+    "risks": "Capturing at the wrong instant can document transient UI, overlays can leak into later screenshots, sensitive content can enter images, and partial regeneration can mix incompatible assets. Capture target instructions before their action and state frames afterward, commit prepared target frames only when the action succeeds, always clean overlays and temporary redaction, and retain the existing staged atomic replacement model.",
+    "audience": "Developers, support teams, product managers, and marketers generating repository-owned product documentation."
+  },
+  "criteria": [
+    {
+      "id": "step-screenshots",
+      "expectation": "Each completed journey step produces exactly one PNG at modules/<module-id>/screenshots/<step-id>.png in journey order."
+    },
+    {
+      "id": "target-annotations",
+      "expectation": "Steps with a role/name target render their configured highlight, numbered callout, and caption; untargeted steps render a clean state screenshot."
+    },
+    {
+      "id": "manifest-assets",
+      "expectation": "The schema-valid walkthrough lists each module's screenshot paths in step order and capture results expose the corresponding absolute paths."
+    },
+    {
+      "id": "capture-options",
+      "expectation": "Callers can configure a stable viewport and redaction selectors or texts without exposing secrets in returned or JSON artifacts."
+    },
+    {
+      "id": "failure-safety",
+      "expectation": "A screenshot or annotation failure identifies the module and step through the safe capture error contract and does not produce a successful manifest."
+    },
+    {
+      "id": "selective-regeneration",
+      "expectation": "Screenshot regeneration executes prerequisite modules as needed, replaces affected module screenshots, and preserves reusable module screenshots byte-for-byte."
+    },
+    {
+      "id": "automation-interface",
+      "expectation": "The public capture and regeneration APIs return deterministic machine-readable screenshot results suitable for local and CI workflows."
+    }
+  ],
+  "evidence": [],
+  "history": [
+    {
+      "from": "discover",
+      "to": "define",
+      "at": "2026-10-02T08:28:31.112Z",
+      "previous": "6fb20e28ee9af0b614ddc549ea3068b974282f1971df54e02247101477fb9975",
+      "policyDigest": "b03341dc5eaa2323f42bdfd171feb6957eb986863b875ea8383b6e39b30d6e82",
+      "decision": null
+    },
+    {
+      "from": "define",
+      "to": "design",
+      "at": "2026-10-02T08:28:32.504Z",
+      "previous": "8ce2bba33a485cc3ce13aa5290151f0e1423eb44b18bbcc64019e3410e2039f3",
+      "policyDigest": "b03341dc5eaa2323f42bdfd171feb6957eb986863b875ea8383b6e39b30d6e82",
+      "decision": null
+    },
+    {
+      "from": "design",
+      "to": "plan",
+      "at": "2026-10-02T08:28:33.919Z",
+      "previous": "d2b92fe576c464e2253004baf775daf4668d0309e9a4baa892aaa64371490ef8",
+      "policyDigest": "b03341dc5eaa2323f42bdfd171feb6957eb986863b875ea8383b6e39b30d6e82",
+      "decision": null
+    },
+    {
+      "from": "plan",
+      "to": "implement",
+      "at": "2026-10-02T08:28:35.260Z",
+      "previous": "9a0f4926464ba0c4f7cf00d2199fdb6a402247cc004e68b38fbd6773c3d2cd0f",
+      "policyDigest": "b03341dc5eaa2323f42bdfd171feb6957eb986863b875ea8383b6e39b30d6e82",
+      "decision": null
+    }
+  ]
+}

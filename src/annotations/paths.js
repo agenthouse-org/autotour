@@ -29,13 +29,18 @@ export function assertKebabId(value, field) {
  *
  * @param {string} moduleId
  * @param {string} stepId
- * @param {{ outputRoot?: string }} [options]
+ * @param {{ outputRoot?: string, subdirectory?: string }} [options]
  */
-export function buildAnnotationAssetPath(moduleId, stepId, { outputRoot = "output" } = {}) {
+export function buildAnnotationAssetPath(
+  moduleId,
+  stepId,
+  { outputRoot = "output", subdirectory } = {}
+) {
   assertKebabId(moduleId, "moduleId");
   assertKebabId(stepId, "stepId");
   const root = normalizeOutputRoot(outputRoot);
-  return `${root}/${moduleId}/${stepId}.png`;
+  const nested = subdirectory === undefined ? "" : `/${normalizeOutputRoot(subdirectory)}`;
+  return `${root}/${moduleId}${nested}/${stepId}.png`;
 }
 
 /**

@@ -48,22 +48,50 @@ export async function applyRedaction(page, redaction) {
   try {
     const result = await page.evaluate(
       ({ selectors, texts }) => {
+        const restorePrevious = () => {
+          const previous = globalThis.__autotourRedactionState;
+          if (!previous) return;
+          for (const entry of previous.elements) {
+            if (entry.style === "") entry.element.removeAttribute("style");
+            else entry.element.setAttribute("style", entry.style);
+            if (entry.redacted === null) entry.element.removeAttribute("data-autotour-redacted");
+            else entry.element.setAttribute("data-autotour-redacted", entry.redacted);
+            if (entry.hasValue) entry.element.value = entry.value;
+          }
+          for (const entry of previous.textNodes) entry.node.nodeValue = entry.value;
+          delete globalThis.__autotourRedactionState;
+        };
+        restorePrevious();
+
         let selectorHits = 0;
         let textHits = 0;
+        const elements = [];
+        const textNodes = [];
+        const savedElements = new Set();
+        const savedTextNodes = new Set();
+
+        const saveElement = (el) => {
+          if (savedElements.has(el)) return;
+          savedElements.add(el);
+          elements.push({
+            element: el,
+            style: el.getAttribute("style") ?? "",
+            redacted: el.getAttribute("data-autotour-redacted"),
+            hasValue: "value" in el && typeof el.value === "string",
+            value: "value" in el && typeof el.value === "string" ? el.value : undefined
+          });
+        };
+        const saveTextNode = (node) => {
+          if (savedTextNodes.has(node)) return;
+          savedTextNodes.add(node);
+          textNodes.push({ node, value: node.nodeValue });
+        };
 
         const redactElement = (el) => {
+          saveElement(el);
           el.setAttribute("data-autotour-redacted", "true");
           if ("value" in el && typeof /** @type {HTMLInputElement} */ (el).value === "string") {
             /** @type {HTMLInputElement} */ (el).value = "████████";
-          }
-          if (el.childElementCount === 0) {
-            el.textContent = "████████";
-          } else {
-            el.querySelectorAll("*").forEach((child) => {
-              if (child.childElementCount === 0) {
-                child.textContent = "████████";
-              }
-            });
           }
           /** @type {HTMLElement} */ (el).style.background = "#111";
           /** @type {HTMLElement} */ (el).style.color = "transparent";
@@ -99,6 +127,7 @@ export async function applyRedaction(page, redaction) {
               textHits += 1;
             }
             if (changed) {
+              saveTextNode(textNode);
               textNode.nodeValue = value;
             }
           }
@@ -116,11 +145,14 @@ export async function applyRedaction(page, redaction) {
               textHits += 1;
             }
             if (changed) {
+              saveElement(input);
               input.value = value;
               input.setAttribute("data-autotour-redacted", "true");
             }
           });
         }
+
+        globalThis.__autotourRedactionState = { elements, textNodes };
 
         return { selectorHits, textHits };
       },
@@ -146,6 +178,23 @@ export async function applyRedaction(page, redaction) {
       }
     );
   }
+}
+
+/** Restore the page state saved by the most recent redaction pass. */
+export async function restoreRedaction(page) {
+  await page.evaluate(() => {
+    const state = globalThis.__autotourRedactionState;
+    if (!state) return;
+    for (const entry of state.elements) {
+      if (entry.style === "") entry.element.removeAttribute("style");
+      else entry.element.setAttribute("style", entry.style);
+      if (entry.redacted === null) entry.element.removeAttribute("data-autotour-redacted");
+      else entry.element.setAttribute("data-autotour-redacted", entry.redacted);
+      if (entry.hasValue) entry.element.value = entry.value;
+    }
+    for (const entry of state.textNodes) entry.node.nodeValue = entry.value;
+    delete globalThis.__autotourRedactionState;
+  });
 }
 
 /**
