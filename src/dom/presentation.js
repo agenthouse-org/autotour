@@ -41,8 +41,8 @@ export function normalizeDomPresentation(value, secrets = []) {
     focus: {
       mode: enumOption(focus.mode ?? "off", ["off", "clicks"], "focus.mode", secrets),
       scale: numberOption(focus.scale ?? 1.3, 1.05, 2, "focus.scale", secrets),
-      durationMs: integerOption(focus.durationMs ?? 420, 0, 2000, "focus.durationMs", secrets),
-      holdMs: integerOption(focus.holdMs ?? 850, 0, 5000, "focus.holdMs", secrets)
+      durationMs: integerOption(focus.durationMs ?? 650, 0, 2000, "focus.durationMs", secrets),
+      holdMs: integerOption(focus.holdMs ?? 2400, 0, 10000, "focus.holdMs", secrets)
     }
   };
 }

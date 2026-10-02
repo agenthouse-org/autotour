@@ -37,9 +37,16 @@ export function buildReplayHtml({ moduleId, title, events, presentation }) {
     #window-title { min-width: 0; margin-left: 7px; overflow: hidden; color: #c6cec9; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
     #viewport { position: relative; width: 100%; overflow: hidden; background: #050706; }
     #fit { position: absolute; inset: 0 auto auto 0; transform-origin: top left; }
-    #replay { transform-origin: center center; transition: transform var(--focus-duration) cubic-bezier(.2,.8,.2,1); }
+    #replay { transform-origin: top left; transition: transform var(--focus-duration) cubic-bezier(.2,.8,.2,1); }
     #replay iframe { border: 0; }
-    #replay .replayer-mouse { transform: scale(var(--cursor-scale)); transform-origin: top left; }
+    #replay .replayer-mouse {
+      width: 24px;
+      height: 30px;
+      transform: scale(var(--cursor-scale));
+      transform-origin: top left;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 50'%3E%3Cpath d='M4 2v40l10-10 9 16 7-4-9-15h15z' fill='%23fff' stroke='%23000' stroke-width='2.5' stroke-linejoin='round'/%3E%3C/svg%3E");
+    }
+    #replay .replayer-mouse::after { background: rgba(255,255,255,.42); border: 2px solid #111; }
     body[data-click-pulse="false"] #replay .replayer-mouse.active::after { animation: none; }
     body[data-frame-mode="window"] #window-bar { display: flex; }
     body[data-frame-mode="pure"] #canvas { background: #050706 !important; }
@@ -122,9 +129,9 @@ export function buildReplayHtml({ moduleId, title, events, presentation }) {
 
       const resetFocus = () => {
         clearTimeout(focusTimer);
-        replayRoot.style.transform = "scale(1)";
-        replayRoot.style.transformOrigin = "center center";
+        replayRoot.style.transform = "translate(0px, 0px) scale(1)";
         document.body.dataset.focusActive = "false";
+        document.body.dataset.focusPoint = "";
       };
       const focusClick = (event) => {
         if (presentation.focus.mode !== "clicks" || reducedMotion.matches) return;
@@ -132,9 +139,14 @@ export function buildReplayHtml({ moduleId, title, events, presentation }) {
         const y = Number(event.data?.y);
         if (!Number.isFinite(x) || !Number.isFinite(y)) return;
         clearTimeout(focusTimer);
-        replayRoot.style.transformOrigin = x + "px " + y + "px";
-        replayRoot.style.transform = "scale(" + presentation.focus.scale + ")";
+        const scale = presentation.focus.scale;
+        const minX = replayWidth - (replayWidth * scale);
+        const minY = replayHeight - (replayHeight * scale);
+        const translateX = Math.max(minX, Math.min(0, (replayWidth / 2) - (x * scale)));
+        const translateY = Math.max(minY, Math.min(0, (replayHeight / 2) - (y * scale)));
+        replayRoot.style.transform = "translate(" + translateX + "px, " + translateY + "px) scale(" + scale + ")";
         document.body.dataset.focusActive = "true";
+        document.body.dataset.focusPoint = x + "," + y;
         focusTimer = setTimeout(resetFocus, presentation.focus.holdMs);
       };
       const fitReplay = () => {

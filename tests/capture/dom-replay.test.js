@@ -24,6 +24,26 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
   });
   const sourceBaseUrl = app.baseUrl;
   const outputDir = await mkdtemp(path.join(os.tmpdir(), "autotour-dom-"));
+  const replayJourney = createProfileJourney({ displayName: "Replay User" });
+  const signInSteps = replayJourney.modules[0].steps;
+  signInSteps.splice(1, 0, {
+    id: "focus-email",
+    action: "click",
+    description: "Focus the email field.",
+    target: { role: "textbox", name: "Email" }
+  });
+  signInSteps.splice(3, 0, {
+    id: "focus-password",
+    action: "click",
+    description: "Focus the password field.",
+    target: { role: "textbox", name: "Password" }
+  });
+  signInSteps.push({
+    id: "hold-login-focus",
+    action: "wait",
+    description: "Hold the focused login result.",
+    durationMs: 3500
+  });
   let result;
 
   try {
@@ -35,12 +55,12 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
         AUTOTOUR_USERNAME: DEFAULT_USERNAME,
         AUTOTOUR_PASSWORD: DEFAULT_PASSWORD
       },
-      journey: createProfileJourney({ displayName: "Replay User" }),
+      journey: replayJourney,
       recordDom: {
         viewport: { width: 960, height: 540 },
         presentation: {
           cursor: { scale: 1.7, clickPulse: true },
-          focus: { mode: "clicks", scale: 1.25, durationMs: 100, holdMs: 1200 },
+          focus: { mode: "clicks", scale: 1.25, durationMs: 180, holdMs: 2400 },
           frame: { mode: "window", title: "AutoTour demo" },
           background: { mode: "gradient", from: "#111815", to: "#26342b" },
           padding: 32
@@ -95,7 +115,7 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
   try {
     await page.goto(`${replayServer.baseUrl}/index.html`);
     await page.locator("body[data-current-module='sign-in']").waitFor();
-    await page.locator("body[data-current-module='update-profile']").waitFor({ timeout: 5000 });
+    await page.locator("body[data-current-module='update-profile']").waitFor({ timeout: 10000 });
     assert.equal(await page.locator("#progress").innerText(), "2 / 2");
     assert.equal(
       await page.getByRole("tab", { name: "Update profile" }).getAttribute("aria-selected"),
@@ -134,7 +154,28 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
     assert.ok(await replayLogo.evaluate((image) => image.complete && image.naturalWidth > 0));
 
     await page.locator("body[data-focus-active='true']").waitFor({ timeout: 5000 });
-    assert.equal(await page.locator("#replay").evaluate((element) => element.style.transform), "scale(1.25)");
+    const firstFocusPoint = await page.locator("body").getAttribute("data-focus-point");
+    const firstTransform = await page.locator("#replay").evaluate((element) => element.style.transform);
+    assert.match(firstTransform, /translate\(.+\) scale\(1\.25\)/);
+    await page.waitForFunction(
+      (point) => document.body.dataset.focusActive === "true" &&
+        document.body.dataset.focusPoint !== point,
+      firstFocusPoint,
+      { timeout: 5000 }
+    );
+    const secondTransform = await page.locator("#replay").evaluate((element) => element.style.transform);
+    assert.notEqual(secondTransform, firstTransform);
+    assert.equal(await page.locator("body").getAttribute("data-focus-active"), "true");
+    const cursorBackground = await page.locator(".replayer-mouse").evaluate(
+      (element) => getComputedStyle(element).backgroundImage
+    );
+    assert.match(cursorBackground, /data:image\/svg\+xml/);
+    assert.match(cursorBackground, /fff|255/);
+    await page.locator("body[data-focus-active='false']").waitFor({ timeout: 5000 });
+    assert.equal(
+      await page.locator("#replay").evaluate((element) => element.style.transform),
+      "translate(0px, 0px) scale(1)"
+    );
 
     await page.getByRole("button", { name: "Pause replay" }).click();
     assert.equal(await page.locator("#status").innerText(), "Paused");

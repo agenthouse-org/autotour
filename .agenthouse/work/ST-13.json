@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "id": "ST-13",
+  "title": "Stabilize guided replay motion and cursor contrast",
+  "kind": "bug",
+  "stage": "implement",
+  "revision": 5,
+  "fields": {
+    "outcome": "Walkthrough viewers can follow a calm camera that remains focused across related actions and can always see the pointer on dark or light application screens.",
+    "parentWork": "autotour-core",
+    "scope": "Replace repeated zoom-origin jumps with a translated focus camera that smoothly pans between click targets while staying zoomed, reset the zoom-out timer after each click, raise the default quiet hold interval, render a white cursor with a black edge, and update the portable AutoTour skill with a complete heading index and progressively disclosed presentation guidance.",
+    "acceptance": "During a click sequence, the replay zooms in once, smoothly pans to subsequent click targets without returning to full scale between them, and zooms out only after the configured holdMs quiet interval. The cursor remains white with a black edge on dark and light screens. The internal skill explains how to choose holdMs and durationMs and begins with a Content section linking every heading.",
+    "decisions": "Use a fixed top-left transform origin and animate translate plus scale so target changes interpolate as camera movement. Clamp translation to replay bounds. Treat holdMs as quiet time after the most recent click and recommend at least two step delays plus transition time. Keep detailed output configuration in skill reference files.",
+    "verification": "Add browser assertions for translated focus, movement between click targets without an intervening reset, delayed zoom-out, cursor styling, and lifecycle reset. Validate the skill, regenerate and inspect the DealDesk DOM and WebM examples, run package checks, and run frozen Agenthouse evaluation.",
+    "dependencies": "Refines ST-12 guided motion and the create-autotour portable skill.",
+    "risks": "Long focus holds can obscure global context and aggressive translation can expose empty edges. Bound scale and translation, retain explicit configuration, and restore full view after quiet time and lifecycle controls.",
+    "observed": "The DealDesk example repeatedly zoomed in and out between nearby actions, and rrweb's default dark cursor became hard to see on the dark Agenthouse interface.",
+    "expected": "Related clicks should feel like one calm focused sequence with slight camera movement, followed by one zoom-out after an author-controlled quiet interval; the pointer should remain high contrast."
+  },
+  "criteria": [
+    {
+      "id": "quiet-hold",
+      "expectation": "focus.holdMs measures quiet time after the most recent click and controls when the replay zooms out."
+    },
+    {
+      "id": "continuous-focus",
+      "expectation": "Clicks arriving before holdMs expires keep the replay zoomed without an intermediate full-view reset."
+    },
+    {
+      "id": "smooth-pan",
+      "expectation": "Successive click targets move the focused camera through an animated bounded translation rather than a transform-origin jump."
+    },
+    {
+      "id": "cursor-contrast",
+      "expectation": "The replay cursor is white with a black edge and remains legible over dark and light content."
+    },
+    {
+      "id": "lifecycle-reset",
+      "expectation": "Pause, restart, completion, resize, and reduced motion leave the replay in a stable full view."
+    },
+    {
+      "id": "skill-guidance",
+      "expectation": "The create-autotour skill starts with a Content section linking every heading and routes detailed presentation guidance to reference files."
+    }
+  ],
+  "evidence": [],
+  "history": [
+    {
+      "from": "discover",
+      "to": "define",
+      "at": "2026-10-02T21:44:22.151Z",
+      "previous": "7878ef26249bbd1ddc2847a0807fd0e7aad43763b86ac82a48d604632c2c9f96",
+      "policyDigest": "bcab04bfc726b0cdb82e15436b28897895dc68e6c454afd4b5a1ea5bfb6687b1",
+      "decision": null
+    },
+    {
+      "from": "define",
+      "to": "design",
+      "at": "2026-10-02T21:44:22.242Z",
+      "previous": "0005eb951921468a6e446cc4dbe6fcf38485993ad9dd7d09fbb74d835329dc28",
+      "policyDigest": "bcab04bfc726b0cdb82e15436b28897895dc68e6c454afd4b5a1ea5bfb6687b1",
+      "decision": null
+    },
+    {
+      "from": "design",
+      "to": "plan",
+      "at": "2026-10-02T21:44:22.330Z",
+      "previous": "63d27e87121c7337d0339eff87bea718616908d1de2ba5a4a7a45dbf14bfbf83",
+      "policyDigest": "bcab04bfc726b0cdb82e15436b28897895dc68e6c454afd4b5a1ea5bfb6687b1",
+      "decision": null
+    },
+    {
+      "from": "plan",
+      "to": "implement",
+      "at": "2026-10-02T21:44:22.423Z",
+      "previous": "1fa017001f461a6dc0b558479af7f09b9880ab2d248a05b6f083ddeac9c3e8d5",
+      "policyDigest": "bcab04bfc726b0cdb82e15436b28897895dc68e6c454afd4b5a1ea5bfb6687b1",
+      "decision": null
+    }
+  ]
+}
