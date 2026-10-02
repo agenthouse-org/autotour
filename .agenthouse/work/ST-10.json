@@ -3,8 +3,8 @@
   "id": "ST-10",
   "title": "Capture and selectively regenerate annotated walkthrough screenshots",
   "kind": "feature",
-  "stage": "implement",
-  "revision": 5,
+  "stage": "verify",
+  "revision": 6,
   "fields": {
     "outcome": "A documentation producer or CI job can capture ready-to-publish screenshots for every walkthrough step and refresh only the modules affected by a product change.",
     "parentWork": "autotour-core",
@@ -14,7 +14,11 @@
     "verification": "Add unit and browser-backed tests for ordered deterministic paths, annotated and clean screenshots, manifest validity, configured redaction, safe failure behavior, and selective screenshot regeneration. Run the full Node test suite, package metadata checks, npm pack dry-run, and frozen AgentHouse evaluation.",
     "dependencies": "Builds on ST-03 annotation rendering, ST-07 dependency invalidation, ST-08 transactional regeneration, and ST-09 Markdown screenshot synchronization.",
     "risks": "Capturing at the wrong instant can document transient UI, overlays can leak into later screenshots, sensitive content can enter images, and partial regeneration can mix incompatible assets. Capture target instructions before their action and state frames afterward, commit prepared target frames only when the action succeeds, always clean overlays and temporary redaction, and retain the existing staged atomic replacement model.",
-    "audience": "Developers, support teams, product managers, and marketers generating repository-owned product documentation."
+    "audience": "Developers, support teams, product managers, and marketers generating repository-owned product documentation.",
+    "changes": "Implemented in commit 3c23fb16ab885db28b686ce1070a370de154e025: captureJourney now generates deterministic clean or annotated PNGs per step, temporarily redacts configured content and credential values without disrupting later actions, records ordered screenshot assets and absolute result paths, and supports transactional selective screenshot regeneration. Documentation, the portable agent skill, navigation-race handling, and focused browser regression coverage were updated with the workflow.",
+    "evidence": "Frozen AgentHouse evaluation for build 3c23fb16ab885db28b686ce1070a370de154e025 satisfied all six configured checks. The full suite passed 79 tests, including browser-backed screenshot capture, redaction restoration through login, schema-valid ordered assets, failure diagnostics, and profile-only regeneration preserving sign-in screenshots byte-for-byte. Package metadata and ST-08/ST-09 regression profiles passed. A generated 960x540 save-profile frame was visually inspected for target highlight, callout placement, caption readability, and stable framing.",
+    "releasePlan": "Include annotated screenshot capture and selective screenshot regeneration in the next private 0.1.x pre-release from protected develop after GitHub CI passes. Validate the packed npm artifact before any registry publication; this work item does not authorize npm publication.",
+    "rollbackPlan": "If screenshot capture disrupts journeys, exposes unredacted content, or regenerates reusable modules, revert commit 3c23fb16ab885db28b686ce1070a370de154e025. Existing DOM and video capture remain independently selectable, and transactional regeneration preserves the previous output on failure."
   },
   "criteria": [
     {
@@ -46,7 +50,10 @@
       "expectation": "The public capture and regeneration APIs return deterministic machine-readable screenshot results suitable for local and CI workflows."
     }
   ],
-  "evidence": [],
+  "build": "3c23fb16ab885db28b686ce1070a370de154e025",
+  "evidence": [
+    ".agenthouse/local/reports/1b9705ec-f272-4737-bdd4-71473783a38c/result.json"
+  ],
   "history": [
     {
       "from": "discover",
@@ -77,6 +84,14 @@
       "to": "implement",
       "at": "2026-10-02T08:28:35.260Z",
       "previous": "9a0f4926464ba0c4f7cf00d2199fdb6a402247cc004e68b38fbd6773c3d2cd0f",
+      "policyDigest": "b03341dc5eaa2323f42bdfd171feb6957eb986863b875ea8383b6e39b30d6e82",
+      "decision": null
+    },
+    {
+      "from": "implement",
+      "to": "verify",
+      "at": "2026-10-02T09:43:07.861Z",
+      "previous": "3c15b6261f3bb3f1baada432e0955f9b046edc6f806942603495bd604c438ace",
       "policyDigest": "b03341dc5eaa2323f42bdfd171feb6957eb986863b875ea8383b6e39b30d6e82",
       "decision": null
     }
