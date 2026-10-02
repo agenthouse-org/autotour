@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "id": "st-09",
+  "title": "Synchronize walkthrough screenshots into Markdown",
+  "author": "codex",
+  "kind": "documentation",
+  "stage": "implement",
+  "revision": 5,
+  "fields": {
+    "outcome": "A documentation maintainer or CI job can safely refresh generated walkthrough screenshots inside repository-owned Markdown without rewriting surrounding prose.",
+    "parentWork": "autotour-core",
+    "scope": "Add a library API and CLI command that read a validated publish-enabled walkthrough, find explicit AutoTour module regions in one Markdown file, copy each selected module screenshot into deterministic documentation asset paths, and replace only the managed region content. Include dry-run output and strict marker/source validation. Exclude DOM or video embedding, prose generation, globbing multiple Markdown files, deleting obsolete assets, remote assets, and publishing to a hosting service.",
+    "acceptance": "Given a publish-enabled walkthrough with two screenshot modules and a Markdown document containing matching managed regions, synchronization copies the screenshots to deterministic documentation paths and updates only those regions with relative Markdown image links. Dry-run reports the same changes without writing. Invalid, duplicate, nested, unknown, unpublished, or unpaired regions and missing source images fail before the Markdown file changes.",
+    "decisions": "Use line-oriented HTML comments in the form <!-- autotour:module=<id>:start --> and <!-- autotour:module=<id>:end -->. Preserve both markers and all bytes outside their managed content. Require walkthrough.publish and module.publish to be true as an explicit publication boundary. Resolve source assets relative to walkthrough.json and name copied files with stable ordinal prefixes under <assets-dir>/<walkthrough-id>/<module-id>/.",
+    "verification": "Test valid single and multi-image replacement, byte preservation outside managed regions, deterministic relative links and copied bytes, idempotence, dry-run behavior, publication boundaries, malformed and duplicate markers, unknown modules, and missing assets. Exercise the CLI with machine-readable output.",
+    "dependencies": "Builds on the screenshot asset lists and publish flags in the walkthrough schema and the package CLI conventions.",
+    "risks": "Markdown dialects differ, source asset paths may escape the manifest directory, and accidental broad replacement could destroy hand-written documentation. Exact standalone markers, path containment checks, publication flags, preflight validation, and region-only replacement limit those risks.",
+    "audience": "Developers, support teams, product managers, and marketers maintaining repository-based product documentation."
+  },
+  "criteria": [
+    {
+      "id": "managed-regions",
+      "expectation": "Synchronization replaces content only between matching standalone AutoTour module markers and preserves all surrounding Markdown exactly."
+    },
+    {
+      "id": "deterministic-assets",
+      "expectation": "Every selected screenshot is copied byte-for-byte to a deterministic walkthrough/module path and linked relative to the Markdown file with portable separators."
+    },
+    {
+      "id": "publication-boundary",
+      "expectation": "Only a walkthrough and modules explicitly marked publish true can update documentation."
+    },
+    {
+      "id": "marker-safety",
+      "expectation": "Unpaired, nested, duplicate, unknown, or unpublished module markers fail before documentation is written."
+    },
+    {
+      "id": "source-safety",
+      "expectation": "Missing, non-file, remote, or manifest-directory-escaping screenshot sources fail before documentation is written."
+    },
+    {
+      "id": "dry-run",
+      "expectation": "Dry-run returns the deterministic modules, asset writes, rendered Markdown, and changed status without modifying files."
+    },
+    {
+      "id": "automation-interface",
+      "expectation": "A public API and CLI command return deterministic machine-readable results and repeated synchronization is idempotent."
+    }
+  ],
+  "evidence": [],
+  "history": [
+    {
+      "from": "discover",
+      "to": "define",
+      "at": "2026-10-02T07:50:52.163Z",
+      "previous": "d6d8081596a1c5540268e90658deb18db31183d779500f788dd13a25fdfb0e06",
+      "policyDigest": "5c10db68160e09174fb9858ffa1d3aba39a12f859acd51aaa299b99d790ecf32",
+      "decision": null
+    },
+    {
+      "from": "define",
+      "to": "design",
+      "at": "2026-10-02T07:50:52.252Z",
+      "previous": "8b01564a398a361509849180d40907e5728642c4ca9c10befa64f463bff8de8a",
+      "policyDigest": "5c10db68160e09174fb9858ffa1d3aba39a12f859acd51aaa299b99d790ecf32",
+      "decision": null
+    },
+    {
+      "from": "design",
+      "to": "plan",
+      "at": "2026-10-02T07:50:52.341Z",
+      "previous": "3c3e0199bd955d788f6eff8aee8d56128faa2f74139a7ce4efe06d909942c439",
+      "policyDigest": "5c10db68160e09174fb9858ffa1d3aba39a12f859acd51aaa299b99d790ecf32",
+      "decision": null
+    },
+    {
+      "from": "plan",
+      "to": "implement",
+      "at": "2026-10-02T07:50:52.432Z",
+      "previous": "cb6bcc108ffc37e37f2c039e70813b9b3b17cba7aba8811d70d6f9c0e55a9ccf",
+      "policyDigest": "5c10db68160e09174fb9858ffa1d3aba39a12f859acd51aaa299b99d790ecf32",
+      "decision": null
+    }
+  ]
+}

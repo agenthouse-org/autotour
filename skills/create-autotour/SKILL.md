@@ -23,4 +23,6 @@ For change impact, maintain a reviewed dependency map that connects repository f
 
 Apply a certain plan with `autotour regenerate <journey.json> --plan <plan.json> --output-dir <existing-output>`. Let AutoTour execute reusable prerequisites for browser state while preserving their checked output. Treat status `2` as a review gate, and retain the existing output when capture or assembly fails.
 
+For repository documentation, use standalone matching `<!-- autotour:module=<id>:start -->` and `<!-- autotour:module=<id>:end -->` comments. Run `autotour sync-markdown` only when the walkthrough and selected modules explicitly set `publish` to `true`. Use `--check` in CI to detect stale documentation without writing, or `--dry-run` to inspect proposed Markdown and asset changes. Do not edit outside managed regions or bypass marker and source-path validation.
+
 Treat the walkthrough manifest as the source of truth. Generated media is replaceable output. A code change should invalidate only modules whose recorded dependencies overlap the changed components.

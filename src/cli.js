@@ -13,6 +13,9 @@ import {
   RegenerationError,
   regenerateWalkthrough
 } from "./regeneration/index.js";
+import {
+  syncMarkdownScreenshots
+} from "./publishing/index.js";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const packageJson = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8"));
@@ -24,6 +27,7 @@ Usage:
   autotour validate <walkthrough.json>
   autotour invalidate <walkthrough.json> --map <dependency-map.json> (--changed-file <path>... | --base <ref> [--head <ref>]) [--output <plan.json>]
   autotour regenerate <journey.json> --plan <invalidation-plan.json> --output-dir <directory>
+  autotour sync-markdown <walkthrough.json> --markdown <file> --assets-dir <directory> [--dry-run | --check]
   autotour doctor
   autotour --version
 
@@ -32,6 +36,7 @@ Commands:
   validate  Validate a walkthrough manifest
   invalidate  Identify modules affected by repository changes
   regenerate  Replace only modules marked for regeneration
+  sync-markdown  Refresh managed walkthrough screenshots in Markdown
   doctor    Check the local Node.js and Playwright installation
 `;
 
@@ -120,8 +125,60 @@ export async function run(args) {
     }
   }
 
+  if (command === "sync-markdown") {
+    try {
+      return await syncMarkdown(rest);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      return 1;
+    }
+  }
+
   console.error(`Unknown command: ${command}\n\n${help}`);
   return 1;
+}
+
+async function syncMarkdown(args) {
+  const options = parseSyncMarkdownArgs(args);
+  const walkthrough = await readJsonDocument(options.walkthroughFile);
+  const result = await syncMarkdownScreenshots({
+    walkthrough,
+    walkthroughFile: options.walkthroughFile,
+    markdownFile: options.markdownFile,
+    assetsDir: options.assetsDir,
+    dryRun: options.dryRun || options.check
+  });
+  console.log(JSON.stringify(result, null, 2));
+  return options.check && result.changed ? 2 : 0;
+}
+
+function parseSyncMarkdownArgs(args) {
+  let walkthroughFile;
+  let markdownFile;
+  let assetsDir;
+  let dryRun = false;
+  let check = false;
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
+    if (argument === "--markdown") markdownFile = requireOptionValue(args, ++index, argument);
+    else if (argument === "--assets-dir") assetsDir = requireOptionValue(args, ++index, argument);
+    else if (argument === "--dry-run") dryRun = true;
+    else if (argument === "--check") check = true;
+    else if (argument.startsWith("-")) throw new Error(`Unknown sync-markdown option: ${argument}`);
+    else if (!walkthroughFile) walkthroughFile = path.resolve(argument);
+    else throw new Error(`Unexpected sync-markdown argument: ${argument}`);
+  }
+  if (!walkthroughFile || !markdownFile || !assetsDir) {
+    throw new Error("sync-markdown requires a walkthrough file, --markdown, and --assets-dir");
+  }
+  if (dryRun && check) throw new Error("Choose --dry-run or --check, not both");
+  return {
+    walkthroughFile,
+    markdownFile: path.resolve(markdownFile),
+    assetsDir: path.resolve(assetsDir),
+    dryRun,
+    check
+  };
 }
 
 async function regenerate(args) {

@@ -61,6 +61,25 @@
         "transactional-failure",
         "automation-interface"
       ]
+    },
+    {
+      "id": "st-09-markdown-sync",
+      "kind": "command",
+      "executable": "node",
+      "args": [
+        "--test",
+        "tests/publishing/markdown.test.js"
+      ],
+      "result": "exit-code",
+      "criteria": [
+        "managed-regions",
+        "deterministic-assets",
+        "publication-boundary",
+        "marker-safety",
+        "source-safety",
+        "dry-run",
+        "automation-interface"
+      ]
     }
   ],
   "profiles": {
@@ -80,6 +99,10 @@
         },
         {
           "evaluator": "st-08-regeneration",
+          "required": true
+        },
+        {
+          "evaluator": "st-09-markdown-sync",
           "required": true
         }
       ]

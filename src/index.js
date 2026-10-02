@@ -22,3 +22,8 @@ export {
   regenerateWalkthrough,
   validateRegenerationPlan
 } from "./regeneration/index.js";
+export {
+  parseManagedRegions,
+  PublishingError,
+  syncMarkdownScreenshots
+} from "./publishing/index.js";

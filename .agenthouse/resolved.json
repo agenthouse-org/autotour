@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "frameworkVersion": "1.6.0",
-  "configDigest": "bfee54b64521343711c00feea628cf3da9748aa97eb423358cbe2941a8476538",
+  "configDigest": "cda4c3b3f98cd979a3cebebb3970c9f3d5ba66a9b4d0f555e1371b6cb89170d9",
   "sources": [
     {
       "id": "project-policy",
@@ -16,5 +16,5 @@
   "authorities": {
     "project-owner": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEApanB+AA7Op9tkloXQS0Y38q+WVlLlL7A3vMeLLhjHiU=\n-----END PUBLIC KEY-----\n"
   },
-  "digest": "5c10db68160e09174fb9858ffa1d3aba39a12f859acd51aaa299b99d790ecf32"
+  "digest": "b03341dc5eaa2323f42bdfd171feb6957eb986863b875ea8383b6e39b30d6e82"
 }

@@ -91,7 +91,27 @@ AutoTour infers the output mode from the existing `walkthrough.json`. It execute
 
 Regeneration happens in a sibling staging directory. The assembled walkthrough is schema-validated before AutoTour swaps it into place; capture or validation failure leaves the previous output intact. A plan containing no affected modules is a successful no-op.
 
-> AutoTour is in active development. The package supports modular screenshots, raw WebM video, DOM autoplay capture, dependency-aware invalidation, and selective DOM/video regeneration; portable remote-asset harvesting, presentation profiles, and polished publishing remain future slices.
+## Markdown screenshot synchronization
+
+AutoTour can refresh screenshot references inside explicit managed regions while preserving the surrounding documentation:
+
+```markdown
+<!-- autotour:module=update-profile:start -->
+![Previous screenshot](./old-profile.png)
+<!-- autotour:module=update-profile:end -->
+```
+
+Both the walkthrough and selected module must set `publish` to `true`. Synchronization resolves screenshot sources relative to the walkthrough manifest, copies them into stable walkthrough/module folders, and writes links relative to the Markdown file:
+
+```sh
+autotour sync-markdown .autotour/output/profile/walkthrough.json \
+  --markdown docs/profile.md \
+  --assets-dir docs/assets/autotour
+```
+
+Use `--dry-run` to preview machine-readable changes without writing. Use `--check` in CI; it also performs no writes and exits with status `2` when the Markdown or copied assets are stale. Invalid, nested, duplicate, unknown, unpublished, or unpaired markers and unsafe source paths fail before the Markdown file is changed.
+
+> AutoTour is in active development. The package supports modular screenshots, raw WebM video, DOM autoplay capture, dependency-aware invalidation, selective DOM/video regeneration, and managed Markdown screenshot synchronization; portable remote-asset harvesting, presentation profiles, and hosted publishing remain future slices.
 
 ## Install
 
