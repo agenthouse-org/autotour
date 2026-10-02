@@ -32,6 +32,68 @@ test("indexed accessible targets deliberately disambiguate duplicate controls", 
   );
 });
 
+test("click accepts a completed navigation when Playwright times out on load completion", async () => {
+  let currentUrl = "https://fixture.test/login";
+  const page = {
+    getByRole() {
+      return {
+        async click(options) {
+          assert.deepEqual(options, { timeout: 10000 });
+          currentUrl = "https://fixture.test/settings/profile";
+          throw new Error("locator.click: Timeout 10000ms exceeded");
+        }
+      };
+    },
+    url() {
+      return currentUrl;
+    }
+  };
+
+  await executeStep({
+    page,
+    baseUrl: BASE_URL,
+    module: { id: "sign-in" },
+    step: {
+      id: "submit-login",
+      action: "click",
+      target: { role: "button", name: "Sign in" }
+    },
+    env: {},
+    secrets: []
+  });
+});
+
+test("click retains timeout failures when navigation did not complete", async () => {
+  const page = {
+    getByRole() {
+      return {
+        async click() {
+          throw new Error("locator.click: Timeout 10000ms exceeded");
+        }
+      };
+    },
+    url() {
+      return "https://fixture.test/login";
+    }
+  };
+
+  await assert.rejects(
+    executeStep({
+      page,
+      baseUrl: BASE_URL,
+      module: { id: "sign-in" },
+      step: {
+        id: "submit-login",
+        action: "click",
+        target: { role: "button", name: "Sign in" }
+      },
+      env: {},
+      secrets: []
+    }),
+    /Failed at module sign-in, step submit-login/
+  );
+});
+
 test("indexed targets survive walkthrough serialization and replay", async () => {
   const outputDir = await mkdtemp(path.join(os.tmpdir(), "autotour-indexed-target-"));
   const journey = {

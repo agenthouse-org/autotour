@@ -85,7 +85,16 @@ export async function executeStep({ page, baseUrl, module, step, env, secrets })
       }
       case "click": {
         const locator = resolveTarget(page, step.target);
-        await locator.click();
+        const timeoutMs = normalizeDuration(step.timeoutMs ?? 10000, "click timeoutMs", {
+          minimum: 1
+        });
+        const beforeUrl = typeof page.url === "function" ? page.url() : undefined;
+        try {
+          await locator.click({ timeout: timeoutMs });
+        } catch (error) {
+          const afterUrl = typeof page.url === "function" ? page.url() : undefined;
+          if (!isCompletedNavigationTimeout(error, beforeUrl, afterUrl)) throw error;
+        }
         break;
       }
       case "select": {
@@ -182,6 +191,14 @@ export async function executeStep({ page, baseUrl, module, step, env, secrets })
       original: error
     });
   }
+}
+
+function isCompletedNavigationTimeout(error, beforeUrl, afterUrl) {
+  return error instanceof Error &&
+    /timeout/i.test(error.message) &&
+    typeof beforeUrl === "string" &&
+    typeof afterUrl === "string" &&
+    beforeUrl !== afterUrl;
 }
 
 async function navigateToStableUrl(page, url) {
