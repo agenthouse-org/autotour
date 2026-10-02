@@ -61,7 +61,14 @@ const result = await captureJourney({
   outputDir: ".autotour/output/dealdesk-dom",
   recordDom: {
     viewport: { width: 1280, height: 720 },
-    stepDelayMs: 500
+    stepDelayMs: 500,
+    presentation: {
+      cursor: { scale: 1.6, clickPulse: true },
+      focus: { mode: "clicks", scale: 1.3, holdMs: 850 },
+      frame: { mode: "window", title: "Product walkthrough" },
+      background: { mode: "gradient", from: "#111815", to: "#26342b" },
+      padding: 48
+    }
   }
 });
 
@@ -69,7 +76,19 @@ console.log(result.domPaths);
 console.log(result.domIndexPath);
 ```
 
-Serve the output directory as static files and open its root `index.html` for continuous playback across modules. Individual module players remain available under `modules/<module-id>/dom/index.html` so one changed module can be replaced independently. DOM capture adds a 500 ms presentation delay after each step by default; set `stepDelayMs` to tune it or `0` to preserve raw execution timing. Form values are masked, loaded images are embedded for offline replay, captured scripts remain disabled inside rrweb's sandbox, and generated assets include the rrweb MIT notice. Remote fonts, unloaded lazy media, canvas content, and cross-origin iframes are not yet guaranteed to work offline; broader asset harvesting is a later slice.
+Serve the output directory as static files and open its root `index.html` for continuous playback across modules. Individual module players remain available under `modules/<module-id>/dom/index.html` so one changed module can be replaced independently. DOM capture adds a 500 ms presentation delay after each step by default; set `stepDelayMs` to tune it or `0` to preserve raw execution timing. Presentation profiles are optional: `pure` preserves the standard player, `background` adds a canvas, and `window` adds browser-like chrome. Cursor scale, click pulse, and click focus remain disabled or neutral unless configured. Form values are masked, loaded images are embedded for offline replay, captured scripts remain disabled inside rrweb's sandbox, and generated assets include the rrweb MIT notice. Remote fonts, unloaded lazy media, canvas content, and cross-origin iframes are not yet guaranteed to work offline; broader asset harvesting is a later slice.
+
+Render the exact presented DOM module to WebM when a static video deliverable is needed:
+
+```js
+import { renderDomReplayVideo } from "autotour";
+
+await renderDomReplayVideo({
+  playerPath: result.domPaths["sign-in"],
+  outputPath: ".autotour/output/sign-in.webm",
+  size: { width: 1440, height: 900 }
+});
+```
 
 ## Dependency-aware invalidation
 
@@ -135,7 +154,7 @@ autotour sync-markdown .autotour/output/profile/walkthrough.json \
 
 Use `--dry-run` to preview machine-readable changes without writing. Use `--check` in CI; it also performs no writes and exits with status `2` when the Markdown or copied assets are stale. Invalid, nested, duplicate, unknown, unpublished, or unpaired markers and unsafe source paths fail before the Markdown file is changed.
 
-> AutoTour is in active development. The package supports annotated modular screenshots, raw WebM video, DOM autoplay capture, dependency-aware invalidation, selective screenshot/DOM/video regeneration, and managed Markdown screenshot synchronization; portable remote-asset harvesting, presentation profiles, and hosted publishing remain future slices.
+> AutoTour is in active development. The package supports annotated modular screenshots, raw WebM video, presented DOM autoplay with optional WebM rendering, dependency-aware invalidation, selective screenshot/DOM/video regeneration, and managed Markdown screenshot synchronization; portable remote-asset harvesting, screenshot presentation profiles, and hosted publishing remain future slices.
 
 ## Install
 

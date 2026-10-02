@@ -27,3 +27,4 @@ export {
   PublishingError,
   syncMarkdownScreenshots
 } from "./publishing/index.js";
+export { renderDomReplayVideo } from "./dom/video.js";

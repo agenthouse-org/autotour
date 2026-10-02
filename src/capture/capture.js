@@ -33,7 +33,7 @@ import {
  * @property {import('playwright').Page} [page]
  * @property {() => Promise<{ page: import('playwright').Page, close?: () => Promise<void> }>} [createSession]
  * @property {false | { size?: { width: number, height: number }, viewport?: { width: number, height: number }, showActions?: object }} [recordVideo]
- * @property {false | { viewport?: { width: number, height: number }, stepDelayMs?: number }} [recordDom]
+ * @property {false | { viewport?: { width: number, height: number }, stepDelayMs?: number, presentation?: object }} [recordDom]
  * @property {boolean | { viewport?: { width: number, height: number }, redaction?: { selectors?: string[], texts?: string[] } }} [recordScreenshots]
  * @property {string[]} [moduleIds]
  * @property {object} [previousWalkthrough]

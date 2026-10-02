@@ -15,8 +15,9 @@ import {
   createProfileJourney,
   validateWalkthroughDocument
 } from "../../src/capture/index.js";
+import { renderDomReplayVideo } from "../../src/dom/video.js";
 
-test("DOM capture produces secret-safe offline autoplay players per module", { timeout: 60000 }, async () => {
+test("DOM capture produces secret-safe offline autoplay players per module", { timeout: 90000 }, async () => {
   const app = await startServer({
     username: DEFAULT_USERNAME,
     password: DEFAULT_PASSWORD
@@ -36,7 +37,14 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
       },
       journey: createProfileJourney({ displayName: "Replay User" }),
       recordDom: {
-        viewport: { width: 960, height: 540 }
+        viewport: { width: 960, height: 540 },
+        presentation: {
+          cursor: { scale: 1.7, clickPulse: true },
+          focus: { mode: "clicks", scale: 1.25, durationMs: 100, holdMs: 1200 },
+          frame: { mode: "window", title: "AutoTour demo" },
+          background: { mode: "gradient", from: "#111815", to: "#26342b" },
+          padding: 32
+        }
       }
     });
   } finally {
@@ -98,6 +106,9 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
 
     await page.goto(`${replayServer.baseUrl}/modules/sign-in/dom/index.html`);
     await page.locator("body[data-autoplay='started']").waitFor();
+    assert.equal(await page.locator("body").getAttribute("data-frame-mode"), "window");
+    assert.equal(await page.locator("#window-title").innerText(), "AutoTour demo");
+    assert.match(await page.locator("#canvas").evaluate((element) => element.style.background), /linear-gradient/);
     const replayFrame = page.locator("#replay iframe");
     await replayFrame.waitFor();
     const replayBox = await replayFrame.boundingBox();
@@ -119,15 +130,31 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
     const frameText = await frameBody.textContent();
     assert.match(frameText, /Sign in|Profile settings/);
     const replayLogo = frameBody.getByRole("img", { name: "AutoTour" });
-    await replayLogo.waitFor({ state: "visible" });
+    await replayLogo.waitFor({ state: "visible", timeout: 2000 });
     assert.ok(await replayLogo.evaluate((image) => image.complete && image.naturalWidth > 0));
+
+    await page.locator("body[data-focus-active='true']").waitFor({ timeout: 5000 });
+    assert.equal(await page.locator("#replay").evaluate((element) => element.style.transform), "scale(1.25)");
 
     await page.getByRole("button", { name: "Pause replay" }).click();
     assert.equal(await page.locator("#status").innerText(), "Paused");
+    assert.equal(await page.locator("body").getAttribute("data-focus-active"), "false");
     await page.getByRole("button", { name: "Restart replay" }).click();
     assert.equal(await page.locator("#status").innerText(), "Playing");
 
+    await page.setViewportSize({ width: 360, height: 640 });
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+
     assert.equal(requestedUrls.some((url) => url.startsWith(sourceBaseUrl)), false);
+
+    const renderedVideo = path.join(outputDir, "presented-sign-in.webm");
+    await renderDomReplayVideo({
+      playerPath: result.domPaths["sign-in"],
+      outputPath: renderedVideo,
+      size: { width: 960, height: 540 },
+      tailMs: 0
+    });
+    assert.ok((await stat(renderedVideo)).size > 0);
   } finally {
     await context.close();
     await browser.close();
@@ -149,6 +176,23 @@ test("DOM capture rejects invalid presentation pacing before browsing", async ()
       recordDom: { stepDelayMs: -1 }
     }),
     /DOM step delay must be an integer between 0 and 30000 milliseconds/
+  );
+});
+
+test("DOM capture rejects invalid presentation profiles before browsing", async () => {
+  await assert.rejects(
+    captureJourney({
+      baseUrl: "http://127.0.0.1:1",
+      goal: "Reject invalid presentation.",
+      outputDir: path.join(os.tmpdir(), "autotour-invalid-dom-presentation"),
+      env: {
+        AUTOTOUR_USERNAME: DEFAULT_USERNAME,
+        AUTOTOUR_PASSWORD: DEFAULT_PASSWORD
+      },
+      journey: createProfileJourney(),
+      recordDom: { presentation: { frame: { mode: "television" } } }
+    }),
+    /DOM presentation configuration is invalid/
   );
 });
 

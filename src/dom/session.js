@@ -2,9 +2,11 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "playwright";
 import { buildReplayHtml } from "./player.js";
+import { normalizeDomPresentation } from "./presentation.js";
 import { ensureReplayRuntime, loadRecorderBundle } from "./runtime.js";
 
 export async function openPlaywrightDomSession(options, outputDir, secrets = []) {
+  const presentation = normalizeDomPresentation(options.presentation, secrets);
   const recorderBundle = await loadRecorderBundle();
   await ensureReplayRuntime(outputDir);
   const browser = await chromium.launch({ headless: true });
@@ -60,7 +62,8 @@ export async function openPlaywrightDomSession(options, outputDir, secrets = [])
           await writeFile(playerPath, `${buildReplayHtml({
             moduleId: module.id,
             title: module.title,
-            events
+            events,
+            presentation
           })}\n`, "utf8");
 
           return {
