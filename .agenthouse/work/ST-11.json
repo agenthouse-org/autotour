@@ -16,7 +16,7 @@
     "risks": "Decorative framing can reduce useful viewport space or cause nested scrolling. Keep dimensions explicit, scale the replay within an overflow-hidden stage, and test representative desktop and narrow layouts.",
     "audience": "Developers, support teams, product managers, and marketers producing polished walkthroughs.",
     "changes": "Implemented in commit 09c550b785a8ac7af2dcdb57887aaf5cd12bde48: validated presentation profiles add pure, background, and browser-window modes with responsive fitting, configurable canvas styling, and an exported DOM-to-WebM renderer that records the generated player in control-free render mode.",
-    "evidence": "The full package suite passed 84 tests, including a browser-backed presented replay, responsive overflow checks, invalid-profile handling, offline image replay, and a non-empty rendered WebM. The DealDesk example was inspected at 1440x900 and 390x844 with no page overflow. Its VP8 WebM is 1440x900, 19.52 seconds, and 2,199,692 bytes. Frozen Agenthouse evaluation for the exact build satisfied all seven configured checks."
+    "evidence": "The full package suite passed 84 tests, including a browser-backed presented replay, responsive overflow checks, invalid-profile handling, offline image replay, and a non-empty rendered WebM. The DealDesk example was inspected at 1440x900 and 390x844 with no page overflow. Its final border-free VP8 WebM is 1440x900, 19.12 seconds, and 2,152,297 bytes. Frozen Agenthouse evaluation for the exact build satisfied all seven configured checks."
   },
   "criteria": [
     {
