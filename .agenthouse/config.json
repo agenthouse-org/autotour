@@ -80,6 +80,27 @@
         "dry-run",
         "automation-interface"
       ]
+    },
+    {
+      "id": "st-10-screenshot-capture",
+      "kind": "command",
+      "executable": "node",
+      "args": [
+        "--test",
+        "tests/capture/screenshots.test.js",
+        "tests/capture/generic.test.js",
+        "tests/annotations/annotate-step.test.js"
+      ],
+      "result": "exit-code",
+      "criteria": [
+        "step-screenshots",
+        "target-annotations",
+        "manifest-assets",
+        "capture-options",
+        "failure-safety",
+        "selective-regeneration",
+        "automation-interface"
+      ]
     }
   ],
   "profiles": {
@@ -103,6 +124,10 @@
         },
         {
           "evaluator": "st-09-markdown-sync",
+          "required": true
+        },
+        {
+          "evaluator": "st-10-screenshot-capture",
           "required": true
         }
       ]
