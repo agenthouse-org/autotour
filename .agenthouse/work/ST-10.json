@@ -16,7 +16,7 @@
     "risks": "Capturing at the wrong instant can document transient UI, overlays can leak into later screenshots, sensitive content can enter images, and partial regeneration can mix incompatible assets. Capture target instructions before their action and state frames afterward, commit prepared target frames only when the action succeeds, always clean overlays and temporary redaction, and retain the existing staged atomic replacement model.",
     "audience": "Developers, support teams, product managers, and marketers generating repository-owned product documentation.",
     "changes": "Implemented in commit 3c23fb16ab885db28b686ce1070a370de154e025: captureJourney now generates deterministic clean or annotated PNGs per step, temporarily redacts configured content and credential values without disrupting later actions, records ordered screenshot assets and absolute result paths, and supports transactional selective screenshot regeneration. Documentation, the portable agent skill, navigation-race handling, and focused browser regression coverage were updated with the workflow.",
-    "evidence": "Frozen AgentHouse evaluation for build 3c23fb16ab885db28b686ce1070a370de154e025 satisfied all six configured checks. The full suite passed 79 tests, including browser-backed screenshot capture, redaction restoration through login, schema-valid ordered assets, failure diagnostics, and profile-only regeneration preserving sign-in screenshots byte-for-byte. Package metadata and ST-08/ST-09 regression profiles passed. A generated 960x540 save-profile frame was visually inspected for target highlight, callout placement, caption readability, and stable framing.",
+    "evidence": "Frozen AgentHouse evaluation for build 3c23fb16ab885db28b686ce1070a370de154e025 satisfied all seven configured checks. The focused ST-10 evaluator passed ten tests and explicitly maps all seven story criteria; the full suite passed 79 tests, including browser-backed screenshot capture, redaction restoration through login, schema-valid ordered assets, failure diagnostics, and profile-only regeneration preserving sign-in screenshots byte-for-byte. Package metadata and ST-08/ST-09 regression profiles passed. A generated 960x540 save-profile frame was visually inspected for target highlight, callout placement, caption readability, and stable framing.",
     "releasePlan": "Include annotated screenshot capture and selective screenshot regeneration in the next private 0.1.x pre-release from protected develop after GitHub CI passes. Validate the packed npm artifact before any registry publication; this work item does not authorize npm publication.",
     "rollbackPlan": "If screenshot capture disrupts journeys, exposes unredacted content, or regenerates reusable modules, revert commit 3c23fb16ab885db28b686ce1070a370de154e025. Existing DOM and video capture remain independently selectable, and transactional regeneration preserves the previous output on failure."
   },
@@ -52,7 +52,7 @@
   ],
   "build": "3c23fb16ab885db28b686ce1070a370de154e025",
   "evidence": [
-    ".agenthouse/local/reports/1b9705ec-f272-4737-bdd4-71473783a38c/result.json"
+    ".agenthouse/local/reports/6874ada9-caee-4977-ab7d-173d4d47cc38/result.json"
   ],
   "history": [
     {
