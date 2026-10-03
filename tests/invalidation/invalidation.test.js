@@ -219,6 +219,30 @@ test("invalidate CLI returns status 2 when review is required", async () => {
   assert.equal(JSON.parse(messages[0]).reviewRequired, true);
 });
 
+test("invalidate --check gates affected modules while allowing an empty source range", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "autotour-docs-gate-"));
+  const walkthroughFile = path.join(root, "walkthrough.json");
+  const mapFile = path.join(root, "dependency-map.json");
+  const outputFile = path.join(root, "plan.json");
+  await Promise.all([
+    writeFile(walkthroughFile, JSON.stringify(walkthrough)),
+    writeFile(mapFile, JSON.stringify(dependencyMap))
+  ]);
+  const originalLog = console.log;
+  console.log = () => {};
+  try {
+    assert.equal(await run(["invalidate", walkthroughFile, "--map", mapFile,
+      "--changed-file", "fixtures/demo-app/profile-content.js", "--check", "--output", outputFile]), 2);
+    assert.deepEqual(JSON.parse(await readFile(outputFile, "utf8")).summary.regenerate, ["update-profile"]);
+    assert.equal(await run(["invalidate", walkthroughFile, "--map", mapFile,
+      "--base", "HEAD", "--head", "HEAD", "--check"]), 0);
+    assert.equal(await run(["invalidate", walkthroughFile, "--map", mapFile,
+      "--changed-file", "src/unmapped.js", "--check"]), 2);
+  } finally {
+    console.log = originalLog;
+  }
+});
+
 function moduleFixture(id, title, dependencies) {
   return {
     id,

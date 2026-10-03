@@ -11,6 +11,7 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import { validateWalkthroughDocument } from "../capture/index.js";
+import { validateDocumentationSpec } from "../documentation/spec.js";
 
 const MARKER = /^[\t ]*<!--[\t ]*autotour:module=([a-z0-9]+(?:-[a-z0-9]+)*):(start|end)[\t ]*-->[\t ]*$/;
 
@@ -37,7 +38,8 @@ export async function syncMarkdownScreenshots({
   walkthroughFile,
   markdownFile,
   assetsDir,
-  dryRun = false
+  dryRun = false,
+  documentationSpec
 }) {
   const validation = await validateWalkthroughDocument(walkthrough);
   if (!validation.valid) {
@@ -52,6 +54,13 @@ export async function syncMarkdownScreenshots({
       "Walkthrough publish must be true before documentation can be updated."
     );
   }
+  if (documentationSpec) {
+    const specValidation = await validateDocumentationSpec(documentationSpec, { journey: walkthrough });
+    if (!specValidation.valid) throw new PublishingError("AUTOTOUR_INVALID_DOCUMENTATION", JSON.stringify(specValidation.errors));
+    if (documentationSpec.destination?.kind === "confluence") {
+      throw new PublishingError("AUTOTOUR_INVALID_DOCUMENTATION", "Confluence specifications must be published through connected tools, not sync-markdown.");
+    }
+  }
 
   const resolvedWalkthroughFile = path.resolve(walkthroughFile);
   const resolvedMarkdownFile = path.resolve(markdownFile);
@@ -59,19 +68,38 @@ export async function syncMarkdownScreenshots({
   const manifestDir = path.dirname(resolvedWalkthroughFile);
   const markdown = await readFile(resolvedMarkdownFile, "utf8");
   const modules = new Map(walkthrough.modules.map((module) => [module.id, module]));
-  const regions = parseManagedRegions(markdown, modules);
+  const regions = parseManagedRegions(markdown, modules, { requireScreenshots: !documentationSpec });
+  if (documentationSpec && (documentationSpec.sections.length !== regions.length ||
+      documentationSpec.sections.some((section, index) => section.moduleId !== regions[index]))) {
+    throw new PublishingError("AUTOTOUR_INVALID_DOCUMENTATION", "Specification sections must match the Markdown managed regions exactly.");
+  }
   const assetPlan = await buildAssetPlan({
     walkthrough,
     manifestDir,
     markdownFile: resolvedMarkdownFile,
     assetsDir: resolvedAssetsDir,
-    regions
+    regions,
+    documentationSpec
   });
   const linksByModule = new Map();
   for (const asset of assetPlan) {
     const links = linksByModule.get(asset.moduleId) ?? [];
     links.push(asset.markdown);
     linksByModule.set(asset.moduleId, links);
+  }
+  if (documentationSpec) {
+    for (const section of documentationSpec.sections) {
+      const blocks = [`## ${escapeAlt(section.heading)}`];
+      for (const block of section.blocks) {
+        if (block.kind === "text") blocks.push(block.text);
+        else if (block.kind === "tour") blocks.push(`[${escapeAlt(block.label)}](<${block.url.replaceAll(">", "%3E").replaceAll("<", "%3C")}>)`);
+        else {
+          const asset = assetPlan.find(item => item.moduleId === section.moduleId && item.stepId === block.stepId);
+          blocks.push(asset.markdown, block.caption);
+        }
+      }
+      linksByModule.set(section.moduleId, [blocks.join("\n\n")]);
+    }
   }
   const renderedMarkdown = renderManagedRegions(markdown, linksByModule);
   const markdownChanged = renderedMarkdown !== markdown;
@@ -102,7 +130,7 @@ export async function syncMarkdownScreenshots({
   };
 }
 
-export function parseManagedRegions(markdown, modules) {
+export function parseManagedRegions(markdown, modules, { requireScreenshots = true } = {}) {
   const lines = markdown.match(/[^\r\n]*(?:\r\n|\n|\r|$)/g)?.filter(Boolean) ?? [];
   const seen = new Set();
   const regions = [];
@@ -131,7 +159,7 @@ export function parseManagedRegions(markdown, modules) {
           `Module ${moduleId} has more than one managed region.`
         );
       }
-      requirePublishableModule(modules, moduleId);
+      requirePublishableModule(modules, moduleId, requireScreenshots);
       active = moduleId;
       seen.add(moduleId);
     } else {
@@ -157,7 +185,7 @@ export function parseManagedRegions(markdown, modules) {
   return regions;
 }
 
-function requirePublishableModule(modules, moduleId) {
+function requirePublishableModule(modules, moduleId, requireScreenshots) {
   const module = modules.get(moduleId);
   if (!module) {
     throw new PublishingError("AUTOTOUR_UNKNOWN_MODULE", `Unknown walkthrough module: ${moduleId}`);
@@ -168,7 +196,7 @@ function requirePublishableModule(modules, moduleId) {
       `Module ${moduleId} publish must be true before documentation can be updated.`
     );
   }
-  if (!module.assets?.screenshots?.length) {
+  if (requireScreenshots && !module.assets?.screenshots?.length) {
     throw new PublishingError(
       "AUTOTOUR_MISSING_SCREENSHOTS",
       `Module ${moduleId} has no screenshot assets.`
@@ -177,22 +205,33 @@ function requirePublishableModule(modules, moduleId) {
   return module;
 }
 
-async function buildAssetPlan({ walkthrough, manifestDir, markdownFile, assetsDir, regions }) {
+async function buildAssetPlan({ walkthrough, manifestDir, markdownFile, assetsDir, regions, documentationSpec }) {
   const realManifestDir = await realpath(manifestDir);
   const plan = [];
   for (const moduleId of regions) {
     const module = walkthrough.modules.find((candidate) => candidate.id === moduleId);
-    for (const [index, assetPath] of module.assets.screenshots.entries()) {
+    const screenshotBlocks = documentationSpec?.sections.find(section => section.moduleId === moduleId).blocks.filter(block => block.kind === "screenshot");
+    const selected = screenshotBlocks
+      ? screenshotBlocks.map(block => {
+        const assetPath = `modules/${moduleId}/screenshots/${block.stepId}.png`;
+        if (!module.assets.screenshots?.includes(assetPath)) {
+          throw new PublishingError("AUTOTOUR_MISSING_SCREENSHOTS", `No captured screenshot for ${moduleId}/${block.stepId}.`);
+        }
+        return { assetPath, block };
+      })
+      : module.assets.screenshots.map(assetPath => ({ assetPath }));
+    for (const [index, { assetPath, block }] of selected.entries()) {
       const source = await resolveSourceAsset(realManifestDir, assetPath, moduleId);
       const filename = `${String(index + 1).padStart(2, "0")}-${path.basename(source)}`;
       const destination = path.join(assetsDir, walkthrough.id, moduleId, filename);
       await validateDestinationPath(assetsDir, destination, moduleId);
       const relative = toPortablePath(path.relative(path.dirname(markdownFile), destination));
-      const alt = module.assets.screenshots.length === 1
+      const alt = block?.alt ?? (module.assets.screenshots.length === 1
         ? module.title
-        : `${module.title} ${index + 1}`;
+        : `${module.title} ${index + 1}`);
       plan.push({
         moduleId,
+        stepId: block?.stepId,
         source,
         destination,
         markdown: `![${escapeAlt(alt)}](${encodeMarkdownPath(relative)})`,

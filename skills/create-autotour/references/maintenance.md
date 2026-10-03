@@ -13,6 +13,8 @@
 
 Maintain a reviewed dependency map connecting repository file globs to exact dependency identifiers recorded in module manifests. Run `autotour invalidate` with an explicit Git base/head or changed-file list. Do not treat `review` modules as reusable until unmapped files or stale dependency names are resolved.
 
+Add `--check` for a CI gate that returns status 2 for either regeneration or review. Without it, a certain regeneration plan returns 0. This measures source impact; it does not acknowledge that a capture was already refreshed. See the packaged `docs/ci.md` examples.
+
 ## Selective regeneration
 
 Apply a certain plan with `autotour regenerate <journey.json> --plan <plan.json> --output-dir <existing-output>`. Screenshot, DOM, and raw video modes are inferred from the existing manifest. Let AutoTour execute reusable prerequisites for browser state while preserving their checked output. Treat status `2` as a review gate and retain existing output when capture or assembly fails.

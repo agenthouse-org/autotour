@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "profile-documentation",
+  "title": "Profile documentation",
+  "target": { "baseUrl": "https://example.test", "goal": "Show how to update a display name." },
+  "publish": false,
+  "outputs": ["screenshots"],
+  "modules": [{
+    "id": "profile-settings",
+    "title": "Profile settings",
+    "route": "/settings/profile",
+    "publish": false,
+    "steps": [
+      { "id": "open-profile", "action": "goto", "path": "/settings/profile", "description": "Open profile settings." },
+      { "id": "fill-display-name", "action": "fill", "selector": "role=textbox[name=\"Display name\"]", "value": "Documentation Name", "description": "Enter your display name." },
+      { "id": "save-profile", "action": "click", "selector": "role=button[name=\"Save profile\"]", "description": "Save your profile." }
+    ],
+    "dependencies": { "views": ["ProfileSettings"] },
+    "assets": {}
+  }]
+}

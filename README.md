@@ -4,6 +4,19 @@ AutoTour is an open-source toolkit for coding agents that turns a web applicatio
 
 The intended outputs are dynamic DOM walkthroughs, rendered video, and annotated screenshots. Each walkthrough module records the application views, controllers, API endpoints, and backend components it depends on so affected modules can be re-recorded independently after a change.
 
+## Who uses AutoTour?
+
+Start with your role and the result you need; the agent handles the capture setup.
+
+| You need | Start by asking | Delivery |
+| --- | --- | --- |
+| Marketing: a short LinkedIn clip | “Make a short LinkedIn clip of this product. Help me choose duration, framing, cursor, and motion.” | Reviewed WebM showcase; optional motion-ad for a storyboard and typography. Check organic post versus paid-ad requirements before export. |
+| Product: an HTML DOM tour for Confluence | “Create an embeddable DOM tour of this journey for Confluence. Check our hosting and embed options first.” | A static HTML replay directory with module navigation, plus an embed or link plan. Hosting and Confluence publishing are separate steps. |
+| Support or enablement: a visual how-to | “Document this task with annotated screenshots and a replay.” | Ordered PNGs and optional DOM replay. |
+| Engineering: keep a tour current | “Check which modules changed and regenerate only those.” | Dependency-aware invalidation and selective regeneration. |
+
+The agent starts with a brief planning conversation, asks only about missing choices, and confirms the deliverable before recording. See [role-based onboarding and commands](docs/onboarding.md), including Confluence embedding limits and optional authoring tools.
+
 ## Modular video capture
 
 Schema-shaped walkthrough JSON can be executed directly. With `recordVideo` enabled, AutoTour uses one shared browser context and records a separate WebM for each module, preserving authentication while keeping modules independently replaceable.
@@ -92,7 +105,7 @@ await renderDomReplayVideo({
 });
 ```
 
-For product ads and social clips, set `presentation.motion.mode` to `showcase`. The browser frame can use bounded perspective, X/Y tilt, scale, drift, and duration while the gradient canvas remains fixed. `renderDomReplayVideo.durationMs` captures a fixed presentation interval instead of waiting for replay completion; the WebM container can include a brief startup interval. See the [AutoTour guide](docs/guide.md#showcase-video) for a complete example.
+For product ads and social clips, set `presentation.motion.mode` to `showcase`. The browser frame can use bounded perspective, X/Y tilt, scale, drift, and duration while the gradient canvas remains fixed. `renderDomReplayVideo.durationMs` captures a fixed presentation interval instead of waiting for replay completion; the WebM container can include a brief startup interval. See the [AutoTour guide](docs/guide.md#capture-an-existing-journey) for a complete example.
 
 ## Dependency-aware invalidation
 
@@ -124,6 +137,8 @@ autotour invalidate .autotour/output/walkthrough.json \
 
 Use repeated `--changed-file <path>` options instead of `--base` for coding-agent or webhook integrations that already know the changed paths. The command exits with status `2` when unmapped files or stale dependency names require human review. A fully mapped change returns `0`, even when modules need regeneration, because the plan itself is a successful result.
 
+Add `--check` to fail CI with status `2` when tracked modules need regeneration as well. See [GitHub and GitLab pipeline examples](docs/ci.md). This reports source impact; it does not acknowledge a refresh or compare remote Confluence content.
+
 ## Selective regeneration
 
 Apply an invalidation plan to an existing screenshot, DOM, or video output directory:
@@ -139,6 +154,8 @@ AutoTour infers the output mode from the existing `walkthrough.json`. It execute
 Regeneration happens in a sibling staging directory. The assembled walkthrough is schema-validated before AutoTour swaps it into place; capture or validation failure leaves the previous output intact. A plan containing no affected modules is a successful no-op.
 
 ## Markdown screenshot synchronization
+
+Define [`.autotour/documentation.json`](docs/documentation-spec.md) for section headings, ordered text, selected screenshot steps, UI views, captions, highlight targets, and dependencies. `autotour validate-docs` validates linked journeys/maps; `prepareDocumentationCapture` applies capture instructions; `sync-markdown --spec` renders the layout. A complete example is in `examples/documentation.json`.
 
 AutoTour can refresh screenshot references inside explicit managed regions while preserving the surrounding documentation:
 
@@ -180,6 +197,8 @@ autotour --help
 The repository is also a portable Agent Plugin. Its root `plugin.json` and `skills/` directory are canonical; `.codex-plugin`, `.claude-plugin`, and `.cursor` provide host compatibility.
 
 For an end-to-end walkthrough from journey authoring through local review and CI, read the [AutoTour guide](docs/guide.md).
+
+Agents should follow [INSTALL.md](INSTALL.md) for installation, connection setup, and verification. AutoTour declares external Atlassian (Confluence/Jira), GitHub, and GitLab tools without shipping their servers. LinkedIn delivery prepares clips and copy; direct posting requires a verified publishing provider.
 
 ## Start a project
 

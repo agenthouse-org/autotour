@@ -49,7 +49,8 @@ export function normalizeScreenshotOptions(value, secrets = []) {
 }
 
 export function hasAnnotatableTarget(step) {
-  return typeof step.target?.role === "string" && typeof step.target?.name === "string";
+  const target = step.annotation?.target ?? step.target;
+  return typeof target?.role === "string" && typeof target?.name === "string";
 }
 
 export async function prepareStepScreenshot({
@@ -77,7 +78,7 @@ export async function prepareStepScreenshot({
         page,
         stepId: step.id,
         moduleId: module.id,
-        target: step.target,
+        target: step.annotation?.target ?? step.target,
         callout: step.annotation?.callout ?? 1,
         caption: step.annotation?.caption ?? step.description,
         viewport: options.viewport,

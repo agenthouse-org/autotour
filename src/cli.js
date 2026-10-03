@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { initializeProject, validateWalkthrough } from "./project.js";
+import { readDocumentationSpec, prepareDocumentationCapture } from "./documentation/spec.js";
 import {
   collectGitChangedFiles,
   createInvalidationPlan,
@@ -25,15 +26,17 @@ const help = `AutoTour ${packageJson.version}
 Usage:
   autotour init [directory] [--force]
   autotour validate <walkthrough.json>
-  autotour invalidate <walkthrough.json> --map <dependency-map.json> (--changed-file <path>... | --base <ref> [--head <ref>]) [--output <plan.json>]
-  autotour regenerate <journey.json> --plan <invalidation-plan.json> --output-dir <directory>
-  autotour sync-markdown <walkthrough.json> --markdown <file> --assets-dir <directory> [--dry-run | --check]
+  autotour validate-docs <documentation.json>
+  autotour invalidate <walkthrough.json> --map <dependency-map.json> (--changed-file <path>... | --base <ref> [--head <ref>]) [--output <plan.json>] [--check]
+  autotour regenerate <journey.json> --plan <invalidation-plan.json> --output-dir <directory> [--spec <documentation.json>]
+  autotour sync-markdown <walkthrough.json> --markdown <file> --assets-dir <directory> [--spec <documentation.json>] [--dry-run | --check]
   autotour doctor
   autotour --version
 
 Commands:
   init      Create .autotour/autotour.json in a project
   validate  Validate a walkthrough manifest
+  validate-docs  Validate documentation layout and journey/dependency references
   invalidate  Identify modules affected by repository changes
   regenerate  Replace only modules marked for regeneration
   sync-markdown  Refresh managed walkthrough screenshots in Markdown
@@ -107,6 +110,18 @@ export async function run(args) {
     return 1;
   }
 
+  if (command === "validate-docs") {
+    try {
+      if (rest.length !== 1) throw new Error("validate-docs requires one documentation specification file");
+      await readDocumentationSpec(rest[0]);
+      console.log(`${rest[0]} is valid, including journey and dependency references.`);
+      return 0;
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      return 1;
+    }
+  }
+
   if (command === "invalidate") {
     try {
       return await invalidate(rest);
@@ -141,12 +156,18 @@ export async function run(args) {
 async function syncMarkdown(args) {
   const options = parseSyncMarkdownArgs(args);
   const walkthrough = await readJsonDocument(options.walkthroughFile);
+  const documentation = options.specFile ? await readDocumentationSpec(options.specFile) : undefined;
+  if (documentation?.spec.destination?.kind === "markdown" &&
+      path.resolve(path.dirname(documentation.specPath), documentation.spec.destination.path) !== options.markdownFile) {
+    throw new Error("--markdown does not match the documentation specification destination");
+  }
   const result = await syncMarkdownScreenshots({
     walkthrough,
     walkthroughFile: options.walkthroughFile,
     markdownFile: options.markdownFile,
     assetsDir: options.assetsDir,
-    dryRun: options.dryRun || options.check
+    dryRun: options.dryRun || options.check,
+    documentationSpec: documentation?.spec
   });
   console.log(JSON.stringify(result, null, 2));
   return options.check && result.changed ? 2 : 0;
@@ -158,10 +179,12 @@ function parseSyncMarkdownArgs(args) {
   let assetsDir;
   let dryRun = false;
   let check = false;
+  let specFile;
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
     if (argument === "--markdown") markdownFile = requireOptionValue(args, ++index, argument);
     else if (argument === "--assets-dir") assetsDir = requireOptionValue(args, ++index, argument);
+    else if (argument === "--spec") specFile = requireOptionValue(args, ++index, argument);
     else if (argument === "--dry-run") dryRun = true;
     else if (argument === "--check") check = true;
     else if (argument.startsWith("-")) throw new Error(`Unknown sync-markdown option: ${argument}`);
@@ -177,20 +200,30 @@ function parseSyncMarkdownArgs(args) {
     markdownFile: path.resolve(markdownFile),
     assetsDir: path.resolve(assetsDir),
     dryRun,
-    check
+    check,
+    specFile
   };
 }
 
 async function regenerate(args) {
   const options = parseRegenerateArgs(args);
-  const [journey, invalidationPlan] = await Promise.all([
+  let [journey, invalidationPlan] = await Promise.all([
     readJsonDocument(options.journeyFile),
     readJsonDocument(options.planFile)
   ]);
+  let recordScreenshots;
+  if (options.specFile) {
+    const documentation = await readDocumentationSpec(options.specFile);
+    if (path.resolve(path.dirname(documentation.specPath), documentation.spec.journey) !== options.journeyFile) {
+      throw new Error("Journey file does not match the documentation specification");
+    }
+    ({ journey, recordScreenshots } = await prepareDocumentationCapture(documentation));
+  }
   const result = await regenerateWalkthrough({
     journey,
     invalidationPlan,
-    outputDir: options.outputDir
+    outputDir: options.outputDir,
+    recordScreenshots
   });
   console.log(JSON.stringify(result, null, 2));
   return 0;
@@ -200,10 +233,12 @@ function parseRegenerateArgs(args) {
   let journeyFile;
   let planFile;
   let outputDir;
+  let specFile;
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
     if (argument === "--plan") planFile = requireOptionValue(args, ++index, argument);
     else if (argument === "--output-dir") outputDir = requireOptionValue(args, ++index, argument);
+    else if (argument === "--spec") specFile = requireOptionValue(args, ++index, argument);
     else if (argument.startsWith("-")) {
       throw new Error(`Unknown regenerate option: ${argument}`);
     } else if (!journeyFile) {
@@ -218,7 +253,8 @@ function parseRegenerateArgs(args) {
   return {
     journeyFile,
     planFile: path.resolve(planFile),
-    outputDir: path.resolve(outputDir)
+    outputDir: path.resolve(outputDir),
+    specFile
   };
 }
 
@@ -246,7 +282,7 @@ async function invalidate(args) {
   const plan = createInvalidationPlan({ walkthrough, dependencyMap, changedFiles });
   if (options.outputFile) await writeInvalidationPlan(options.outputFile, plan);
   console.log(JSON.stringify(plan, null, 2));
-  return plan.reviewRequired ? 2 : 0;
+  return plan.reviewRequired || (options.check && plan.summary.regenerate.length > 0) ? 2 : 0;
 }
 
 function parseInvalidateArgs(args) {
@@ -255,6 +291,7 @@ function parseInvalidateArgs(args) {
   let outputFile;
   let base;
   let head = "HEAD";
+  let check = false;
   const changedFiles = [];
 
   for (let index = 0; index < args.length; index += 1) {
@@ -263,6 +300,7 @@ function parseInvalidateArgs(args) {
     else if (argument === "--output") outputFile = requireOptionValue(args, ++index, argument);
     else if (argument === "--base") base = requireOptionValue(args, ++index, argument);
     else if (argument === "--head") head = requireOptionValue(args, ++index, argument);
+    else if (argument === "--check") check = true;
     else if (argument === "--changed-file") {
       changedFiles.push(requireOptionValue(args, ++index, argument));
     } else if (argument.startsWith("-")) {
@@ -286,7 +324,8 @@ function parseInvalidateArgs(args) {
     outputFile: outputFile ? path.resolve(outputFile) : undefined,
     changedFiles,
     base,
-    head
+    head,
+    check
   };
 }
 

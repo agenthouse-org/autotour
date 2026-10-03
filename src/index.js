@@ -28,3 +28,6 @@ export {
   syncMarkdownScreenshots
 } from "./publishing/index.js";
 export { renderDomReplayVideo } from "./dom/video.js";
+export {
+  documentationSchemaPath, validateDocumentationSpec, readDocumentationSpec, prepareDocumentationCapture
+} from "./documentation/spec.js";

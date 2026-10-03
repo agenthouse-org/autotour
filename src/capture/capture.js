@@ -182,9 +182,11 @@ export async function captureJourney(options = {}) {
       try {
         for (const step of module.steps) {
           const before = observer.snapshot();
+          const screenshotBefore = step.annotation?.timing === "before" ||
+            (step.annotation?.timing === undefined && hasAnnotatableTarget(step));
           let preparedScreenshot;
           try {
-            if (screenshotOptions && shouldCapture && hasAnnotatableTarget(step)) {
+            if (screenshotOptions && shouldCapture && screenshotBefore) {
               preparedScreenshot = await prepareStepScreenshot({
                 page,
                 module,
@@ -202,7 +204,7 @@ export async function captureJourney(options = {}) {
               env,
               secrets
             });
-            if (screenshotOptions && shouldCapture && !hasAnnotatableTarget(step)) {
+            if (screenshotOptions && shouldCapture && !screenshotBefore) {
               preparedScreenshot = await prepareStepScreenshot({
                 page,
                 module,

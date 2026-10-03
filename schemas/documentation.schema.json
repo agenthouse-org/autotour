@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autotour.dev/schemas/documentation.schema.json",
+  "title": "AutoTour documentation specification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "walkthroughId", "journey", "dependencyMap", "sections"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "walkthroughId": { "$ref": "#/$defs/id" },
+    "journey": { "type": "string", "minLength": 1 },
+    "dependencyMap": { "type": "string", "minLength": 1 },
+    "audience": { "type": "string", "minLength": 1 },
+    "viewport": {
+      "type": "object", "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 320 },
+        "height": { "type": "integer", "minimum": 240 }
+      }
+    },
+    "destination": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "path"],
+          "properties": { "kind": { "const": "markdown" }, "path": { "type": "string", "minLength": 1 } }
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "siteUrl", "pageId"],
+          "properties": {
+            "kind": { "const": "confluence" },
+            "siteUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
+            "pageId": { "type": "string", "pattern": "^[0-9]+$" }
+          }
+        }
+      ]
+    },
+    "sections": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["moduleId", "heading", "dependencies", "blocks"],
+        "properties": {
+          "moduleId": { "$ref": "#/$defs/id" },
+          "heading": { "type": "string", "minLength": 1 },
+          "endHeading": { "type": "string", "minLength": 1 },
+          "dependencies": { "$ref": "#/$defs/dependencies" },
+          "blocks": {
+            "type": "array", "minItems": 1,
+            "items": { "oneOf": [
+              {
+                "type": "object", "additionalProperties": false,
+                "required": ["kind", "text"],
+                "properties": { "kind": { "const": "text" }, "text": { "type": "string", "minLength": 1 } }
+              },
+              {
+                "type": "object", "additionalProperties": false,
+                "required": ["kind", "stepId", "sourceView", "alt", "caption", "timing"],
+                "properties": {
+                  "kind": { "const": "screenshot" },
+                  "stepId": { "$ref": "#/$defs/id" },
+                  "sourceView": { "type": "string", "minLength": 1 },
+                  "alt": { "type": "string", "minLength": 1 },
+                  "caption": { "type": "string", "minLength": 1 },
+                  "timing": { "enum": ["before", "after"] },
+                  "callout": { "type": "integer", "minimum": 1 },
+                  "target": {
+                    "type": "object", "additionalProperties": false,
+                    "required": ["role", "name"],
+                    "properties": {
+                      "role": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+                      "name": { "type": "string", "minLength": 1 },
+                      "index": { "type": "integer", "minimum": 0 }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "object", "additionalProperties": false,
+                "required": ["kind", "url", "label"],
+                "properties": {
+                  "kind": { "const": "tour" },
+                  "url": { "type": "string", "format": "uri", "pattern": "^https://" },
+                  "label": { "type": "string", "minLength": 1 }
+                }
+              }
+            ] }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "dependencies": {
+      "type": "object", "additionalProperties": false, "minProperties": 1,
+      "properties": {
+        "views": { "$ref": "#/$defs/strings" },
+        "controllers": { "$ref": "#/$defs/strings" },
+        "apiEndpoints": { "$ref": "#/$defs/strings" },
+        "backend": { "$ref": "#/$defs/strings" }
+      }
+    },
+    "strings": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+  }
+}

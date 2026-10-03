@@ -1,173 +1,84 @@
 # AutoTour guide
 
-## Content
+Tell your agent what you need; agree on duration, cursor, zoom, motion, and quality before capture. Agents start with [INSTALL.md](../INSTALL.md).
 
-- [AutoTour guide](#autotour-guide)
-- [Content](#content)
-- [Choose an output](#choose-an-output)
-- [Install and initialize](#install-and-initialize)
-- [Describe the journey](#describe-the-journey)
-- [Capture and review](#capture-and-review)
-- [Showcase video](#showcase-video)
-- [Keep captures modular](#keep-captures-modular)
-- [Run in CI](#run-in-ci)
-- [Security checklist](#security-checklist)
-
-## Choose an output
-
-Start with the deliverable, because each mode serves a different job:
-
-| Need | Mode | Result |
+| Goal | Example request | Output |
 | --- | --- | --- |
-| An interactive walkthrough that works without the source application | `recordDom` | Offline autoplay HTML per module |
-| A polished clip matching the DOM presentation | `renderDomReplayVideo` | Presented WebM |
-| A recording of the live browser | `recordVideo` | Raw WebM per module |
-| Documentation images with numbered callouts | `recordScreenshots` | Annotated PNGs per step |
+| LinkedIn clip | “Make a 15-second product clip, no cursor, restrained motion. Prepare post copy.” | Reviewed WebM + draft; optional motion-ad |
+| Confluence tour | “Show how to update a profile. Embed the DOM tour in page 12345.” | Hosted replay + supported embed/link |
+| Product documentation | “Refresh only Profile Settings on that page; preserve other sections.” | Reviewed section patch via connected Confluence tools |
+| Jira follow-up | “Add the affected modules and documentation links to PROJ-42.” | Requested issue update via Atlassian |
+| CI check | “Add documentation impact checks to our GitHub or GitLab pipeline.” | Change plan and CI job |
+| Visual how-to | “Capture this task with numbered screenshots.” | Annotated PNGs |
 
-Use multiple modes only when the same journey genuinely needs multiple deliverables. Keep generated output under `.autotour/output/` until it has been reviewed for publication.
-
-## Install and initialize
-
-AutoTour requires Node.js 20 or newer and Playwright Chromium.
+## Local setup
 
 ```sh
 npm install autotour
 npx playwright install chromium
 npx autotour init
+npx autotour doctor
 ```
 
-`autotour init` creates `.autotour/autotour.json`. Keep credentials in environment variables, never in the project configuration or journey JSON.
+For an unreleased checkout, follow [INSTALL.md](../INSTALL.md). Keep test credentials in environment variables and captures in ignored `.autotour/output/` paths.
 
-## Describe the journey
+## Capture an existing journey
 
-A journey has stable modules, and each module has observable steps. Split modules at route, view, or user-task boundaries so a changed feature can be recaptured independently.
-
-```json
-{
-  "schemaVersion": 1,
-  "id": "services-overview",
-  "title": "Services overview",
-  "target": {
-    "baseUrl": "https://example.com",
-    "goal": "Show prospective customers the services page."
-  },
-  "publish": false,
-  "outputs": ["dom"],
-  "modules": [
-    {
-      "id": "services-hero",
-      "title": "Services hero",
-      "route": "/services/",
-      "publish": false,
-      "steps": [
-        {
-          "id": "open-services",
-          "action": "goto",
-          "description": "Open the services page.",
-          "path": "/services/"
-        },
-        {
-          "id": "hold-services",
-          "action": "wait",
-          "description": "Hold on the services introduction.",
-          "durationMs": 10000
-        }
-      ],
-      "dependencies": {},
-      "assets": {}
-    }
-  ]
-}
-```
-
-Prefer accessible role/name targets for clicks and assertions. Use a zero-based `target.index` only when duplicate controls are intentional. Validate the journey before capture:
-
-```sh
-npx autotour validate .autotour/services-overview.json
-```
-
-## Capture and review
-
-Call `captureJourney` from a project script or coding agent. This example creates an offline DOM replay with a fake browser window:
+Save as a project `.mjs` file and run with Node.js:
 
 ```js
 import { readFile } from "node:fs/promises";
-import { captureJourney } from "autotour";
+import { captureJourney, renderDomReplayVideo } from "autotour";
 
-const journey = JSON.parse(await readFile(".autotour/services-overview.json", "utf8"));
+const journey = JSON.parse(await readFile(".autotour/journey.json", "utf8"));
 const result = await captureJourney({
   journey,
-  outputDir: ".autotour/output/services-overview",
+  outputDir: ".autotour/output/product",
   recordDom: {
     viewport: { width: 1440, height: 900 },
-    stepDelayMs: 500,
     presentation: {
-      frame: { mode: "window", title: "Services" },
-      background: { mode: "gradient", from: "#111815", to: "#26342b" },
       cursor: { visible: false },
-      padding: 52
+      frame: { mode: "window", title: "Product" },
+      background: { mode: "gradient", from: "#111815", to: "#26342b" },
+      padding: 60,
+      motion: { mode: "showcase", rotateX: 4, rotateY: -6, scale: 0.9, durationMs: 15000 }
     }
   }
 });
+console.log(result.domIndexPath); // Root HTML tour; retain the entire output directory.
 
-console.log(result.domIndexPath);
-```
-
-Review the root autoplay page and every individual module. Check pacing, clipping, cursor visibility, click emphasis, secrets, personal information, missing images, remote fonts, canvas content, and cross-origin frames. A successful capture is not publication approval.
-
-## Showcase video
-
-For an ad or launch clip, add slow 3D motion to the browser frame and render a fixed interval:
-
-```js
-import { renderDomReplayVideo } from "autotour";
-
-// Add this inside recordDom.presentation.
-const motion = {
-  mode: "showcase",
-  perspective: 1400,
-  rotateX: 4,
-  rotateY: -8,
-  driftX: 24,
-  driftY: -14,
-  scale: 0.92,
-  durationMs: 10000
-};
-
+// Only when a video is requested; choose the intended module ID.
 await renderDomReplayVideo({
-  playerPath: result.domPaths["services-hero"],
-  outputPath: ".autotour/output/services-overview/services-showcase.webm",
-  size: { width: 1440, height: 900 },
-  durationMs: 10000
+  playerPath: result.domPaths[journey.modules[0].id],
+  outputPath: ".autotour/output/product/clip.webm",
+  durationMs: 15000
 });
 ```
 
-Use one restrained move, conservative tilt, and enough padding to keep the fake window inside the canvas. Inspect the first, middle, and last frames as well as the complete video. Reduced-motion playback uses a static tilted composition.
-
-`durationMs` measures the presentation interval after the local player starts. Playwright video can include a short page-startup interval in the WebM container, so inspect the encoded duration when an ad platform requires a tight runtime and calibrate the interval for that artifact.
-
-## Keep captures modular
-
-Record dependencies observed during capture and map repository files to those dependency names in `.autotour/dependency-map.json`. Then generate an invalidation plan:
+Use `recordScreenshots: { viewport: { width: 1440, height: 900 } }` for PNGs, or `recordVideo: { size: { width: 1440, height: 900 } }` for raw browser video. Start from [sample journeys](../examples/agenthouse-dealdesk.json), then validate:
 
 ```sh
-npx autotour invalidate .autotour/output/services-overview/walkthrough.json \
-  --map .autotour/dependency-map.json \
-  --base origin/develop \
-  --head HEAD \
-  --output .autotour/output/invalidation-plan.json
+npx autotour validate .autotour/journey.json
 ```
 
-Apply a certain plan with `autotour regenerate`. AutoTour executes prerequisite modules for browser state but replaces assets only for modules classified `regenerate`. Status `2` means review is required; do not silently recapture or publish uncertain modules.
+Inspect playback, small text, cropping, cursor, and sensitive data. `durationMs` sets the recording interval after readiness; WebM may include startup overhead. Exact duration requires trimming and measurement. Multiple modules remain separate video files. Remote fonts, lazy media, canvas, and cross-origin frames may need additional review.
 
-## Run in CI
+## Publish to the requested destination
 
-A capture job should install dependencies and Chromium, provide test credentials through CI secrets, validate or capture the journey, and upload `.autotour/output` only when policy permits. Use `autotour sync-markdown --check` when published documentation contains managed screenshot regions. Keep authentication state, local captures, caches, and generated reports ignored.
+For Confluence, host the complete HTML replay directory on an approved HTTPS service, then use an available embed macro or a normal link. HTML attachments alone do not guarantee playback. For LinkedIn, check organic versus paid-ad requirements and use an authenticated publishing provider when available; otherwise deliver the clip and post draft. See [connection setup and limits](../INSTALL.md#4-connect-the-requested-services).
 
-## Security checklist
+Connected publishing updates only the agreed page sections or issue fields, checks for concurrent changes, and verifies the result. Installation does not authorize publication. AutoTour ships connection declarations and agent workflows; no remote publisher CLI is added.
 
-- Use a dedicated least-privilege test account.
-- Keep passwords, tokens, cookies, and storage state out of Git and logs.
-- Redact sensitive selectors and text in screenshots.
-- Review every generated DOM snapshot, image, and video before publication.
-- Keep `publish` false until the journey and each selected module are intentionally approved.
+## Detect changes and refresh
+
+Define layout, screenshot selection, captions, and UI dependencies in [`.autotour/documentation.json`](documentation-spec.md). Validate with `autotour validate-docs`; use `sync-markdown --spec` to render the agreed layout inside managed sections.
+
+```sh
+npx autotour invalidate .autotour/walkthrough.json --map .autotour/dependency-map.json --base origin/main --head HEAD --check --output .autotour/output/plan.json
+npx autotour regenerate .autotour/journey.json --plan .autotour/output/plan.json --output-dir .autotour/output/capture
+npx autotour sync-markdown .autotour/output/capture/walkthrough.json --markdown docs/profile.md --assets-dir docs/assets/autotour --check
+```
+
+`invalidate --check`: 0 = reusable, 2 = affected or needs review, 1 = error. Regeneration replaces affected modules and preserves others; inspect results before publication. `sync-markdown --check` detects stale managed screenshot regions without writing. [GitHub and GitLab CI examples](ci.md) explain setup and the difference between change impact and an acknowledged refresh.
+
+For detailed presentation options, read [output modes](../skills/create-autotour/references/output-modes.md). For section-preserving remote updates, read [connected publishing](../skills/create-autotour/references/connections.md).

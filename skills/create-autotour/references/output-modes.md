@@ -64,7 +64,7 @@ motion: {
 
 Set `cursor.visible` to `false` for a passive showcase and retain it for clips where pointer movement communicates the product interaction.
 
-Render a fixed-length clip with `renderDomReplayVideo({ ..., durationMs: 10000 })`. Prefer one slow camera move over oscillation, keep tilt within about 3–10 degrees, and leave enough canvas padding that perspective does not crop the window. Inspect the first, middle, and final frames. Reject motion that makes product text difficult to read or exposes empty replay edges. Reduced-motion playback keeps a static tilted composition.
+Capture a fixed presentation interval with `renderDomReplayVideo({ ..., durationMs: 10000 })`; the encoded WebM may include startup overhead. For an exact file duration, remove startup and verify the final duration with media tools. Follow the agreed duration, cursor, zoom, motion, and quality choices from the planning step. Prefer one slow camera move over oscillation, keep tilt within about 3–10 degrees, and leave enough canvas padding that perspective does not crop the window. Inspect the first, middle, and final frames and check bounds throughout motion. Reject motion that makes product text difficult to read or exposes empty replay edges. Reduced-motion playback keeps a static tilted composition.
 
 ## Presentation pacing
 

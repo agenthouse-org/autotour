@@ -13,6 +13,7 @@ export function createProjectConfig(projectName = path.basename(process.cwd())) 
     schemaVersion: 1,
     project: projectName,
     walkthroughs: ".autotour/walkthroughs",
+    documentation: ".autotour/documentation.json",
     output: ".autotour/output",
     auth: {
       usernameEnv: "AUTOTOUR_USERNAME",

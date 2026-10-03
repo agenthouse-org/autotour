@@ -38,7 +38,11 @@ test("the portable package contains a valid skill", async () => {
   const files = [
     "skills/create-autotour/SKILL.md",
     "skills/create-autotour/references/output-modes.md",
-    "skills/create-autotour/references/maintenance.md"
+    "skills/create-autotour/references/maintenance.md",
+    "skills/create-autotour/references/motion-ad.md",
+    "skills/create-autotour/references/onboarding.md",
+    "skills/create-autotour/references/connections.md",
+    "skills/create-autotour/references/documentation-spec.md"
   ];
   const [skill, ...references] = await Promise.all(files.map((file) => readFile(file, "utf8")));
   assert.match(skill, /^---\r?\nname: create-autotour/m);
@@ -52,4 +56,22 @@ test("the example dependency map is schema-valid", async () => {
   const dependencyMap = await readJson("examples/dependency-map.json");
   const result = await validateDependencyMapDocument(dependencyMap);
   assert.equal(result.valid, true, JSON.stringify(result.errors));
+});
+
+test("external connections are declared and included in the package", async () => {
+  const [pkg, portable, codex, mcp, apps] = await Promise.all([
+    readJson("package.json"), readJson("plugin.json"), readJson(".codex-plugin/plugin.json"),
+    readJson("mcp.json"), readJson(".app.json")
+  ]);
+  assert.equal(portable.extensions["com.openai"].apps, "./.app.json");
+  assert.equal(codex.apps, "./.app.json");
+  for (const file of ["mcp.json", ".app.json", "INSTALL.md"]) assert.ok(pkg.files.includes(file));
+  for (const server of Object.values(mcp.mcpServers)) {
+    assert.equal(server.type, "streamable-http");
+    assert.equal(new URL(server.url).protocol, "https:");
+    assert.equal(server.headers, undefined, "do not bundle credentials");
+  }
+  assert.equal(apps.apps.atlassian.required, false);
+  assert.equal(apps.apps.github.required, false);
+  assert.equal(mcp.mcpServers.linkedin, undefined, "no unverified LinkedIn endpoint");
 });
