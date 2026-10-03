@@ -3,8 +3,8 @@
   "id": "ST-14",
   "title": "Create 3D showcase videos and an end-to-end guide",
   "kind": "feature",
-  "stage": "implement",
-  "revision": 5,
+  "stage": "verify",
+  "revision": 6,
   "fields": {
     "outcome": "Marketing and product teams can turn an AutoTour DOM capture into a restrained, tilted 3D product showcase with a fake browser window and gradient background, and new users can follow one maintained guide from installation through review and CI.",
     "parentWork": "autotour-core",
@@ -14,7 +14,9 @@
     "verification": "Assert normalized showcase settings in a real generated player, inspect computed 3D animation and cursor visibility, cover fixed-duration validation and rendering, run all package checks, inspect start/middle/end frames from the live Services capture, probe the WebM dimensions and duration, and run frozen Agenthouse evaluation.",
     "dependencies": "Builds on ST-11 presentation framing and DOM-to-WebM rendering plus ST-13 cursor presentation controls.",
     "risks": "Strong perspective can crop the frame or reduce readability, and fixed-interval WebM output can include startup overhead. Bound configuration values, recommend conservative tilt and padding, honor reduced motion, inspect representative frames, and measure the encoded artifact.",
-    "audience": "Marketing, product, and documentation teams creating polished product clips."
+    "audience": "Marketing, product, and documentation teams creating polished product clips.",
+    "changes": "Implemented in commit f2ca8b685e89f45315a842ca0ea4fb310333f16c: DOM presentations support an opt-in showcase motion profile with bounded perspective, tilt, drift, scale, duration, static reduced-motion composition, and optional cursor hiding. DOM-to-WebM rendering supports a fixed presentation interval and applies its declared timeout to local player startup. The npm package now includes docs/guide.md and the portable skill routes agents to showcase guidance.",
+    "evidence": "The full package suite passed 86 tests, including real-browser assertions for animated and reduced-motion showcase states, passive cursor configuration, fixed-duration validation, and WebM output. The live Agenthouse Services page was captured and its start, middle, end, and final cursor-free composition were visually inspected under .agenthouse/evidence/ST-14. The final VP8 WebM measures 1440x900, 9.96 seconds, and 1,090,294 bytes. npm pack includes docs/guide.md, and frozen Agenthouse evaluation for the exact build satisfied all seven configured checks."
   },
   "criteria": [
     {
@@ -46,7 +48,14 @@
       "expectation": "The published package includes a maintained task-oriented guide from installation and journey authoring through review, regeneration, CI, and security."
     }
   ],
-  "evidence": [],
+  "build": "f2ca8b685e89f45315a842ca0ea4fb310333f16c",
+  "evidence": [
+    ".agenthouse/local/reports/bdb51c20-2f49-4609-93cb-af67a8eae14c/result.json",
+    ".agenthouse/evidence/ST-14/services-start.png",
+    ".agenthouse/evidence/ST-14/services-middle.png",
+    ".agenthouse/evidence/ST-14/services-end.png",
+    ".agenthouse/evidence/ST-14/services-final-middle.png"
+  ],
   "history": [
     {
       "from": "discover",
@@ -77,6 +86,14 @@
       "to": "implement",
       "at": "2026-10-03T09:14:50.654Z",
       "previous": "93c82c0feaebba0509b72696367b7645d8e3706932f49514062e576cdf4bf3af",
+      "policyDigest": "bcab04bfc726b0cdb82e15436b28897895dc68e6c454afd4b5a1ea5bfb6687b1",
+      "decision": null
+    },
+    {
+      "from": "implement",
+      "to": "verify",
+      "at": "2026-10-03T09:18:44.846Z",
+      "previous": "715206866551b7f4e970c0d61931c845775ea764dd4c6d1e32c141a693290133",
       "policyDigest": "bcab04bfc726b0cdb82e15436b28897895dc68e6c454afd4b5a1ea5bfb6687b1",
       "decision": null
     }
