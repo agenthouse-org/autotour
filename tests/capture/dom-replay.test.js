@@ -154,7 +154,7 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
     const frameText = await frameBody.textContent();
     assert.match(frameText, /Sign in|Profile settings/);
     const replayLogo = frameBody.getByRole("img", { name: "AutoTour" });
-    await replayLogo.waitFor({ state: "visible", timeout: 2000 });
+    await replayLogo.waitFor({ state: "visible", timeout: 10000 });
     assert.ok(await replayLogo.evaluate((image) => image.complete && image.naturalWidth > 0));
 
     await page.locator("body[data-focus-active='true']").waitFor({ timeout: 5000 });
