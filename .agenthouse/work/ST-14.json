@@ -15,8 +15,8 @@
     "dependencies": "Builds on ST-11 presentation framing and DOM-to-WebM rendering plus ST-13 cursor presentation controls.",
     "risks": "Strong perspective can crop the frame or reduce readability, and fixed-interval WebM output can include startup overhead. Bound configuration values, recommend conservative tilt and padding, honor reduced motion, inspect representative frames, and measure the encoded artifact.",
     "audience": "Marketing, product, and documentation teams creating polished product clips.",
-    "changes": "Implemented in commit f2ca8b685e89f45315a842ca0ea4fb310333f16c: DOM presentations support an opt-in showcase motion profile with bounded perspective, tilt, drift, scale, duration, static reduced-motion composition, and optional cursor hiding. DOM-to-WebM rendering supports a fixed presentation interval and applies its declared timeout to local player startup. The npm package now includes docs/guide.md and the portable skill routes agents to showcase guidance.",
-    "evidence": "The full package suite passed 86 tests, including real-browser assertions for animated and reduced-motion showcase states, passive cursor configuration, fixed-duration validation, and WebM output. The live Agenthouse Services page was captured and its start, middle, end, and final cursor-free composition were visually inspected under .agenthouse/evidence/ST-14. The final VP8 WebM measures 1440x900, 9.96 seconds, and 1,090,294 bytes. npm pack includes docs/guide.md, and frozen Agenthouse evaluation for the exact build satisfied all seven configured checks."
+    "changes": "Implemented in commit f2ca8b685e89f45315a842ca0ea4fb310333f16c with CI stabilization in c845589f80fe061fa1ada85cc68493f4e2c50b7e: DOM presentations support an opt-in showcase motion profile with bounded perspective, tilt, drift, scale, duration, static reduced-motion composition, and optional cursor hiding. DOM-to-WebM rendering supports a fixed presentation interval and applies its declared timeout to local player startup. The npm package now includes docs/guide.md and the portable skill routes agents to showcase guidance.",
+    "evidence": "The full package suite passed 86 tests, including real-browser assertions for animated and reduced-motion showcase states, passive cursor configuration, fixed-duration validation, and WebM output. A Node 22 CI run exposed an unrelated two-second replay-logo readiness assumption; the corrected focused browser test passed with the standard ten-second readiness window. The live Agenthouse Services page was captured and its start, middle, end, and final cursor-free composition were visually inspected under .agenthouse/evidence/ST-14. The final VP8 WebM measures 1440x900, 9.96 seconds, and 1,090,294 bytes. npm pack includes docs/guide.md, and frozen Agenthouse evaluation for the exact corrected build satisfied all seven configured checks."
   },
   "criteria": [
     {
@@ -48,9 +48,9 @@
       "expectation": "The published package includes a maintained task-oriented guide from installation and journey authoring through review, regeneration, CI, and security."
     }
   ],
-  "build": "f2ca8b685e89f45315a842ca0ea4fb310333f16c",
+  "build": "c845589f80fe061fa1ada85cc68493f4e2c50b7e",
   "evidence": [
-    ".agenthouse/local/reports/bdb51c20-2f49-4609-93cb-af67a8eae14c/result.json",
+    ".agenthouse/local/reports/0ef288c4-0f85-4ce6-ad1c-71419cb56aa3/result.json",
     ".agenthouse/evidence/ST-14/services-start.png",
     ".agenthouse/evidence/ST-14/services-middle.png",
     ".agenthouse/evidence/ST-14/services-end.png",
