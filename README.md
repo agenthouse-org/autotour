@@ -63,8 +63,9 @@ const result = await captureJourney({
     viewport: { width: 1280, height: 720 },
     stepDelayMs: 500,
     presentation: {
-      cursor: { scale: 1.6, moveDurationMs: 650, clickPulse: true, clickDurationMs: 700 },
+      cursor: { visible: true, scale: 1.6, moveDurationMs: 650, clickPulse: true, clickDurationMs: 700 },
       focus: { mode: "clicks", scale: 1.25, durationMs: 650, holdMs: 2400 },
+      motion: { mode: "off" },
       frame: { mode: "window", title: "Product walkthrough" },
       background: { mode: "gradient", from: "#111815", to: "#26342b" },
       padding: 48
@@ -86,9 +87,12 @@ import { renderDomReplayVideo } from "autotour";
 await renderDomReplayVideo({
   playerPath: result.domPaths["sign-in"],
   outputPath: ".autotour/output/sign-in.webm",
-  size: { width: 1440, height: 900 }
+  size: { width: 1440, height: 900 },
+  durationMs: 10000
 });
 ```
+
+For product ads and social clips, set `presentation.motion.mode` to `showcase`. The browser frame can use bounded perspective, X/Y tilt, scale, drift, and duration while the gradient canvas remains fixed. `renderDomReplayVideo.durationMs` captures a fixed presentation interval instead of waiting for replay completion; the WebM container can include a brief startup interval. See the [AutoTour guide](docs/guide.md#showcase-video) for a complete example.
 
 ## Dependency-aware invalidation
 
@@ -174,6 +178,8 @@ autotour --help
 ```
 
 The repository is also a portable Agent Plugin. Its root `plugin.json` and `skills/` directory are canonical; `.codex-plugin`, `.claude-plugin`, and `.cursor` provide host compatibility.
+
+For an end-to-end walkthrough from journey authoring through local review and CI, read the [AutoTour guide](docs/guide.md).
 
 ## Start a project
 

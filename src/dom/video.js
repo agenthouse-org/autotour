@@ -8,9 +8,10 @@ export async function renderDomReplayVideo({
   outputPath,
   size = { width: 1440, height: 900 },
   timeoutMs = 120000,
-  tailMs = 500
+  tailMs = 500,
+  durationMs
 }) {
-  validateRenderOptions({ playerPath, outputPath, size, timeoutMs, tailMs });
+  validateRenderOptions({ playerPath, outputPath, size, timeoutMs, tailMs, durationMs });
   const absolutePlayerPath = path.resolve(playerPath);
   const absoluteOutputPath = path.resolve(outputPath);
   const temporaryDir = path.join(path.dirname(absoluteOutputPath), ".render-temp");
@@ -27,13 +28,17 @@ export async function renderDomReplayVideo({
   try {
     const url = new URL(pathToFileURL(absolutePlayerPath));
     url.searchParams.set("render", "1");
-    await page.goto(url.href);
+    await page.goto(url.href, { waitUntil: "domcontentloaded", timeout: timeoutMs });
     await page.locator("body[data-autoplay='started']").waitFor({ timeout: timeoutMs });
-    await page.locator("#status").filter({ hasText: "Complete" }).waitFor({
-      state: "attached",
-      timeout: timeoutMs
-    });
-    if (tailMs > 0) await page.waitForTimeout(tailMs);
+    if (durationMs === undefined) {
+      await page.locator("#status").filter({ hasText: "Complete" }).waitFor({
+        state: "attached",
+        timeout: timeoutMs
+      });
+      if (tailMs > 0) await page.waitForTimeout(tailMs);
+    } else {
+      await page.waitForTimeout(durationMs);
+    }
     await page.close();
     const temporaryPath = await video.path();
     await mkdir(path.dirname(absoluteOutputPath), { recursive: true });
@@ -48,7 +53,7 @@ export async function renderDomReplayVideo({
   }
 }
 
-function validateRenderOptions({ playerPath, outputPath, size, timeoutMs, tailMs }) {
+function validateRenderOptions({ playerPath, outputPath, size, timeoutMs, tailMs, durationMs }) {
   if (typeof playerPath !== "string" || playerPath.length === 0) {
     throw new TypeError("playerPath is required.");
   }
@@ -64,5 +69,8 @@ function validateRenderOptions({ playerPath, outputPath, size, timeoutMs, tailMs
   }
   if (!Number.isInteger(tailMs) || tailMs < 0 || tailMs > 10000) {
     throw new TypeError("tailMs must be an integer from 0 to 10000 milliseconds.");
+  }
+  if (durationMs !== undefined && (!Number.isInteger(durationMs) || durationMs < 100 || durationMs > 300000)) {
+    throw new TypeError("durationMs must be an integer from 100 to 300000 milliseconds when provided.");
   }
 }

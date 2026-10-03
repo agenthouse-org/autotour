@@ -6,6 +6,7 @@
 - [Content](#content)
 - [Raw modular video](#raw-modular-video)
 - [Presented DOM replay](#presented-dom-replay)
+- [Showcase video](#showcase-video)
 - [Presentation pacing](#presentation-pacing)
 - [Annotated screenshots](#annotated-screenshots)
 
@@ -25,6 +26,7 @@ recordDom: {
   stepDelayMs: 650,
   presentation: {
     cursor: {
+      visible: true,
       scale: 1.8,
       moveDurationMs: 850,
       clickPulse: true,
@@ -42,6 +44,27 @@ recordDom: {
   }
 }
 ```
+
+## Showcase video
+
+Use showcase motion for ads, announcements, and social clips rather than procedural tours. Keep the application inside a fake browser window over a solid or gradient canvas, hide the cursor when no interaction is being demonstrated, then add a restrained 3D drift:
+
+```js
+motion: {
+  mode: "showcase",
+  perspective: 1400,
+  rotateX: 4,
+  rotateY: -8,
+  driftX: 24,
+  driftY: -14,
+  scale: 0.92,
+  durationMs: 10000
+}
+```
+
+Set `cursor.visible` to `false` for a passive showcase and retain it for clips where pointer movement communicates the product interaction.
+
+Render a fixed-length clip with `renderDomReplayVideo({ ..., durationMs: 10000 })`. Prefer one slow camera move over oscillation, keep tilt within about 3–10 degrees, and leave enough canvas padding that perspective does not crop the window. Inspect the first, middle, and final frames. Reject motion that makes product text difficult to read or exposes empty replay edges. Reduced-motion playback keeps a static tilted composition.
 
 ## Presentation pacing
 

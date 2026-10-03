@@ -41,6 +41,7 @@
     "schemas",
     "skills",
     "examples",
+    "docs",
     ".codex-plugin",
     ".claude-plugin",
     ".cursor",

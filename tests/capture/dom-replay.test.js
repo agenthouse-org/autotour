@@ -16,6 +16,7 @@ import {
   validateWalkthroughDocument
 } from "../../src/capture/index.js";
 import { renderDomReplayVideo } from "../../src/dom/video.js";
+import { normalizeDomPresentation } from "../../src/dom/presentation.js";
 
 test("DOM capture produces secret-safe offline autoplay players per module", { timeout: 90000 }, async () => {
   const app = await startServer({
@@ -59,8 +60,9 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
       recordDom: {
         viewport: { width: 960, height: 540 },
         presentation: {
-          cursor: { scale: 1.7, moveDurationMs: 850, clickPulse: true, clickDurationMs: 800 },
+          cursor: { visible: true, scale: 1.7, moveDurationMs: 850, clickPulse: true, clickDurationMs: 800 },
           focus: { mode: "clicks", scale: 1.25, durationMs: 180, holdMs: 2400 },
+          motion: { mode: "showcase", perspective: 1500, rotateX: 3, rotateY: -6, driftX: 20, driftY: -12, scale: 0.94, durationMs: 10000 },
           frame: { mode: "window", title: "AutoTour demo" },
           background: { mode: "gradient", from: "#111815", to: "#26342b" },
           padding: 32
@@ -127,6 +129,8 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
     await page.goto(`${replayServer.baseUrl}/modules/sign-in/dom/index.html`);
     await page.locator("body[data-autoplay='started']").waitFor();
     assert.equal(await page.locator("body").getAttribute("data-frame-mode"), "window");
+    assert.equal(await page.locator("body").getAttribute("data-cursor-visible"), "true");
+    assert.equal(await page.locator("body").getAttribute("data-motion-mode"), "showcase");
     assert.equal(await page.locator("#window-title").innerText(), "AutoTour demo");
     assert.match(await page.locator("#canvas").evaluate((element) => element.style.background), /linear-gradient/);
     const replayFrame = page.locator("#replay iframe");
@@ -186,6 +190,21 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
     assert.equal(clickEmphasis.name, "autotour-click");
     assert.equal(clickEmphasis.duration, "0.8s");
     assert.equal(clickEmphasis.border, "3px");
+    const showcaseMotion = await page.locator("#browser-frame").evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { name: style.animationName, duration: style.animationDuration, transform: style.transform };
+    });
+    assert.equal(showcaseMotion.name, "autotour-showcase");
+    assert.equal(showcaseMotion.duration, "10s");
+    assert.notEqual(showcaseMotion.transform, "none");
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    const reducedShowcaseMotion = await page.locator("#browser-frame").evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { name: style.animationName, transform: style.transform };
+    });
+    assert.equal(reducedShowcaseMotion.name, "none");
+    assert.notEqual(reducedShowcaseMotion.transform, "none");
+    await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.locator("body[data-focus-active='false']").waitFor({ timeout: 5000 });
     assert.equal(
       await page.locator("#replay").evaluate((element) => element.style.transform),
@@ -208,7 +227,8 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
       playerPath: result.domPaths["sign-in"],
       outputPath: renderedVideo,
       size: { width: 960, height: 540 },
-      tailMs: 0
+      tailMs: 0,
+      durationMs: 1000
     });
     assert.ok((await stat(renderedVideo)).size > 0);
   } finally {
@@ -250,6 +270,29 @@ test("DOM capture rejects invalid presentation profiles before browsing", async 
     }),
     /DOM presentation configuration is invalid/
   );
+});
+
+test("DOM video rendering rejects invalid fixed durations", async () => {
+  await assert.rejects(
+    renderDomReplayVideo({
+      playerPath: "replay.html",
+      outputPath: "replay.webm",
+      durationMs: 99
+    }),
+    /durationMs must be an integer from 100 to 300000 milliseconds/
+  );
+});
+
+test("DOM presentation supports passive cursor-free showcases", () => {
+  const presentation = normalizeDomPresentation({
+    cursor: { visible: false },
+    motion: { mode: "showcase", rotateX: 4, rotateY: -8, durationMs: 10000 }
+  });
+  assert.equal(presentation.cursor.visible, false);
+  assert.equal(presentation.motion.mode, "showcase");
+  assert.equal(presentation.motion.rotateX, 4);
+  assert.equal(presentation.motion.rotateY, -8);
+  assert.equal(presentation.motion.durationMs, 10000);
 });
 
 async function startStaticServer(root) {

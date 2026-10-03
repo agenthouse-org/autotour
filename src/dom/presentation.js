@@ -12,6 +12,7 @@ export function normalizeDomPresentation(value, secrets = []) {
   const background = objectOption(value.background, "background", secrets);
   const cursor = objectOption(value.cursor, "cursor", secrets);
   const focus = objectOption(value.focus, "focus", secrets);
+  const motion = objectOption(value.motion, "motion", secrets);
   const mode = enumOption(frame.mode ?? "pure", ["pure", "background", "window"], "frame.mode", secrets);
   const backgroundMode = enumOption(
     background.mode ?? (mode === "pure" ? "transparent" : "solid"),
@@ -35,6 +36,7 @@ export function normalizeDomPresentation(value, secrets = []) {
     },
     padding: integerOption(value.padding ?? (mode === "pure" ? 12 : 48), 0, 120, "padding", secrets),
     cursor: {
+      visible: booleanOption(cursor.visible ?? true, "cursor.visible", secrets),
       scale: numberOption(cursor.scale ?? 1, 1, 3, "cursor.scale", secrets),
       moveDurationMs: integerOption(cursor.moveDurationMs ?? 650, 0, 2000, "cursor.moveDurationMs", secrets),
       clickPulse: booleanOption(cursor.clickPulse ?? true, "cursor.clickPulse", secrets),
@@ -45,6 +47,16 @@ export function normalizeDomPresentation(value, secrets = []) {
       scale: numberOption(focus.scale ?? 1.3, 1.05, 2, "focus.scale", secrets),
       durationMs: integerOption(focus.durationMs ?? 650, 0, 2000, "focus.durationMs", secrets),
       holdMs: integerOption(focus.holdMs ?? 2400, 0, 10000, "focus.holdMs", secrets)
+    },
+    motion: {
+      mode: enumOption(motion.mode ?? "off", ["off", "showcase"], "motion.mode", secrets),
+      perspective: integerOption(motion.perspective ?? 1400, 500, 4000, "motion.perspective", secrets),
+      rotateX: numberOption(motion.rotateX ?? 4, -15, 15, "motion.rotateX", secrets),
+      rotateY: numberOption(motion.rotateY ?? -8, -15, 15, "motion.rotateY", secrets),
+      driftX: integerOption(motion.driftX ?? 24, -160, 160, "motion.driftX", secrets),
+      driftY: integerOption(motion.driftY ?? -14, -160, 160, "motion.driftY", secrets),
+      scale: numberOption(motion.scale ?? 0.92, 0.7, 1, "motion.scale", secrets),
+      durationMs: integerOption(motion.durationMs ?? 10000, 1000, 60000, "motion.durationMs", secrets)
     }
   };
 }
