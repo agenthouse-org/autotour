@@ -9,8 +9,18 @@
     "$schema": { "type": "string" },
     "schemaVersion": { "const": 1 },
     "walkthroughId": { "$ref": "#/$defs/id" },
-    "journey": { "type": "string", "minLength": 1 },
-    "dependencyMap": { "type": "string", "minLength": 1 },
+    "journey": {
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        { "$ref": "#/$defs/journey" }
+      ]
+    },
+    "dependencyMap": {
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        { "$ref": "#/$defs/dependencyMap" }
+      ]
+    },
     "audience": { "type": "string", "minLength": 1 },
     "viewport": {
       "type": "object", "additionalProperties": false,
@@ -37,6 +47,27 @@
           }
         }
       ]
+    },
+    "targets": {
+      "type": "array", "minItems": 1, "uniqueItems": true,
+      "items": {
+        "oneOf": [
+          { "$ref": "#/$defs/markdownTarget" },
+          { "$ref": "#/$defs/htmlTarget" },
+          { "$ref": "#/$defs/confluenceTarget" }
+        ]
+      }
+    },
+    "generation": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "mode": { "enum": ["create", "adapt"] },
+        "htmlMode": { "enum": ["site", "single-file"] }
+      }
+    },
+    "approval": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "scope": { "enum": ["asset", "section", "run"] } }
     },
     "sections": {
       "type": "array", "minItems": 1,
@@ -86,6 +117,16 @@
                   "url": { "type": "string", "format": "uri", "pattern": "^https://" },
                   "label": { "type": "string", "minLength": 1 }
                 }
+              },
+              {
+                "type": "object", "additionalProperties": false,
+                "required": ["kind", "path", "label"],
+                "properties": {
+                  "kind": { "const": "video" },
+                  "path": { "type": "string", "minLength": 1 },
+                  "label": { "type": "string", "minLength": 1 },
+                  "caption": { "type": "string", "minLength": 1 }
+                }
               }
             ] }
           }
@@ -94,6 +135,11 @@
     }
   },
   "$defs": {
+    "journey": { "type": "object", "required": ["schemaVersion", "id", "modules"], "properties": { "schemaVersion": { "const": 1 }, "id": { "$ref": "#/$defs/id" }, "modules": { "type": "array" } }, "additionalProperties": true },
+    "dependencyMap": { "type": "object", "required": ["schemaVersion", "rules"], "properties": { "schemaVersion": { "const": 1 }, "rules": { "type": "array" } }, "additionalProperties": true },
+    "markdownTarget": { "type": "object", "additionalProperties": false, "required": ["kind", "path"], "properties": { "kind": { "const": "markdown" }, "path": { "type": "string", "minLength": 1 } } },
+    "htmlTarget": { "type": "object", "additionalProperties": false, "required": ["kind", "path"], "properties": { "kind": { "const": "html" }, "path": { "type": "string", "minLength": 1 }, "mode": { "enum": ["site", "single-file"] } } },
+    "confluenceTarget": { "type": "object", "additionalProperties": false, "required": ["kind", "siteUrl", "pageId"], "properties": { "kind": { "const": "confluence" }, "siteUrl": { "type": "string", "format": "uri", "pattern": "^https://" }, "pageId": { "type": "string", "pattern": "^[0-9]+$" } } },
     "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
     "dependencies": {
       "type": "object", "additionalProperties": false, "minProperties": 1,

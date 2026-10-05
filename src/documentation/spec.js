@@ -15,6 +15,10 @@ export async function validateDocumentationSpec(spec, { journey, dependencyMap }
     validator = ajv.compile(JSON.parse(await readFile(documentationSchemaPath, "utf8")));
   }
   if (!validator(spec)) return { valid: false, errors: structuredClone(validator.errors) };
+  if (spec.targets && spec.destination) return { valid: false, errors: [{ message: "Use targets or destination, not both." }] };
+  if (spec.targets?.length && new Set(spec.targets.map(target => target.kind)).size !== spec.targets.length) {
+    return { valid: false, errors: [{ message: "Documentation targets must have unique kinds." }] };
+  }
   const errors = [];
   const fail = (message) => errors.push({ message });
   if (journey && journey.id !== spec.walkthroughId) fail("walkthroughId does not match the journey.");
@@ -78,6 +82,7 @@ export async function readDocumentationSpec(file) {
 }
 
 async function readJsonReference(specPath, reference) {
+  if (typeof reference === "object") return structuredClone(reference);
   if (path.isAbsolute(reference) || /^[a-z][a-z0-9+.-]*:/i.test(reference)) throw new Error("Documentation references must be relative file paths.");
   return JSON.parse(await readFile(path.resolve(path.dirname(specPath), reference), "utf8"));
 }

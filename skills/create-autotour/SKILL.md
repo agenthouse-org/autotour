@@ -51,7 +51,7 @@ Distinguish presentation timing from encoded duration: the current `renderDomRep
 
 ## Documentation specification
 
-For repeatable documentation, author or update the project-configured `documentation` file (default `.autotour/documentation.json`) after planning. Read [references/documentation-spec.md](references/documentation-spec.md). Define ordered sections/text, screenshot steps, source UI views, captions, highlight targets, dependencies, and destination. Validate references before capture; use capture preparation and `sync-markdown --spec` to apply the contract. Keep dependencies evidence-based and preserve unrelated published content.
+For repeatable documentation, author or update the project-configured `documentation` file (default `.autotour/documentation.json`) after planning. Read [references/documentation-spec.md](references/documentation-spec.md). The definition may keep the journey and dependency map inline in one file, declare Markdown, HTML, and Confluence targets, and select a subset of targets for each run. Discuss whether to create or adapt an existing tree, whether HTML is a site or single file, and whether media should be annotated screenshots, rendered DOM replay, or WebM fallback. Offer prose proposals from repository evidence, but mark them for user approval. Validate references before capture; use `run-docs` to assemble complete local targets and connected publishing for Confluence. Keep dependencies evidence-based and preserve unrelated published content.
 
 ## Optional motion ads
 

@@ -4,13 +4,33 @@ Keep the definition in the application repository:
 
 ```text
 .autotour/autotour.json       project configuration
-.autotour/documentation.json section layout, screenshots, captions, destination
-.autotour/journey.json       executable actions and module dependencies
-.autotour/dependency-map.json source files that affect those dependencies
-docs/product.md              published Markdown with managed regions
+.autotour/documentation.json section layout, journeys, dependencies, targets
+docs/product.md              published Markdown with generated regions
 ```
 
-`autotour init` points new configuration at `.autotour/documentation.json`; it does not invent a brief or journey. Existing configuration remains compatible. Agents author the specification after planning with the user.
+`autotour init` points new configuration at `.autotour/documentation.json`; it does not invent a brief or journey. Existing configuration remains compatible. Agents author the specification after planning with the user. A definition can reference separate journey/map files for compatibility or include them inline for a single-file project contract.
+
+Targets can be declared together and selected per run:
+
+```json
+"targets": [
+  { "kind": "markdown", "path": "../docs/product.md" },
+  { "kind": "html", "path": "../site/index.html", "mode": "single-file" },
+  { "kind": "confluence", "siteUrl": "https://your-site.atlassian.net", "pageId": "12345" }
+]
+```
+
+Generate any subset from an existing walkthrough manifest:
+
+```sh
+npx autotour run-docs .autotour/documentation.json \
+  --walkthrough .autotour/output/product/walkthrough.json \
+  --target markdown,html --mode adapt --output-dir .
+```
+
+Markdown and HTML are written locally. Confluence produces a section patch plan; applying it still requires an authenticated connected publisher and explicit authorization.
+
+When `--walkthrough` is omitted, `run-docs` prepares and captures the definition automatically. Screenshot blocks use annotated screenshot capture; replay/video blocks use DOM capture. Because the capture engine keeps recording modes separate, definitions mixing both modes require separate capture runs for now.
 
 ## Example: screenshot XYZ based on UI Y
 

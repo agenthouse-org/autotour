@@ -31,3 +31,4 @@ export { renderDomReplayVideo } from "./dom/video.js";
 export {
   documentationSchemaPath, validateDocumentationSpec, readDocumentationSpec, prepareDocumentationCapture
 } from "./documentation/spec.js";
+export { generateDocumentation } from "./documentation/generate.js";

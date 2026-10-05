@@ -3,6 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { initializeProject, validateWalkthrough } from "./project.js";
 import { readDocumentationSpec, prepareDocumentationCapture } from "./documentation/spec.js";
+import { generateDocumentation } from "./documentation/generate.js";
+import { captureJourney } from "./capture/index.js";
 import {
   collectGitChangedFiles,
   createInvalidationPlan,
@@ -27,6 +29,7 @@ Usage:
   autotour init [directory] [--force]
   autotour validate <walkthrough.json>
   autotour validate-docs <documentation.json>
+  autotour run-docs <documentation.json> [--walkthrough <walkthrough.json>] [--target markdown,html,confluence] [--output-dir <directory>] [--capture-dir <directory>] [--mode create|adapt]
   autotour invalidate <walkthrough.json> --map <dependency-map.json> (--changed-file <path>... | --base <ref> [--head <ref>]) [--output <plan.json>] [--check]
   autotour regenerate <journey.json> --plan <invalidation-plan.json> --output-dir <directory> [--spec <documentation.json>]
   autotour sync-markdown <walkthrough.json> --markdown <file> --assets-dir <directory> [--spec <documentation.json>] [--dry-run | --check]
@@ -37,6 +40,7 @@ Commands:
   init      Create .autotour/autotour.json in a project
   validate  Validate a walkthrough manifest
   validate-docs  Validate documentation layout and journey/dependency references
+  run-docs  Generate selected documentation targets from a validated definition
   invalidate  Identify modules affected by repository changes
   regenerate  Replace only modules marked for regeneration
   sync-markdown  Refresh managed walkthrough screenshots in Markdown
@@ -115,6 +119,47 @@ export async function run(args) {
       if (rest.length !== 1) throw new Error("validate-docs requires one documentation specification file");
       await readDocumentationSpec(rest[0]);
       console.log(`${rest[0]} is valid, including journey and dependency references.`);
+      return 0;
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      return 1;
+    }
+  }
+
+  if (command === "run-docs") {
+    try {
+      const options = parseRunDocsArgs(rest);
+      const documentation = await readDocumentationSpec(options.specFile);
+      let walkthrough;
+      let walkthroughFile = options.walkthroughFile;
+      if (walkthroughFile) {
+        walkthrough = await readJsonDocument(walkthroughFile);
+      } else {
+        const prepared = await prepareDocumentationCapture(documentation);
+        const hasScreenshots = documentation.spec.sections.some(section => section.blocks.some(block => block.kind === "screenshot"));
+        const hasVideo = documentation.spec.sections.some(section => section.blocks.some(block => block.kind === "video"));
+        if (hasScreenshots && hasVideo) {
+          throw new Error("Automatic documentation capture cannot combine screenshot and video blocks yet. Capture each mode separately and pass --walkthrough.");
+        }
+        const captureDir = options.captureDir ?? path.resolve(".autotour", "output", "documentation");
+        const capture = await captureJourney({
+          ...prepared,
+          outputDir: captureDir,
+          ...(hasVideo ? { recordDom: { viewport: documentation.spec.viewport } } : { recordScreenshots: { viewport: documentation.spec.viewport } })
+        });
+        walkthrough = capture.walkthrough;
+        walkthroughFile = path.join(captureDir, "walkthrough.json");
+      }
+      const result = await generateDocumentation({
+        spec: documentation.spec,
+        specPath: documentation.specPath,
+        walkthrough,
+        walkthroughFile,
+        targets: options.targets,
+        outputRoot: options.outputDir,
+        mode: options.mode
+      });
+      console.log(JSON.stringify(result, null, 2));
       return 0;
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
@@ -203,6 +248,29 @@ function parseSyncMarkdownArgs(args) {
     check,
     specFile
   };
+}
+
+function parseRunDocsArgs(args) {
+  let specFile;
+  let walkthroughFile;
+  let outputDir;
+  let captureDir;
+  let targets;
+  let mode = "create";
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
+    if (argument === "--walkthrough") walkthroughFile = path.resolve(requireOptionValue(args, ++index, argument));
+    else if (argument === "--output-dir") outputDir = path.resolve(requireOptionValue(args, ++index, argument));
+    else if (argument === "--capture-dir") captureDir = path.resolve(requireOptionValue(args, ++index, argument));
+    else if (argument === "--target") targets = requireOptionValue(args, ++index, argument).split(",").filter(Boolean);
+    else if (argument === "--mode") mode = requireOptionValue(args, ++index, argument);
+    else if (argument.startsWith("-")) throw new Error(`Unknown run-docs option: ${argument}`);
+    else if (!specFile) specFile = path.resolve(argument);
+    else throw new Error(`Unexpected run-docs argument: ${argument}`);
+  }
+  if (!specFile) throw new Error("run-docs requires a documentation specification file");
+  if (!['create', 'adapt'].includes(mode)) throw new Error("run-docs --mode must be create or adapt");
+  return { specFile, walkthroughFile, outputDir, captureDir, targets, mode };
 }
 
 async function regenerate(args) {

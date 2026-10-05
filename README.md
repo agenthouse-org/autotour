@@ -175,6 +175,29 @@ autotour sync-markdown .autotour/output/profile/walkthrough.json \
 
 Use `--dry-run` to preview machine-readable changes without writing. Use `--check` in CI; it also performs no writes and exits with status `2` when the Markdown or copied assets are stale. Invalid, nested, duplicate, unknown, unpublished, or unpaired markers and unsafe source paths fail before the Markdown file is changed.
 
+## Full documentation runs
+
+The documentation definition can declare multiple targets and keep the journey and dependency map inline:
+
+```json
+"targets": [
+  { "kind": "markdown", "path": "docs/product.md" },
+  { "kind": "html", "path": "site/index.html", "mode": "site" },
+  { "kind": "confluence", "siteUrl": "https://example.atlassian.net", "pageId": "12345" }
+]
+```
+
+Run any subset after capturing or regenerating the walkthrough, or omit `--walkthrough` to let AutoTour capture the definition automatically:
+
+```sh
+autotour run-docs .autotour/documentation.json \
+  --target markdown,html --mode create --output-dir .
+```
+
+Automatic capture selects screenshot recording for screenshot blocks and DOM replay for video/replay blocks. Mixed capture modes still use separate capture runs and an explicit walkthrough manifest.
+
+The command creates complete local Markdown or HTML output, copies referenced screenshots, and writes a Confluence section plan for connected publication. `--mode adapt` is available when updating an existing documentation tree. The planning skill discusses targets, prose approval, HTML layout, and screenshot/DOM/WebM media choices before producing the definition.
+
 > AutoTour is in active development. The package supports annotated modular screenshots, raw WebM video, presented DOM autoplay with optional WebM rendering, dependency-aware invalidation, selective screenshot/DOM/video regeneration, and managed Markdown screenshot synchronization; portable remote-asset harvesting, screenshot presentation profiles, and hosted publishing remain future slices.
 
 ## Install
