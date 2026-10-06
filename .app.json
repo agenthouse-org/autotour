@@ -1,0 +1,12 @@
+{
+  "apps": {
+    "atlassian": {
+      "id": "plugin_asdk_app_6a83901dde988191b3f3cefdcc19acfa",
+      "required": false
+    },
+    "github": {
+      "id": "connector_76869538009648d5b282a4bb21c3d157",
+      "required": false
+    }
+  }
+}

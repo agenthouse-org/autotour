@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "id": "ST-11",
+  "title": "Apply reusable presentation profiles to walkthrough outputs",
+  "kind": "feature",
+  "stage": "verify",
+  "revision": 6,
+  "fields": {
+    "outcome": "Documentation producers can apply an optional, reusable presentation profile that places a walkthrough on a polished canvas or inside browser-like window chrome without changing the captured application.",
+    "parentWork": "autotour-core",
+    "scope": "Add validated DOM presentation options for pure, background, and window modes; solid or gradient canvas colors; padding; window title; corner radius; and shadow. Preserve the current pure replay by default and make the profile available to DOM-to-WebM rendering. Exclude screenshot composition, arbitrary image backgrounds, and branded preset libraries.",
+    "acceptance": "A caller can select pure, background, or window presentation for a DOM replay, configure its canvas and frame, receive a responsive replay with stable controls and no clipping, and render the same module presentation to WebM; omitted presentation options preserve the existing output.",
+    "decisions": "Keep the replay controls outside the captured application and apply presentation only in the generated player shell. Normalize to a small serializable profile and use CSS custom properties so DOM playback and recorded rendering share one source. Use restrained defaults and keep decorative browser chrome non-interactive.",
+    "verification": "Add option validation and generated-markup tests, exercise pure and window modes in Playwright at desktop and narrow widths, inspect the DealDesk window-mode replay, render it to WebM, run the full package checks, and run frozen AgentHouse evaluation.",
+    "dependencies": "Builds on DOM autoplay capture and modular video assets. ST-12 adds motion within this presentation shell.",
+    "risks": "Decorative framing can reduce useful viewport space or cause nested scrolling. Keep dimensions explicit, scale the replay within an overflow-hidden stage, and test representative desktop and narrow layouts.",
+    "audience": "Developers, support teams, product managers, and marketers producing polished walkthroughs.",
+    "changes": "Implemented in commit 09c550b785a8ac7af2dcdb57887aaf5cd12bde48: validated presentation profiles add pure, background, and browser-window modes with responsive fitting, configurable canvas styling, and an exported DOM-to-WebM renderer that records the generated player in control-free render mode.",
+    "evidence": "The full package suite passed 84 tests, including a browser-backed presented replay, responsive overflow checks, invalid-profile handling, offline image replay, and a non-empty rendered WebM. The DealDesk example was inspected at 1440x900 and 390x844 with no page overflow. Its final border-free VP8 WebM is 1440x900, 19.12 seconds, and 2,152,297 bytes. Frozen Agenthouse evaluation for the exact build satisfied all seven configured checks."
+  },
+  "criteria": [
+    {
+      "id": "optional-profile",
+      "expectation": "Presentation is opt-in and existing recordDom callers retain the current pure replay appearance."
+    },
+    {
+      "id": "frame-modes",
+      "expectation": "Callers can select pure, background, or browser-window presentation with a configurable title."
+    },
+    {
+      "id": "canvas-style",
+      "expectation": "Solid and gradient backgrounds, padding, corner radius, and shadow are validated and rendered without clipping."
+    },
+    {
+      "id": "responsive-player",
+      "expectation": "The presented replay remains usable at desktop and narrow viewport widths with stable controls and no horizontal page overflow."
+    },
+    {
+      "id": "webm-render",
+      "expectation": "A generated DOM module can be rendered to a non-empty WebM using its exact presentation profile."
+    },
+    {
+      "id": "automation-interface",
+      "expectation": "Validation failures are deterministic and presentation configuration remains machine-readable for local and CI workflows."
+    }
+  ],
+  "build": "09c550b785a8ac7af2dcdb57887aaf5cd12bde48",
+  "evidence": [
+    ".agenthouse/local/reports/129abb91-f35a-4b51-81fe-8ca7897e7706/result.json"
+  ],
+  "history": [
+    {
+      "from": "discover",
+      "to": "define",
+      "at": "2026-10-02T21:24:38.785Z",
+      "previous": "d60c5a118522c3d602db35f36cc39a1fa65c76e95e976361220a989144cc4945",
+      "policyDigest": "bcab04bfc726b0cdb82e15436b28897895dc68e6c454afd4b5a1ea5bfb6687b1",
+      "decision": null
+    },
+    {
+      "from": "define",
+      "to": "design",
+      "at": "2026-10-02T21:24:40.435Z",
+      "previous": "e366c1732b9fc6d1bbc753054a03a064412c31277bb67dc740f1f06e2b717c13",
+      "policyDigest": "bcab04bfc726b0cdb82e15436b28897895dc68e6c454afd4b5a1ea5bfb6687b1",
+      "decision": null
+    },
+    {
+      "from": "design",
+      "to": "plan",
+      "at": "2026-10-02T21:24:42.287Z",
+      "previous": "475b3f683886030b842a2fbc101c36a7e9048b63d80895beff5bbc9c44d69e10",
+      "policyDigest": "bcab04bfc726b0cdb82e15436b28897895dc68e6c454afd4b5a1ea5bfb6687b1",
+      "decision": null
+    },
+    {
+      "from": "plan",
+      "to": "implement",
+      "at": "2026-10-02T21:24:44.232Z",
+      "previous": "e640e5db26d46ddf46d226aaae3e228240a2db6c47d51dafee2737d39f19aaf2",
+      "policyDigest": "bcab04bfc726b0cdb82e15436b28897895dc68e6c454afd4b5a1ea5bfb6687b1",
+      "decision": null
+    },
+    {
+      "from": "implement",
+      "to": "verify",
+      "at": "2026-10-02T21:26:26.274Z",
+      "previous": "e65e6b1d1e09c3ded5ea63f0cbec62458cd1e37a93f6a5866e21d725f9732f23",
+      "policyDigest": "bcab04bfc726b0cdb82e15436b28897895dc68e6c454afd4b5a1ea5bfb6687b1",
+      "decision": null
+    }
+  ]
+}

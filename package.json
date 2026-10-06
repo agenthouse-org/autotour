@@ -1,6 +1,6 @@
 {
   "name": "autotour",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Agent-driven modular walkthrough and product documentation generation for web applications.",
   "type": "module",
   "license": "MIT",
@@ -32,7 +32,9 @@
   },
   "exports": {
     ".": "./src/index.js",
-    "./schema": "./schemas/walkthrough.schema.json"
+    "./schema": "./schemas/walkthrough.schema.json",
+    "./dependency-map-schema": "./schemas/dependency-map.schema.json",
+    "./documentation-schema": "./schemas/documentation.schema.json"
   },
   "files": [
     "bin",
@@ -40,20 +42,26 @@
     "schemas",
     "skills",
     "examples",
+    "docs",
     ".codex-plugin",
     ".claude-plugin",
     ".cursor",
     ".agents/plugins/marketplace.json",
     "plugin.json",
+    "mcp.json",
+    ".app.json",
+    "INSTALL.md",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "test": "node --test",
+    "test": "node --test --test-force-exit",
     "check": "node scripts/check-package.mjs && npm test",
     "prepack": "npm run check"
   },
   "dependencies": {
+    "@rrweb/record": "^2.1.6",
+    "@rrweb/replay": "^2.1.6",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "playwright": "^1.63.0"

@@ -9,7 +9,7 @@
       "name": "autotour",
       "source": "./",
       "description": "Create modular walkthroughs and product documentation from web applications.",
-      "version": "0.1.0"
+      "version": "0.2.0"
     }
   ],
   "metadata": {

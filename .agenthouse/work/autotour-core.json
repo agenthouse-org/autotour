@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "autotour-core",
+  "title": "Generate maintainable modular product walkthroughs",
+  "kind": "feature",
+  "stage": "plan",
+  "revision": 1,
+  "fields": {
+    "outcome": "Developers and content collaborators can generate and maintain modular product walkthroughs whose unaffected sections remain reusable after application changes.",
+    "scope": "Parent epic for authorized application connection, browser capture, modular manifests, annotated screenshots, dependency-aware invalidation, selective regeneration, DOM replay, video, and publishing. Delivery is split into child stories; this record is not an implementation ticket.",
+    "acceptance": "The child story map covers the product requirements with explicit dependencies, exclusions, verification, and traceability to the parent outcome.",
+    "decisions": "Deliver the first proof as an authenticated fixture journey, stable capture manifest, and annotated screenshots. Defer DOM replay, video, and publishing adapters until the maintenance loop is proven.",
+    "verification": "Validate child-story coverage with ah-validate-scope and assess each child independently before implementation.",
+    "dependencies": "Child work st-01 through st-03 for the first proof; later dependency mapping, invalidation, replay, video, and publishing stories.",
+    "risks": "No external customer evidence exists yet. The epic spans multiple independent outcomes and must remain decomposed.",
+    "sizeRisk": "oversized",
+    "relatedWork": ["st-01", "st-02", "st-03", "st-04", "st-05", "st-06", "st-07", "st-08"]
+  },
+  "criteria": [
+    { "id": "authorized-input", "expectation": "The product accepts an authorized application target, secret references, and a plain-language journey goal." },
+    { "id": "modular-capture", "expectation": "A captured journey is represented as stable, independently replaceable modules." },
+    { "id": "reviewable-output", "expectation": "Content collaborators can review generated narrative and visual outputs before publication." },
+    { "id": "change-awareness", "expectation": "Recorded dependency evidence can identify which modules are affected by an application change." },
+    { "id": "selective-regeneration", "expectation": "Affected modules can be regenerated and assembled with unchanged modules." },
+    { "id": "safe-publication", "expectation": "Secrets and private captures remain outside committed and published artifacts." }
+  ],
+  "evidence": [],
+  "history": []
+}

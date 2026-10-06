@@ -1,0 +1,9 @@
+{
+  "$schema": "../schemas/dependency-map.schema.json",
+  "schemaVersion": 1,
+  "rules": [{
+    "id": "profile-documentation",
+    "files": ["src/profile/**", ".autotour/documentation.json", ".autotour/journey.json"],
+    "dependencies": { "views": ["ProfileSettings"] }
+  }]
+}

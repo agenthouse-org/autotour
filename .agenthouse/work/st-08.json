@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "id": "st-08",
+  "title": "Regenerate only affected walkthrough modules",
+  "author": "codex",
+  "kind": "feature",
+  "stage": "accept",
+  "revision": 7,
+  "fields": {
+    "outcome": "A maintainer or CI job can apply an approved invalidation plan so only affected walkthrough module assets are replaced while proven reusable modules remain unchanged.",
+    "parentWork": "autotour-core",
+    "scope": "Consume an ST-07 invalidation plan; block uncertain plans; execute prerequisite journey modules to establish authentication and application state; capture only regenerate-classified DOM or video assets; preserve reusable module files and metadata; assemble and validate the updated walkthrough transactionally through a library API and CLI. Exclude screenshots, presentation styling, remote asset harvesting, publishing, and source-language dependency discovery.",
+    "acceptance": "Given an existing two-module profile walkthrough and a plan that regenerates update-profile while preserving sign-in, AutoTour executes sign-in as a prerequisite, replaces update-profile output, leaves sign-in assets byte-for-byte unchanged, writes a valid assembled walkthrough, and leaves the prior output intact if regeneration fails. Plans requiring review are rejected before browsing or writing.",
+    "changes": "Implemented in commit e92c907a91312cffd4885eed4f19bae12fa1f79b: selective capture controls for DOM and video, prerequisite-only module execution, reusable manifest and capture-step merging, strict plan validation, transactional staging and rollback, a public regeneration API, the autotour regenerate CLI command, agent guidance, documentation, and real browser proofs for both output modes.",
+    "decisions": "Use a sibling staging directory copied from the existing output, generate selected assets there, validate the complete assembled walkthrough, then swap it into place. Execute non-selected earlier modules for state without replacing their artifacts. Infer DOM versus video regeneration from the existing walkthrough output and reject mixed or unsupported output modes.",
+    "verification": "Test plan and identity validation, review blocking before capture, prerequisite execution, selective asset replacement, byte-for-byte reusable asset preservation, no-op plans, transactional rollback on capture failure, CLI machine-readable output, and real DOM fixture regeneration.",
+    "dependencies": "Builds on st-07 invalidation plans and the modular DOM/video assets from st-05 and st-06.",
+    "risks": "Later modules may rely on earlier browser state, so prerequisites must still execute. Filesystem swaps differ across platforms; failed swaps must restore the previous directory. Reusable module metadata must come from the existing walkthrough rather than newly observed prerequisite execution.",
+    "evidence": "Frozen AgentHouse evaluation for build c5d5b595ceec9fce626681e8f9ab7e23195c627a passed package metadata, the full test suite, and the focused ST-08 regeneration check mapped to every acceptance criterion.",
+    "acceptanceEvidence": "Valerio Neri accepted build c5d5b595ceec9fce626681e8f9ab7e23195c627a on 2026-10-02 as meeting all seven ST-08 criteria and explicitly authorized the done decision.",
+    "releasePlan": "Include selective regeneration in the next private 0.1.x pre-release from protected develop after the frozen AgentHouse evaluation and GitHub CI pass. Validate the packed npm artifact before any registry publication; this work item does not authorize an npm publish.",
+    "rollbackPlan": "If selective regeneration corrupts or unexpectedly replaces reusable output, revert the ST-08 implementation and maintenance-loop commits and release the prior known-good package state. Existing walkthrough output remains recoverable because regeneration stages and validates the complete result before replacing the prior directory."
+  },
+  "criteria": [
+    {
+      "id": "plan-safety",
+      "expectation": "Regeneration accepts only a complete plan for the same walkthrough and rejects review, unknown, duplicate, or missing module classifications before browsing."
+    },
+    {
+      "id": "prerequisite-state",
+      "expectation": "Earlier reusable modules can execute to establish authentication or application state without replacing their artifacts."
+    },
+    {
+      "id": "selective-assets",
+      "expectation": "Only modules classified regenerate receive newly captured DOM or video assets."
+    },
+    {
+      "id": "preserve-reusable",
+      "expectation": "Reusable module assets and manifest entries remain byte-for-byte or structurally unchanged after successful regeneration."
+    },
+    {
+      "id": "assembled-output",
+      "expectation": "The resulting walkthrough and player assemble regenerated and reusable modules into one schema-valid output."
+    },
+    {
+      "id": "transactional-failure",
+      "expectation": "Capture or assembly failure leaves the existing output directory unchanged and removes temporary staging data."
+    },
+    {
+      "id": "automation-interface",
+      "expectation": "A public library API and CLI command return deterministic machine-readable regeneration results suitable for CI."
+    }
+  ],
+  "build": "c5d5b595ceec9fce626681e8f9ab7e23195c627a",
+  "evidence": [
+    ".agenthouse/local/reports/2deb64d0-37d9-4963-af48-a54d957dab22/result.json"
+  ],
+  "history": [
+    {
+      "from": "discover",
+      "to": "define",
+      "at": "2026-10-01T11:05:31.230Z",
+      "previous": "ca558e0d9e8a58c4a4a2d4b0bdf29fbc9e9ab9f9bd379540aec0e2a890e87a87",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "define",
+      "to": "design",
+      "at": "2026-10-01T11:05:32.885Z",
+      "previous": "e5b95210eb546f2a9b340b5159589d5c24ff63a3d806a4c702eaae118eaea2c7",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "design",
+      "to": "plan",
+      "at": "2026-10-01T11:05:34.243Z",
+      "previous": "86324deebfab028002801e9fd05a0d22d864752b22caf6ca5a556f8c11f4d719",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "plan",
+      "to": "implement",
+      "at": "2026-10-01T11:05:35.536Z",
+      "previous": "fc03a15313985db6660fe48cd184e4c6bdfb950bf6093669af5fabeb5bad2d84",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "implement",
+      "to": "verify",
+      "at": "2026-10-01T11:11:56.392Z",
+      "previous": "f13eae2707688e04d8cedaab21e16aefd4b2b662b1a5cffe35b1041558c3303d",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "verify",
+      "to": "accept",
+      "at": "2026-10-02T07:25:32.092Z",
+      "previous": "f8ab074dedfa6124105e5c2e9b9233e91b671d0b87edc4722bdbca605563d1c5",
+      "policyDigest": "5c10db68160e09174fb9858ffa1d3aba39a12f859acd51aaa299b99d790ecf32",
+      "decision": ".agenthouse/local/decisions/st-08-accept.signed.json"
+    }
+  ]
+}

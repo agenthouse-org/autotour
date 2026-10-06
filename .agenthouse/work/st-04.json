@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "id": "st-04",
+  "title": "Execute generic modular browser journeys",
+  "kind": "feature",
+  "stage": "verify",
+  "revision": 6,
+  "fields": {
+    "outcome": "A documentation author can execute a reusable modular browser journey containing navigation, interaction, scrolling, waits, and observable assertions against an authorized web application.",
+    "parentWork": "autotour-core",
+    "scope": "Generalize the declarative journey executor and capture manifest for public and authenticated journeys. Add scroll, wait, select, and assertion actions with stable role/name targets and deterministic diagnostics. Exclude natural-language planning, DOM replay, polished video rendering, and source-code dependency mapping.",
+    "acceptance": "A representative public-site-style journey executes deterministically, validates expected visible state and URLs, records stable module and step identities, and does not require credentials unless a step references a credential environment variable.",
+    "decisions": "Keep the journey object as the executable source of truth. Use user-visible role/name locators and explicit postconditions. Treat action timing as declarative input so the same journey can feed video and DOM renderers.",
+    "verification": "Unit-test every added action with a Playwright-compatible page double, run a real Chromium fixture journey, validate the generated manifest, and retain failure diagnostics for incorrect postconditions.",
+    "changes": "Implemented in commit 25d1306: schema-shaped JSON execution, credential-optional public journeys, role/name and exact-text targets, select, deterministic timed scroll, bounded waits, visible-state and URL assertions, preservation of publication and dependency metadata, and safe module/step diagnostics.",
+    "dependencies": "Builds on st-02 capture and manifest behavior. Supplies the executor contract consumed by st-05.",
+    "risks": "Ambiguous responsive controls and arbitrary waits can create plausible but incorrect tours; assertions and bounded timing are required."
+  },
+  "criteria": [
+    {
+      "id": "generic-actions",
+      "expectation": "The executor supports goto, click, fill, select, scroll, wait, and assert actions used by generic product journeys."
+    },
+    {
+      "id": "public-journeys",
+      "expectation": "A journey without credential references runs without requiring username or password environment variables."
+    },
+    {
+      "id": "postconditions",
+      "expectation": "URL and visible-element assertions fail with the responsible module and step IDs."
+    },
+    {
+      "id": "stable-contract",
+      "expectation": "Generic action details needed for replay remain schema-valid and stable in generated capture artifacts."
+    },
+    {
+      "id": "bounded-timing",
+      "expectation": "Wait and scroll durations are explicit, finite, and validated before browser execution."
+    },
+    {
+      "id": "compatibility",
+      "expectation": "Existing authenticated profile capture behavior remains supported."
+    }
+  ],
+  "evidence": [],
+  "history": [
+    {
+      "from": "discover",
+      "to": "define",
+      "at": "2026-09-26T19:30:44.525Z",
+      "previous": "d571e68e004cf3286a8965297142017ae41762417954e94d245dd862d903a3e4",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "define",
+      "to": "design",
+      "at": "2026-09-26T19:30:45.734Z",
+      "previous": "3a67c16c7ffbea9351dc538a14ee4f7ca8ab96b03856f7eb8369f3ddbedcab8d",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "design",
+      "to": "plan",
+      "at": "2026-09-26T19:30:46.930Z",
+      "previous": "05abcdc1e438722138ea0a46fdc34f198e3b2ad6824d77232086f4fb1af54c90",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "plan",
+      "to": "implement",
+      "at": "2026-09-26T19:30:48.163Z",
+      "previous": "e241d89e6da92dcdae6c6c05d67b2c49f921898415aaae1f920655efb53d4f61",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "implement",
+      "to": "verify",
+      "at": "2026-09-26T19:30:49.456Z",
+      "previous": "3ec1fbeefc49778d74d4a0dd801e8ebd017f5b9bbcec9f2faef38366eedbdaf2",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    }
+  ]
+}

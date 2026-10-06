@@ -1,7 +1,27 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { initializeProject, validateWalkthrough } from "./project.js";
+import { initializeProject, validateWalkthrough, configureStorage, readStorageConfiguration } from "./project.js";
+import { readDocumentationSpec, prepareDocumentationCapture } from "./documentation/spec.js";
+import { generateDocumentation } from "./documentation/generate.js";
+import { captureJourney } from "./capture/index.js";
+import { startPreview } from "./preview.js";
+import { createTourReview } from "./review/workflow.js";
+import { startTourReview } from "./review/server.js";
+import {
+  collectGitChangedFiles,
+  createInvalidationPlan,
+  readJsonDocument,
+  validateDependencyMapDocument,
+  writeInvalidationPlan
+} from "./invalidation/index.js";
+import {
+  RegenerationError,
+  regenerateWalkthrough
+} from "./regeneration/index.js";
+import {
+  syncMarkdownScreenshots
+} from "./publishing/index.js";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const packageJson = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8"));
@@ -10,13 +30,28 @@ const help = `AutoTour ${packageJson.version}
 
 Usage:
   autotour init [directory] [--force]
+  autotour configure-storage [directory] --output <folder> --documentation-output <folder> --artifacts local|versioned --documentation local|versioned --gitignore modify|keep
   autotour validate <walkthrough.json>
+  autotour validate-docs <documentation.json>
+  autotour run-docs <documentation.json> [--walkthrough <walkthrough.json>] [--target markdown,html,confluence] [--output-dir <directory>] [--capture-dir <directory>] [--mode create|adapt]
+  autotour invalidate <walkthrough.json> --map <dependency-map.json> (--changed-file <path>... | --base <ref> [--head <ref>]) [--output <plan.json>] [--check]
+  autotour regenerate <journey.json> --plan <invalidation-plan.json> --output-dir <directory> [--spec <documentation.json>]
+  autotour sync-markdown <walkthrough.json> --markdown <file> --assets-dir <directory> [--spec <documentation.json>] [--dry-run | --check]
   autotour doctor
+  autotour preview <output-directory> [--port <number>]
+  autotour plan-tour <journey.json> --brief <brief.json> [--mode screenshots|dom|video]
+  autotour review <tour-id> [--port <number>]
   autotour --version
 
 Commands:
   init      Create .autotour/autotour.json in a project
+  configure-storage  Save user-approved folders and Git policy (no artifacts generated)
   validate  Validate a walkthrough manifest
+  validate-docs  Validate documentation layout and journey/dependency references
+  run-docs  Generate selected documentation targets from a validated definition
+  invalidate  Identify modules affected by repository changes
+  regenerate  Replace only modules marked for regeneration
+  sync-markdown  Refresh managed walkthrough screenshots in Markdown
   doctor    Check the local Node.js and Playwright installation
 `;
 
@@ -56,12 +91,43 @@ export async function run(args) {
     return 0;
   }
   if (command === "doctor") return doctor();
+  if (command === "plan-tour") {
+    try {
+      if (!rest[0] || rest[1] !== "--brief" || !rest[2] || (rest.length !== 3 && !(rest.length === 5 && rest[3] === "--mode"))) throw new Error("Usage: autotour plan-tour <journey.json> --brief <brief.json> [--mode screenshots|dom|video]");
+      const journey = await readJsonDocument(rest[0]);
+      const brief = await readJsonDocument(rest[2]);
+      const result = await createTourReview({ journey, brief, mode: rest[4] ?? "screenshots" });
+      console.log(JSON.stringify({ ...result, next: `autotour review ${journey.id}`, status: "awaiting-plan-approval" }, null, 2));
+      return 0;
+    } catch (error) { console.error(error.message); return 1; }
+  }
+  if (command === "review") {
+    try {
+      if (!rest[0] || (rest.length !== 1 && !(rest.length === 3 && rest[1] === "--port"))) throw new Error("Usage: autotour review <tour-id> [--port <number>]");
+      const review = await startTourReview({ id: rest[0], port: rest[2] === undefined ? 0 : Number(rest[2]) });
+      console.log(`Local review: ${review.url} (Ctrl+C to stop). Captures and deliveries require explicit actions in the review UI.`);
+      process.once("SIGINT", () => { void review.close(); });
+      process.once("SIGTERM", () => { void review.close(); });
+      return 0;
+    } catch (error) { console.error(error.message); return 1; }
+  }
+  if (command === "preview") {
+    if (!rest[0] || (rest.length !== 1 && !(rest.length === 3 && rest[1] === "--port"))) {
+      console.error("Usage: autotour preview <output-directory> [--port <number>]"); return 1;
+    }
+    const preview = await startPreview(rest[0], { port: rest[2] === undefined ? 0 : Number(rest[2]) });
+    console.log(`Preview: ${preview.url} (Ctrl+C to stop)`);
+    process.once("SIGINT", () => { void preview.close(); });
+    process.once("SIGTERM", () => { void preview.close(); });
+    return 0;
+  }
 
   if (command === "init") {
     const options = parseInitArgs(rest);
     try {
       const configPath = await initializeProject(options.directory, options);
       console.log(`Created ${configPath}`);
+      console.log("No .gitignore files changed. Before capture, ask where artifacts and documentation should live and save the choices with configure-storage.");
       return 0;
     } catch (error) {
       if (error.code === "EEXIST") {
@@ -70,6 +136,22 @@ export async function run(args) {
       }
       throw error;
     }
+  }
+
+  if (command === "configure-storage") {
+    try {
+      const choices = {};
+      let directory;
+      const keys = { "--output": "output", "--documentation-output": "documentationOutput", "--artifacts": "artifacts", "--documentation": "documentation", "--gitignore": "gitignore" };
+      for (let index = 0; index < rest.length; index++) {
+        const argument = rest[index];
+        if (keys[argument]) choices[keys[argument]] = requireOptionValue(rest, ++index, argument);
+        else if (!argument.startsWith("-") && !directory) directory = argument;
+        else throw new Error(`Unknown configure-storage argument: ${argument}`);
+      }
+      console.log(JSON.stringify(await configureStorage(directory ?? process.cwd(), choices), null, 2));
+      return 0;
+    } catch (error) { console.error(error.message); return 1; }
   }
 
   if (command === "validate") {
@@ -87,6 +169,304 @@ export async function run(args) {
     return 1;
   }
 
+  if (command === "validate-docs") {
+    try {
+      if (rest.length !== 1) throw new Error("validate-docs requires one documentation specification file");
+      await readDocumentationSpec(rest[0]);
+      console.log(`${rest[0]} is valid, including journey and dependency references.`);
+      return 0;
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      return 1;
+    }
+  }
+
+  if (command === "run-docs") {
+    try {
+      const options = parseRunDocsArgs(rest);
+      const storage = await readStorageConfiguration();
+      if (options.outputDir && path.resolve(options.outputDir) !== storage.documentationOutput) {
+        throw new Error("--output-dir differs from the approved documentation folder. Ask the user and update configure-storage first.");
+      }
+      const captureDir = options.captureDir ?? path.join(storage.output, "documentation");
+      const captureRelative = path.relative(storage.output, path.resolve(captureDir));
+      if (captureRelative === ".." || captureRelative.startsWith(`..${path.sep}`) || path.isAbsolute(captureRelative)) {
+        throw new Error("--capture-dir is outside the approved artifact folder. Ask the user and update configure-storage first.");
+      }
+      const documentation = await readDocumentationSpec(options.specFile);
+      for (const target of documentation.spec.targets ?? [documentation.spec.destination].filter(Boolean)) {
+        if (!target.path) continue;
+        const relative = path.relative(storage.documentationOutput, path.resolve(storage.documentationOutput, target.path));
+        if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) throw new Error("Documentation target is outside the approved folder. Ask the user to choose its destination before capture.");
+      }
+      let walkthrough;
+      let walkthroughFile = options.walkthroughFile;
+      if (walkthroughFile) {
+        walkthrough = await readJsonDocument(walkthroughFile);
+      } else {
+        const prepared = await prepareDocumentationCapture(documentation);
+        const hasScreenshots = documentation.spec.sections.some(section => section.blocks.some(block => block.kind === "screenshot"));
+        const hasVideo = documentation.spec.sections.some(section => section.blocks.some(block => block.kind === "video"));
+        if (hasScreenshots && hasVideo) {
+          throw new Error("Automatic documentation capture cannot combine screenshot and video blocks yet. Capture each mode separately and pass --walkthrough.");
+        }
+        const capture = await captureJourney({
+          ...prepared,
+          outputDir: captureDir,
+          ...(hasVideo ? { recordDom: { viewport: documentation.spec.viewport } } : { recordScreenshots: { viewport: documentation.spec.viewport } })
+        });
+        walkthrough = capture.walkthrough;
+        walkthroughFile = path.join(captureDir, "walkthrough.json");
+      }
+      const result = await generateDocumentation({
+        spec: documentation.spec,
+        specPath: documentation.specPath,
+        walkthrough,
+        walkthroughFile,
+        targets: options.targets,
+        outputRoot: storage.documentationOutput,
+        mode: options.mode
+      });
+      console.log(JSON.stringify(result, null, 2));
+      return 0;
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      return 1;
+    }
+  }
+
+  if (command === "invalidate") {
+    try {
+      return await invalidate(rest);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      return 1;
+    }
+  }
+
+  if (command === "regenerate") {
+    try {
+      return await regenerate(rest);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      return error instanceof RegenerationError && error.code === "AUTOTOUR_REVIEW_REQUIRED" ? 2 : 1;
+    }
+  }
+
+  if (command === "sync-markdown") {
+    try {
+      return await syncMarkdown(rest);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      return 1;
+    }
+  }
+
   console.error(`Unknown command: ${command}\n\n${help}`);
   return 1;
+}
+
+async function syncMarkdown(args) {
+  const options = parseSyncMarkdownArgs(args);
+  const walkthrough = await readJsonDocument(options.walkthroughFile);
+  const documentation = options.specFile ? await readDocumentationSpec(options.specFile) : undefined;
+  if (documentation?.spec.destination?.kind === "markdown" &&
+      path.resolve(path.dirname(documentation.specPath), documentation.spec.destination.path) !== options.markdownFile) {
+    throw new Error("--markdown does not match the documentation specification destination");
+  }
+  const result = await syncMarkdownScreenshots({
+    walkthrough,
+    walkthroughFile: options.walkthroughFile,
+    markdownFile: options.markdownFile,
+    assetsDir: options.assetsDir,
+    dryRun: options.dryRun || options.check,
+    documentationSpec: documentation?.spec
+  });
+  console.log(JSON.stringify(result, null, 2));
+  return options.check && result.changed ? 2 : 0;
+}
+
+function parseSyncMarkdownArgs(args) {
+  let walkthroughFile;
+  let markdownFile;
+  let assetsDir;
+  let dryRun = false;
+  let check = false;
+  let specFile;
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
+    if (argument === "--markdown") markdownFile = requireOptionValue(args, ++index, argument);
+    else if (argument === "--assets-dir") assetsDir = requireOptionValue(args, ++index, argument);
+    else if (argument === "--spec") specFile = requireOptionValue(args, ++index, argument);
+    else if (argument === "--dry-run") dryRun = true;
+    else if (argument === "--check") check = true;
+    else if (argument.startsWith("-")) throw new Error(`Unknown sync-markdown option: ${argument}`);
+    else if (!walkthroughFile) walkthroughFile = path.resolve(argument);
+    else throw new Error(`Unexpected sync-markdown argument: ${argument}`);
+  }
+  if (!walkthroughFile || !markdownFile || !assetsDir) {
+    throw new Error("sync-markdown requires a walkthrough file, --markdown, and --assets-dir");
+  }
+  if (dryRun && check) throw new Error("Choose --dry-run or --check, not both");
+  return {
+    walkthroughFile,
+    markdownFile: path.resolve(markdownFile),
+    assetsDir: path.resolve(assetsDir),
+    dryRun,
+    check,
+    specFile
+  };
+}
+
+function parseRunDocsArgs(args) {
+  let specFile;
+  let walkthroughFile;
+  let outputDir;
+  let captureDir;
+  let targets;
+  let mode = "create";
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
+    if (argument === "--walkthrough") walkthroughFile = path.resolve(requireOptionValue(args, ++index, argument));
+    else if (argument === "--output-dir") outputDir = path.resolve(requireOptionValue(args, ++index, argument));
+    else if (argument === "--capture-dir") captureDir = path.resolve(requireOptionValue(args, ++index, argument));
+    else if (argument === "--target") targets = requireOptionValue(args, ++index, argument).split(",").filter(Boolean);
+    else if (argument === "--mode") mode = requireOptionValue(args, ++index, argument);
+    else if (argument.startsWith("-")) throw new Error(`Unknown run-docs option: ${argument}`);
+    else if (!specFile) specFile = path.resolve(argument);
+    else throw new Error(`Unexpected run-docs argument: ${argument}`);
+  }
+  if (!specFile) throw new Error("run-docs requires a documentation specification file");
+  if (!['create', 'adapt'].includes(mode)) throw new Error("run-docs --mode must be create or adapt");
+  return { specFile, walkthroughFile, outputDir, captureDir, targets, mode };
+}
+
+async function regenerate(args) {
+  const options = parseRegenerateArgs(args);
+  let [journey, invalidationPlan] = await Promise.all([
+    readJsonDocument(options.journeyFile),
+    readJsonDocument(options.planFile)
+  ]);
+  let recordScreenshots;
+  if (options.specFile) {
+    const documentation = await readDocumentationSpec(options.specFile);
+    if (path.resolve(path.dirname(documentation.specPath), documentation.spec.journey) !== options.journeyFile) {
+      throw new Error("Journey file does not match the documentation specification");
+    }
+    ({ journey, recordScreenshots } = await prepareDocumentationCapture(documentation));
+  }
+  const result = await regenerateWalkthrough({
+    journey,
+    invalidationPlan,
+    outputDir: options.outputDir,
+    recordScreenshots
+  });
+  console.log(JSON.stringify(result, null, 2));
+  return 0;
+}
+
+function parseRegenerateArgs(args) {
+  let journeyFile;
+  let planFile;
+  let outputDir;
+  let specFile;
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
+    if (argument === "--plan") planFile = requireOptionValue(args, ++index, argument);
+    else if (argument === "--output-dir") outputDir = requireOptionValue(args, ++index, argument);
+    else if (argument === "--spec") specFile = requireOptionValue(args, ++index, argument);
+    else if (argument.startsWith("-")) {
+      throw new Error(`Unknown regenerate option: ${argument}`);
+    } else if (!journeyFile) {
+      journeyFile = path.resolve(argument);
+    } else {
+      throw new Error(`Unexpected regenerate argument: ${argument}`);
+    }
+  }
+  if (!journeyFile || !planFile || !outputDir) {
+    throw new Error("regenerate requires a journey file, --plan, and --output-dir");
+  }
+  return {
+    journeyFile,
+    planFile: path.resolve(planFile),
+    outputDir: path.resolve(outputDir),
+    specFile
+  };
+}
+
+async function invalidate(args) {
+  const options = parseInvalidateArgs(args);
+  const walkthroughValidation = await validateWalkthrough(options.walkthroughFile);
+  if (!walkthroughValidation.valid) {
+    throw new Error(`Walkthrough is invalid: ${JSON.stringify(walkthroughValidation.errors)}`);
+  }
+  const [walkthrough, dependencyMap] = await Promise.all([
+    readJsonDocument(options.walkthroughFile),
+    readJsonDocument(options.mapFile)
+  ]);
+  const mapValidation = await validateDependencyMapDocument(dependencyMap);
+  if (!mapValidation.valid) {
+    throw new Error(`Dependency map is invalid: ${JSON.stringify(mapValidation.errors)}`);
+  }
+  const changedFiles = options.changedFiles.length > 0
+    ? options.changedFiles
+    : await collectGitChangedFiles({
+      cwd: process.cwd(),
+      base: options.base,
+      head: options.head
+    });
+  const plan = createInvalidationPlan({ walkthrough, dependencyMap, changedFiles });
+  if (options.outputFile) await writeInvalidationPlan(options.outputFile, plan);
+  console.log(JSON.stringify(plan, null, 2));
+  return plan.reviewRequired || (options.check && plan.summary.regenerate.length > 0) ? 2 : 0;
+}
+
+function parseInvalidateArgs(args) {
+  let walkthroughFile;
+  let mapFile;
+  let outputFile;
+  let base;
+  let head = "HEAD";
+  let check = false;
+  const changedFiles = [];
+
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
+    if (argument === "--map") mapFile = requireOptionValue(args, ++index, argument);
+    else if (argument === "--output") outputFile = requireOptionValue(args, ++index, argument);
+    else if (argument === "--base") base = requireOptionValue(args, ++index, argument);
+    else if (argument === "--head") head = requireOptionValue(args, ++index, argument);
+    else if (argument === "--check") check = true;
+    else if (argument === "--changed-file") {
+      changedFiles.push(requireOptionValue(args, ++index, argument));
+    } else if (argument.startsWith("-")) {
+      throw new Error(`Unknown invalidate option: ${argument}`);
+    } else if (!walkthroughFile) {
+      walkthroughFile = path.resolve(argument);
+    } else {
+      throw new Error(`Unexpected invalidate argument: ${argument}`);
+    }
+  }
+
+  if (!walkthroughFile || !mapFile) {
+    throw new Error("invalidate requires a walkthrough file and --map");
+  }
+  if ((changedFiles.length > 0) === Boolean(base)) {
+    throw new Error("invalidate requires either --changed-file or --base, but not both");
+  }
+  return {
+    walkthroughFile,
+    mapFile: path.resolve(mapFile),
+    outputFile: outputFile ? path.resolve(outputFile) : undefined,
+    changedFiles,
+    base,
+    head,
+    check
+  };
+}
+
+function requireOptionValue(args, index, option) {
+  const value = args[index];
+  if (!value || value.startsWith("--")) throw new Error(`${option} requires a value`);
+  return value;
 }

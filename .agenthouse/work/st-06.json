@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "id": "st-06",
+  "title": "Generate modular DOM autoplay replays",
+  "kind": "feature",
+  "stage": "verify",
+  "revision": 6,
+  "fields": {
+    "outcome": "A documentation author can open an AutoTour module without authenticating to the source application and watch its captured DOM interaction replay automatically.",
+    "parentWork": "autotour-core",
+    "scope": "Record rrweb DOM snapshots, mutations, pointer, input, and scroll events per module; generate an offline-capable sandboxed autoplay page and stable manifest asset reference; mask all form values and preserve module boundaries. Exclude external asset downloading, cross-origin iframe capture, editing UI, hosted publishing, and polished video rendering.",
+    "acceptance": "Capturing the authenticated local fixture produces one replay package per module that autoplays after the fixture is stopped, performs no request to the original application, exposes basic playback controls, and contains no credential values.",
+    "changes": "Implemented in commit de03afe9057da48d7d9d56485b61c06c16869109: modular rrweb capture, a shared local replay runtime, sandboxed per-module autoplay players, manifest asset references, form-value masking, navigation-safe recorder shutdown, and an offline browser verification fixture. Follow-up work adds a walkthrough-level playlist that advances between independently replaceable modules and configurable default presentation pacing between recorded steps.",
+    "decisions": "Use the official @rrweb/record and @rrweb/replay packages. Inject the recorder before application scripts, stream events to Node across navigations, share a local replay runtime across modules, and let rrweb rebuild application DOM inside its sandboxed iframe without executing captured scripts.",
+    "verification": "Capture the existing two-module profile journey in Chromium, inspect event files for full snapshots and secret absence, stop the source fixture, serve only generated output, and verify both players render and autoplay while blocking unexpected network requests.",
+    "dependencies": "Builds on st-04 generic execution and the module-session boundary introduced by st-05. Uses @rrweb/record and @rrweb/replay 2.1.6.",
+    "risks": "Remote fonts and images can prevent full portability until asset harvesting exists; complex canvas, media, shadow DOM, and cross-origin iframe content may replay incompletely."
+  },
+  "criteria": [
+    {
+      "id": "module-events",
+      "expectation": "Each module stores an ordered rrweb event stream beginning with metadata and a full DOM snapshot."
+    },
+    {
+      "id": "autoplay-player",
+      "expectation": "Each module has a stable HTML player that begins replay automatically and provides play, pause, and restart controls."
+    },
+    {
+      "id": "continuous-playback",
+      "expectation": "A walkthrough-level player advances through module players in order while preserving direct module navigation."
+    },
+    {
+      "id": "presentation-pacing",
+      "expectation": "DOM replay gives recorded actions enough dwell time to make cursor movement, clicks, and resulting states readable."
+    },
+    {
+      "id": "offline-fixture",
+      "expectation": "Fixture replays render after the source application is stopped and make no request to its origin."
+    },
+    {
+      "id": "sandbox",
+      "expectation": "Captured application scripts do not execute in the replay document."
+    },
+    {
+      "id": "secret-masking",
+      "expectation": "Recorded events, generated player files, metadata, and diagnostics contain no credential values."
+    },
+    {
+      "id": "manifest-assets",
+      "expectation": "The walkthrough records deterministic per-module DOM player paths and remains schema-valid."
+    },
+    {
+      "id": "ci-ready",
+      "expectation": "Capture and replay verification run headlessly with generated output confined to ignored paths."
+    }
+  ],
+  "evidence": [],
+  "history": [
+    {
+      "from": "discover",
+      "to": "define",
+      "at": "2026-09-27T12:53:09.443Z",
+      "previous": "160b52f5b203870c116191be95c70213a516428e21a3d3f3f82adc83500b4116",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "define",
+      "to": "design",
+      "at": "2026-09-27T12:53:10.694Z",
+      "previous": "f09f28253e34c7eadc10db959d88300d71e3b4fb0eccdbbe9a7b0d03d45c93f7",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "design",
+      "to": "plan",
+      "at": "2026-09-27T12:53:11.987Z",
+      "previous": "a79fa2fd1328a2b36a9eaa9d1b2a88f1b27220cf10d64b9df017ee77b5614bbc",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "plan",
+      "to": "implement",
+      "at": "2026-09-27T12:53:13.315Z",
+      "previous": "868f070f1d75f080d7aa017d8bb775714f76ff2ef8b4e4d9e1639ddf0aa77c7b",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "implement",
+      "to": "verify",
+      "at": "2026-09-27T12:53:14.553Z",
+      "previous": "f38ce2cb2c29e4fe1fb8ba68776797d99741ecad71c170f0c8edd3f50f78c909",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    }
+  ]
+}

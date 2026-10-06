@@ -10,7 +10,21 @@
     "schemaVersion": { "const": 1 },
     "project": { "type": "string", "minLength": 1 },
     "walkthroughs": { "type": "string", "minLength": 1 },
+    "documentation": { "type": "string", "minLength": 1 },
     "output": { "type": "string", "minLength": 1 },
+    "storage": {
+      "type": "object", "additionalProperties": false,
+      "required": ["confirmed"],
+      "properties": {
+        "confirmed": { "type": "boolean" },
+        "documentationOutput": { "type": "string", "minLength": 1 },
+        "artifacts": { "enum": ["local", "versioned"] },
+        "documentation": { "enum": ["local", "versioned"] },
+        "gitignore": { "enum": ["modify", "keep"] }
+      },
+      "if": { "properties": { "confirmed": { "const": true } }, "required": ["confirmed"] },
+      "then": { "required": ["documentationOutput", "artifacts", "documentation", "gitignore"], "properties": { "documentationOutput": {}, "artifacts": {}, "documentation": {}, "gitignore": {} } }
+    },
     "auth": {
       "type": "object",
       "additionalProperties": false,

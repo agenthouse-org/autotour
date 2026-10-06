@@ -1,0 +1,29 @@
+{
+  "$schema": "../schemas/documentation.schema.json",
+  "schemaVersion": 1,
+  "walkthroughId": "profile-documentation",
+  "journey": "documentation-journey.json",
+  "dependencyMap": "documentation-dependencies.json",
+  "audience": "Product users updating their profile",
+  "viewport": { "width": 1280, "height": 720 },
+  "destination": { "kind": "markdown", "path": "profile.md" },
+  "sections": [{
+    "moduleId": "profile-settings",
+    "heading": "Profile Settings",
+    "dependencies": { "views": ["ProfileSettings"] },
+    "blocks": [
+      { "kind": "text", "text": "Enter your new display name, then select **Save profile**." },
+      {
+        "kind": "screenshot",
+        "stepId": "fill-display-name",
+        "sourceView": "ProfileSettings",
+        "timing": "after",
+        "target": { "role": "textbox", "name": "Display name" },
+        "callout": 1,
+        "alt": "Profile Settings with the display name field highlighted",
+        "caption": "Your new display name is ready to save."
+      },
+      { "kind": "text", "text": "Changes take effect after saving." }
+    ]
+  }]
+}

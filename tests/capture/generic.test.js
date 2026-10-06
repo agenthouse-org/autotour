@@ -1,0 +1,375 @@
+import assert from "node:assert/strict";
+import { mkdtemp } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import test from "node:test";
+import { CaptureError, captureJourney } from "../../src/capture/index.js";
+import { executeStep, resolveTarget } from "../../src/capture/execute.js";
+import { createFixturePageDouble } from "./fixture-page.js";
+
+const BASE_URL = "https://fixture.test";
+
+test("indexed accessible targets deliberately disambiguate duplicate controls", () => {
+  const selected = {};
+  const locator = {
+    nth(index) {
+      assert.equal(index, 1);
+      return selected;
+    }
+  };
+  const page = {
+    getByRole(role, options) {
+      assert.equal(role, "link");
+      assert.deepEqual(options, { name: "Sign in", exact: true });
+      return locator;
+    }
+  };
+
+  assert.equal(resolveTarget(page, { role: "link", name: "Sign in", index: 1 }), selected);
+  assert.throws(
+    () => resolveTarget(page, { role: "link", name: "Sign in", index: -1 }),
+    /non-negative integer/
+  );
+});
+
+test("click accepts a completed navigation when Playwright times out on load completion", async () => {
+  let currentUrl = "https://fixture.test/login";
+  const page = {
+    getByRole() {
+      return {
+        async click(options) {
+          assert.deepEqual(options, { timeout: 10000 });
+          currentUrl = "https://fixture.test/settings/profile";
+          throw new Error("locator.click: Timeout 10000ms exceeded");
+        }
+      };
+    },
+    url() {
+      return currentUrl;
+    }
+  };
+
+  await executeStep({
+    page,
+    baseUrl: BASE_URL,
+    module: { id: "sign-in" },
+    step: {
+      id: "submit-login",
+      action: "click",
+      target: { role: "button", name: "Sign in" }
+    },
+    env: {},
+    secrets: []
+  });
+});
+
+test("click retains timeout failures when navigation did not complete", async () => {
+  const page = {
+    getByRole() {
+      return {
+        async click() {
+          throw new Error("locator.click: Timeout 10000ms exceeded");
+        }
+      };
+    },
+    url() {
+      return "https://fixture.test/login";
+    }
+  };
+
+  await assert.rejects(
+    executeStep({
+      page,
+      baseUrl: BASE_URL,
+      module: { id: "sign-in" },
+      step: {
+        id: "submit-login",
+        action: "click",
+        target: { role: "button", name: "Sign in" }
+      },
+      env: {},
+      secrets: []
+    }),
+    /Failed at module sign-in, step submit-login/
+  );
+});
+
+test("indexed targets survive walkthrough serialization and replay", async () => {
+  const outputDir = await mkdtemp(path.join(os.tmpdir(), "autotour-indexed-target-"));
+  const journey = {
+    id: "indexed-target",
+    title: "Indexed target",
+    modules: [{
+      id: "open-login",
+      title: "Open login",
+      route: "/",
+      steps: [{
+        id: "choose-sign-in",
+        action: "click",
+        description: "Choose the first sign-in link.",
+        target: { role: "link", name: "Sign in", index: 0 }
+      }]
+    }]
+  };
+  const firstPage = createFixturePageDouble({ baseUrl: BASE_URL });
+  const initial = await captureJourney({
+    baseUrl: BASE_URL,
+    goal: "Choose one duplicate control.",
+    outputDir,
+    env: {},
+    page: firstPage,
+    journey
+  });
+
+  assert.equal(
+    initial.walkthrough.modules[0].steps[0].selector,
+    'role=link[name="Sign in"] >> nth=0'
+  );
+  assert.deepEqual(initial.captureSteps[0].target, {
+    role: "link",
+    name: "Sign in",
+    index: 0
+  });
+
+  const replayPage = createFixturePageDouble({ baseUrl: BASE_URL });
+  await captureJourney({
+    outputDir: path.join(outputDir, "replay"),
+    env: {},
+    page: replayPage,
+    journey: initial.walkthrough
+  });
+  assert.deepEqual(replayPage.actions()[0], {
+    type: "click",
+    role: "link",
+    name: "Sign in",
+    index: 0
+  });
+});
+
+function createPublicJourney() {
+  return {
+    id: "discover-dealdesk",
+    title: "Discover DealDesk",
+    modules: [
+      {
+        id: "homepage-overview",
+        title: "Homepage overview",
+        route: "/en/",
+        steps: [
+          {
+            id: "open-homepage",
+            action: "goto",
+            description: "Open the English homepage.",
+            path: "/en/"
+          },
+          {
+            id: "scroll-down",
+            action: "scroll",
+            description: "Review the homepage.",
+            scroll: { mode: "by", x: 0, y: 640, durationMs: 300 }
+          },
+          {
+            id: "scroll-top",
+            action: "scroll",
+            description: "Return to the navigation.",
+            scroll: { mode: "to", x: 0, y: 0, durationMs: 300 }
+          },
+          {
+            id: "open-automation",
+            action: "click",
+            description: "Open Automation.",
+            target: { role: "button", name: "Automation" }
+          },
+          {
+            id: "confirm-automation",
+            action: "assert",
+            description: "Confirm the Automation menu is visible.",
+            target: { role: "link", name: "Agentic Applications" },
+            state: "visible",
+            timeoutMs: 1000
+          },
+          {
+            id: "choose-mode",
+            action: "select",
+            description: "Choose a documentation mode.",
+            target: { role: "combobox", name: "Mode" },
+            value: "guided"
+          },
+          {
+            id: "brief-pause",
+            action: "wait",
+            description: "Pause for the viewer.",
+            durationMs: 250
+          }
+        ]
+      },
+      {
+        id: "dealdesk-overview",
+        title: "DealDesk overview",
+        route: "/en/dealdesk/",
+        steps: [
+          {
+            id: "open-dealdesk",
+            action: "goto",
+            description: "Open DealDesk.",
+            path: "/en/dealdesk/"
+          },
+          {
+            id: "confirm-dealdesk-url",
+            action: "assert",
+            description: "Confirm the DealDesk page loaded.",
+            url: "/en/dealdesk/",
+            timeoutMs: 1000
+          }
+        ]
+      }
+    ]
+  };
+}
+
+test("generic public journeys execute scroll, wait, click, and assertions without credentials", async () => {
+  const outputDir = await mkdtemp(path.join(os.tmpdir(), "autotour-generic-"));
+  const page = createFixturePageDouble({ baseUrl: BASE_URL });
+
+  const result = await captureJourney({
+    baseUrl: BASE_URL,
+    goal: "Introduce DealDesk to prospective customers.",
+    outputDir,
+    env: {},
+    page,
+    journey: createPublicJourney()
+  });
+
+  assert.deepEqual(
+    page.actions().map((action) => action.type),
+    ["goto", "scroll", "scroll", "click", "assert-visible", "select", "wait", "goto", "assert-url"]
+  );
+  assert.deepEqual(result.walkthrough.outputs, ["screenshots"]);
+  const scroll = result.captureSteps.find((step) => step.id === "scroll-down");
+  assert.deepEqual(scroll.scroll, { mode: "by", x: 0, y: 640, durationMs: 300 });
+  const urlAssertion = result.captureSteps.find((step) => step.id === "confirm-dealdesk-url");
+  assert.equal(urlAssertion.url, "/en/dealdesk/");
+  assert.equal(urlAssertion.timeoutMs, 1000);
+});
+
+test("invalid timing is rejected with module and step diagnostics", async () => {
+  const outputDir = await mkdtemp(path.join(os.tmpdir(), "autotour-timing-"));
+  const page = createFixturePageDouble({ baseUrl: BASE_URL });
+  const journey = createPublicJourney();
+  journey.modules[0].steps[1].scroll.durationMs = 30001;
+
+  await assert.rejects(
+    () => captureJourney({
+      baseUrl: BASE_URL,
+      goal: "Introduce DealDesk.",
+      outputDir,
+      env: {},
+      page,
+      journey
+    }),
+    (error) => {
+      assert.equal(error.moduleId, "homepage-overview");
+      assert.equal(error.stepId, "scroll-down");
+      assert.match(error.cause, /between 0 and 30000/);
+      return true;
+    }
+  );
+});
+
+test("failed generic assertions identify the responsible module and step", async () => {
+  const outputDir = await mkdtemp(path.join(os.tmpdir(), "autotour-generic-"));
+  const page = createFixturePageDouble({ baseUrl: BASE_URL, hiddenTargets: ["link:Agentic Applications"] });
+
+  await assert.rejects(
+    () => captureJourney({
+      baseUrl: BASE_URL,
+      goal: "Introduce DealDesk.",
+      outputDir,
+      env: {},
+      page,
+      journey: createPublicJourney()
+    }),
+    (error) => {
+      assert.equal(error instanceof CaptureError, true);
+      assert.equal(error.moduleId, "homepage-overview");
+      assert.equal(error.stepId, "confirm-automation");
+      assert.match(error.cause, /visible/i);
+      return true;
+    }
+  );
+});
+
+test("schema-shaped walkthrough JSON can be executed directly", async () => {
+  const outputDir = await mkdtemp(path.join(os.tmpdir(), "autotour-json-"));
+  const page = createFixturePageDouble({ baseUrl: BASE_URL });
+  const journey = {
+    schemaVersion: 1,
+    id: "json-journey",
+    title: "JSON journey",
+    target: { baseUrl: BASE_URL, goal: "Show JSON execution." },
+    publish: true,
+    outputs: ["screenshots"],
+    modules: [{
+      id: "navigation",
+      title: "Navigation",
+      route: "/",
+      dependencies: { views: ["homepage-navigation"] },
+      assets: {},
+      steps: [
+        { id: "open", action: "goto", description: "Open the page.", path: "/" },
+        {
+          id: "open-menu",
+          action: "click",
+          description: "Open the menu.",
+          selector: "text=\"Automation\""
+        }
+      ]
+    }]
+  };
+
+  const result = await captureJourney({ journey, outputDir, env: {}, page });
+  assert.equal(result.walkthrough.target.baseUrl, BASE_URL);
+  assert.equal(result.walkthrough.target.goal, "Show JSON execution.");
+  assert.equal(result.walkthrough.publish, true);
+  assert.deepEqual(result.walkthrough.modules[0].dependencies.views, ["homepage-navigation"]);
+  assert.deepEqual(page.actions().map((action) => action.type), ["goto", "click"]);
+});
+
+test("goto accepts overlapping redirects that reached the requested URL", async () => {
+  for (const message of [
+    "page.goto: net::ERR_ABORTED",
+    "Navigation is interrupted by another navigation to the same URL"
+  ]) {
+    let attempts = 0;
+    const page = {
+      async goto() {
+        attempts += 1;
+        throw new Error(message);
+      },
+      async waitForLoadState() {},
+      async waitForURL(expected) {
+        assert.equal(expected, "https://fixture.test/settings/profile");
+      },
+      url() {
+        return "https://fixture.test/login";
+      }
+    };
+
+    await executeStep({
+      page,
+      baseUrl: "https://fixture.test",
+      module: { id: "profile", route: "/settings/profile" },
+      step: {
+        id: "open-profile",
+        action: "goto",
+        description: "Open profile settings.",
+        path: "/settings/profile"
+      },
+      env: {},
+      secrets: []
+    });
+
+    assert.equal(attempts, 1);
+  }
+});
+

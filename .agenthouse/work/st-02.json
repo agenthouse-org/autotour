@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "id": "st-02",
+  "title": "Capture a journey as stable walkthrough modules",
+  "author": "codex",
+  "kind": "feature",
+  "stage": "verify",
+  "revision": 3,
+  "fields": {
+    "outcome": "A developer can capture an authorized browser journey as deterministic, stable walkthrough modules without writing Playwright code for that journey.",
+    "parentWork": "autotour-core",
+    "scope": "Implement a capture library for the ST-01 fixture contract that authenticates through environment-backed values, executes the profile journey, records actions/routes/observed API calls, and writes a schema-valid manifest. Exclude annotation rendering, source-code ownership mapping, change invalidation, DOM replay, and video.",
+    "acceptance": "Given the agreed fixture contract and journey definition, capture produces a deterministic schema-valid manifest with stable module and step IDs and no secret values.",
+    "decisions": "Own files under src/capture and capture-specific tests. Develop against the route and API contract in docs/contracts/mvp-interfaces.md; use a test double or data URL when ST-01 is unavailable. Do not modify shared schemas or package metadata; report integration changes instead.",
+    "verification": "Run capture twice against equivalent fixture state, validate both manifests, compare stable identities, assert observed routes and requests, and scan output for supplied secret values.",
+    "changes": "Implemented deterministic journey capture, observed API recording, manifest validation, redaction, safe failures, and capture-specific tests in commit 7c28291095ed86d3a5a32b6163ab3face0b9ee1d, then integrated it into develop via merge commit 503432b.",
+    "dependencies": "The contract defined by st-01 and the existing walkthrough schema and Playwright dependency.",
+    "risks": "Browser timing and generated identifiers can make output nondeterministic; request observation alone does not prove backend ownership."
+  },
+  "criteria": [
+    {
+      "id": "capture-input",
+      "expectation": "Capture accepts a base URL, journey goal, and environment-variable names for authorized credentials."
+    },
+    {
+      "id": "capture-execution",
+      "expectation": "Capture performs login and the profile update journey using stable user-visible controls."
+    },
+    {
+      "id": "capture-modules",
+      "expectation": "The result contains stable module and step IDs that remain unchanged across equivalent runs."
+    },
+    {
+      "id": "capture-observations",
+      "expectation": "The manifest records actions, routes, and observed login/profile API endpoints without claiming unobserved ownership."
+    },
+    {
+      "id": "capture-schema",
+      "expectation": "The generated walkthrough validates against schemas/walkthrough.schema.json."
+    },
+    {
+      "id": "capture-secrets",
+      "expectation": "Generated files and diagnostics do not contain credential values, cookies, tokens, or storage state."
+    },
+    {
+      "id": "capture-failure",
+      "expectation": "A failed step identifies the module, step, and observable cause without exposing secrets."
+    }
+  ],
+  "evidence": [],
+  "history": [
+    {
+      "from": "plan",
+      "to": "implement",
+      "at": "2026-09-26T17:12:50.246Z",
+      "previous": "854dffa6921e862951d1b44a7830398d0f50ffac8fb8a9acc22ec188e54c2195",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "implement",
+      "to": "verify",
+      "at": "2026-09-26T17:25:10.069Z",
+      "previous": "10b6cef10119bfd944d652de7222db3561d51d0045b62f06b71e37465ae2b367",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    }
+  ]
+}

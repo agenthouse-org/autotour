@@ -1,6 +1,6 @@
 {
   "name": "autotour",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Create modular walkthroughs and product documentation from web applications.",
   "author": {
     "name": "Valerio Neri",
@@ -10,13 +10,14 @@
   "repository": "https://github.com/agenthouse-org/autotour",
   "license": "MIT",
   "skills": "./skills/",
+  "apps": "./.app.json",
   "interface": {
     "displayName": "AutoTour",
-    "shortDescription": "Generate modular product walkthroughs",
+    "shortDescription": "Product clips and DOM tours",
     "longDescription": "Explore a web application with Playwright and produce maintainable walkthrough manifests and documentation assets.",
     "developerName": "Valerio Neri",
     "category": "Developer Tools",
     "capabilities": [],
-    "defaultPrompt": "Create a modular AutoTour walkthrough for this web application."
+    "defaultPrompt": "Help me create a product clip, HTML DOM tour, or visual how-to for this web application. Ask about the audience, destination, duration, cursor, zoom, and motion before recording."
   }
 }

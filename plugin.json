@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "autotour",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Create modular walkthroughs and product documentation from web applications.",
   "author": {
     "name": "Valerio Neri",
@@ -17,14 +17,15 @@
   ],
   "extensions": {
     "com.openai": {
+      "apps": "./.app.json",
       "interface": {
         "displayName": "AutoTour",
-        "shortDescription": "Generate modular product walkthroughs",
+        "shortDescription": "Product clips and DOM tours",
         "longDescription": "Explore a web application with Playwright and produce maintainable walkthrough manifests, screenshots, DOM replay, and video outputs.",
         "developerName": "Valerio Neri",
         "category": "Developer Tools",
         "capabilities": [],
-        "defaultPrompt": "Create a modular AutoTour walkthrough for this web application."
+      "defaultPrompt": "Help me plan a product clip, HTML DOM tour, or visual how-to for this web application. Before creating, capturing, exporting, or publishing anything, ask for the audience, exact task or journey, application URL/environment, permitted access, destination and format, and any relevant duration, cursor, zoom, or motion choices. Treat requests for Word or other office documents as incomplete until the content scope is confirmed."
       }
     }
   }

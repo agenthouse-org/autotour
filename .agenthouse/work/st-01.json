@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "id": "st-01",
+  "title": "Connect an authorized fixture application",
+  "author": "codex",
+  "kind": "feature",
+  "stage": "verify",
+  "revision": 3,
+  "fields": {
+    "outcome": "A developer can start a deterministic local web application and provide an authorized test account that later AutoTour stories can exercise safely.",
+    "parentWork": "autotour-core",
+    "scope": "Create a minimal fixture application with login, a protected profile journey, stable semantic controls, deterministic routes, and observable profile API calls. Exclude AutoTour capture, annotation, dependency mapping, and production authentication patterns.",
+    "acceptance": "The fixture starts locally, enforces test authentication, exposes the agreed profile journey, and passes automated browser-level behavior checks without committing credentials.",
+    "decisions": "Own files under fixtures/demo-app and tests dedicated to the fixture. Contract routes are /login and /settings/profile; observed endpoints are POST /api/login, GET /api/profile, and PUT /api/profile. Credentials come from AUTOTOUR_USERNAME and AUTOTOUR_PASSWORD with documented test-only defaults.",
+    "verification": "Start the fixture on an available local port, verify its health endpoint, exercise failed and successful login, update the profile, and confirm the expected API traffic and persisted in-memory result.",
+    "changes": "Implemented the deterministic Node fixture application and browser-level tests in commit a1af709ff841e1d3e078faaaf2a7f0bab9bdaa70, then integrated it into develop via merge commit 4768ae2.",
+    "dependencies": "Node.js 20 or newer and the repository Playwright dependency.",
+    "risks": "An overbuilt fixture would distract from AutoTour; implicit credentials or unstable selectors would weaken later evidence."
+  },
+  "criteria": [
+    {
+      "id": "fixture-start",
+      "expectation": "A documented command starts the fixture on a configurable local port and exposes a health endpoint."
+    },
+    {
+      "id": "fixture-auth",
+      "expectation": "Invalid credentials are rejected and environment-provided test credentials create an authenticated session."
+    },
+    {
+      "id": "fixture-journey",
+      "expectation": "An authenticated user can open profile settings, change a display name, save it, and observe the saved value."
+    },
+    {
+      "id": "fixture-contract",
+      "expectation": "The fixture exposes the agreed routes, semantic labels, and login/profile API endpoints used by later stories."
+    },
+    {
+      "id": "fixture-secrets",
+      "expectation": "No password, cookie, token, or browser storage state is committed or printed by tests."
+    },
+    {
+      "id": "fixture-tests",
+      "expectation": "Automated tests cover health, authentication failure, authentication success, and the profile update journey."
+    }
+  ],
+  "evidence": [],
+  "history": [
+    {
+      "from": "plan",
+      "to": "implement",
+      "at": "2026-09-26T17:12:48.866Z",
+      "previous": "89ed0e8acae237cbd8acacf595dc3b88114c1b8b7bb7615d38c5b33ef86f4a65",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    },
+    {
+      "from": "implement",
+      "to": "verify",
+      "at": "2026-09-26T17:25:08.970Z",
+      "previous": "a382ec46f00def4b2e3b3b536f8eaa386f6016ad4c183593f78d5cd265f323b9",
+      "policyDigest": "17e68a36fa728af2befd1268ee58fa6f30ef369d196b01f23c60f3d4c59fad07",
+      "decision": null
+    }
+  ]
+}
