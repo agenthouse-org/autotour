@@ -3,6 +3,7 @@ name: Publish
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,5 +21,6 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: npm
       - run: npm ci
+      - run: npx playwright install --with-deps chromium
       - run: npm run check
       - run: npm publish --provenance --access public
