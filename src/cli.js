@@ -1,10 +1,13 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { initializeProject, validateWalkthrough } from "./project.js";
+import { initializeProject, validateWalkthrough, configureStorage, readStorageConfiguration } from "./project.js";
 import { readDocumentationSpec, prepareDocumentationCapture } from "./documentation/spec.js";
 import { generateDocumentation } from "./documentation/generate.js";
 import { captureJourney } from "./capture/index.js";
+import { startPreview } from "./preview.js";
+import { createTourReview } from "./review/workflow.js";
+import { startTourReview } from "./review/server.js";
 import {
   collectGitChangedFiles,
   createInvalidationPlan,
@@ -27,6 +30,7 @@ const help = `AutoTour ${packageJson.version}
 
 Usage:
   autotour init [directory] [--force]
+  autotour configure-storage [directory] --output <folder> --documentation-output <folder> --artifacts local|versioned --documentation local|versioned --gitignore modify|keep
   autotour validate <walkthrough.json>
   autotour validate-docs <documentation.json>
   autotour run-docs <documentation.json> [--walkthrough <walkthrough.json>] [--target markdown,html,confluence] [--output-dir <directory>] [--capture-dir <directory>] [--mode create|adapt]
@@ -34,10 +38,14 @@ Usage:
   autotour regenerate <journey.json> --plan <invalidation-plan.json> --output-dir <directory> [--spec <documentation.json>]
   autotour sync-markdown <walkthrough.json> --markdown <file> --assets-dir <directory> [--spec <documentation.json>] [--dry-run | --check]
   autotour doctor
+  autotour preview <output-directory> [--port <number>]
+  autotour plan-tour <journey.json> --brief <brief.json> [--mode screenshots|dom|video]
+  autotour review <tour-id> [--port <number>]
   autotour --version
 
 Commands:
   init      Create .autotour/autotour.json in a project
+  configure-storage  Save user-approved folders and Git policy (no artifacts generated)
   validate  Validate a walkthrough manifest
   validate-docs  Validate documentation layout and journey/dependency references
   run-docs  Generate selected documentation targets from a validated definition
@@ -83,12 +91,43 @@ export async function run(args) {
     return 0;
   }
   if (command === "doctor") return doctor();
+  if (command === "plan-tour") {
+    try {
+      if (!rest[0] || rest[1] !== "--brief" || !rest[2] || (rest.length !== 3 && !(rest.length === 5 && rest[3] === "--mode"))) throw new Error("Usage: autotour plan-tour <journey.json> --brief <brief.json> [--mode screenshots|dom|video]");
+      const journey = await readJsonDocument(rest[0]);
+      const brief = await readJsonDocument(rest[2]);
+      const result = await createTourReview({ journey, brief, mode: rest[4] ?? "screenshots" });
+      console.log(JSON.stringify({ ...result, next: `autotour review ${journey.id}`, status: "awaiting-plan-approval" }, null, 2));
+      return 0;
+    } catch (error) { console.error(error.message); return 1; }
+  }
+  if (command === "review") {
+    try {
+      if (!rest[0] || (rest.length !== 1 && !(rest.length === 3 && rest[1] === "--port"))) throw new Error("Usage: autotour review <tour-id> [--port <number>]");
+      const review = await startTourReview({ id: rest[0], port: rest[2] === undefined ? 0 : Number(rest[2]) });
+      console.log(`Local review: ${review.url} (Ctrl+C to stop). Captures and deliveries require explicit actions in the review UI.`);
+      process.once("SIGINT", () => { void review.close(); });
+      process.once("SIGTERM", () => { void review.close(); });
+      return 0;
+    } catch (error) { console.error(error.message); return 1; }
+  }
+  if (command === "preview") {
+    if (!rest[0] || (rest.length !== 1 && !(rest.length === 3 && rest[1] === "--port"))) {
+      console.error("Usage: autotour preview <output-directory> [--port <number>]"); return 1;
+    }
+    const preview = await startPreview(rest[0], { port: rest[2] === undefined ? 0 : Number(rest[2]) });
+    console.log(`Preview: ${preview.url} (Ctrl+C to stop)`);
+    process.once("SIGINT", () => { void preview.close(); });
+    process.once("SIGTERM", () => { void preview.close(); });
+    return 0;
+  }
 
   if (command === "init") {
     const options = parseInitArgs(rest);
     try {
       const configPath = await initializeProject(options.directory, options);
       console.log(`Created ${configPath}`);
+      console.log("No .gitignore files changed. Before capture, ask where artifacts and documentation should live and save the choices with configure-storage.");
       return 0;
     } catch (error) {
       if (error.code === "EEXIST") {
@@ -97,6 +136,22 @@ export async function run(args) {
       }
       throw error;
     }
+  }
+
+  if (command === "configure-storage") {
+    try {
+      const choices = {};
+      let directory;
+      const keys = { "--output": "output", "--documentation-output": "documentationOutput", "--artifacts": "artifacts", "--documentation": "documentation", "--gitignore": "gitignore" };
+      for (let index = 0; index < rest.length; index++) {
+        const argument = rest[index];
+        if (keys[argument]) choices[keys[argument]] = requireOptionValue(rest, ++index, argument);
+        else if (!argument.startsWith("-") && !directory) directory = argument;
+        else throw new Error(`Unknown configure-storage argument: ${argument}`);
+      }
+      console.log(JSON.stringify(await configureStorage(directory ?? process.cwd(), choices), null, 2));
+      return 0;
+    } catch (error) { console.error(error.message); return 1; }
   }
 
   if (command === "validate") {
@@ -129,7 +184,21 @@ export async function run(args) {
   if (command === "run-docs") {
     try {
       const options = parseRunDocsArgs(rest);
+      const storage = await readStorageConfiguration();
+      if (options.outputDir && path.resolve(options.outputDir) !== storage.documentationOutput) {
+        throw new Error("--output-dir differs from the approved documentation folder. Ask the user and update configure-storage first.");
+      }
+      const captureDir = options.captureDir ?? path.join(storage.output, "documentation");
+      const captureRelative = path.relative(storage.output, path.resolve(captureDir));
+      if (captureRelative === ".." || captureRelative.startsWith(`..${path.sep}`) || path.isAbsolute(captureRelative)) {
+        throw new Error("--capture-dir is outside the approved artifact folder. Ask the user and update configure-storage first.");
+      }
       const documentation = await readDocumentationSpec(options.specFile);
+      for (const target of documentation.spec.targets ?? [documentation.spec.destination].filter(Boolean)) {
+        if (!target.path) continue;
+        const relative = path.relative(storage.documentationOutput, path.resolve(storage.documentationOutput, target.path));
+        if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) throw new Error("Documentation target is outside the approved folder. Ask the user to choose its destination before capture.");
+      }
       let walkthrough;
       let walkthroughFile = options.walkthroughFile;
       if (walkthroughFile) {
@@ -141,7 +210,6 @@ export async function run(args) {
         if (hasScreenshots && hasVideo) {
           throw new Error("Automatic documentation capture cannot combine screenshot and video blocks yet. Capture each mode separately and pass --walkthrough.");
         }
-        const captureDir = options.captureDir ?? path.resolve(".autotour", "output", "documentation");
         const capture = await captureJourney({
           ...prepared,
           outputDir: captureDir,
@@ -156,7 +224,7 @@ export async function run(args) {
         walkthrough,
         walkthroughFile,
         targets: options.targets,
-        outputRoot: options.outputDir,
+        outputRoot: storage.documentationOutput,
         mode: options.mode
       });
       console.log(JSON.stringify(result, null, 2));

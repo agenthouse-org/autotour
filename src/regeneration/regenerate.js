@@ -70,6 +70,10 @@ export async function regenerateWalkthrough(options) {
       moduleIds: selection.regenerate,
       previousWalkthrough,
       previousCaptureSteps,
+      hooks: options.hooks,
+      fixtures: options.fixtures,
+      trackOutput: options.trackOutput,
+      manageGitignore: options.manageGitignore,
       recordDom: mode.recordDom,
       recordVideo: mode.recordVideo,
       recordScreenshots: mode.recordScreenshots

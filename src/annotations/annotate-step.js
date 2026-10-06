@@ -12,6 +12,8 @@ import { injectAnnotationOverlays, removeAnnotationOverlays } from "./overlays.j
 import { buildAnnotationAssetPath, resolveAnnotationOutputPath } from "./paths.js";
 import { applyRedaction, normalizeRedactionConfig, restoreRedaction } from "./redaction.js";
 import { locateByRoleName, normalizeRoleNameTarget } from "./target.js";
+import { waitForCondition } from "../capture/conditions.js";
+import { ensureIgnoreRules } from "../project.js";
 
 /**
  * @typedef {{
@@ -58,7 +60,7 @@ export async function annotateStep(input) {
     callout,
     caption,
     viewport,
-    outputRoot = "output",
+    outputRoot = ".autotour/output/annotations",
     cwd = process.cwd(),
     keepOverlays = false,
     restorePage = false,
@@ -69,6 +71,9 @@ export async function annotateStep(input) {
   const redaction = normalizeRedactionConfig(input.redaction);
   const assetPath = buildAnnotationAssetPath(moduleId, stepId, { outputRoot, subdirectory });
   const absolutePath = resolveAnnotationOutputPath(assetPath, cwd);
+  if (input.outputRoot === undefined && input.manageGitignore === true) {
+    await ensureIgnoreRules(path.resolve(cwd, ".autotour/.gitignore"), ["/output/"]);
+  }
 
   const resolvedViewport = viewport
     ? assertViewport(viewport)
@@ -84,6 +89,15 @@ export async function annotateStep(input) {
   try {
     const locator = await locateByRoleName(page, target, { stepId });
     await locator.scrollIntoViewIfNeeded();
+    await page.evaluate(async () => {
+      await Promise.race([document.fonts?.ready, new Promise(resolve => setTimeout(resolve, 2000))]);
+      for (const animation of document.getAnimations()) {
+        if (Number.isFinite(animation.effect?.getComputedTiming().endTime)) {
+          try { animation.finish(); } catch { /* Non-finishable animation. */ }
+        }
+      }
+    });
+    await waitForCondition(page, { target, stableForMs: 150, timeoutMs: 5000, count: 1 });
     const rawBox = await locator.boundingBox();
     if (!rawBox) {
       throw createAnnotationError(
@@ -119,6 +133,10 @@ export async function annotateStep(input) {
       captionBox,
       callout
     });
+    const renderedBox = await page.locator("[data-autotour-highlight]").boundingBox();
+    if (!renderedBox || Object.keys(targetBox).some(key => Math.abs(targetBox[key] - renderedBox[key]) > 1)) {
+      throw new Error("Annotation coordinate mismatch: overlay and target use different coordinate spaces.");
+    }
 
     await mkdir(path.dirname(absolutePath), { recursive: true });
     await page.screenshot({
@@ -127,6 +145,10 @@ export async function annotateStep(input) {
       animations: "disabled",
       caret: "hide"
     });
+    const currentBox = await locator.boundingBox();
+    if (!currentBox || Object.keys(rawBox).some(key => Math.abs(rawBox[key] - currentBox[key]) > 1)) {
+      throw new Error("Annotation target moved during screenshot capture; retry after a stable state.");
+    }
   } catch (cause) {
     if (cause && typeof cause === "object" && "code" in cause) {
       throw cause;

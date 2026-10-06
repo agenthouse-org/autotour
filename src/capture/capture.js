@@ -1,5 +1,6 @@
 import { mkdir, rename, rm } from "node:fs/promises";
 import path from "node:path";
+import { ensureIgnoreRules } from "../project.js";
 import { CaptureError } from "./errors.js";
 import { executeStep } from "./execute.js";
 import { createProfileJourney } from "./journey.js";
@@ -146,11 +147,15 @@ export async function captureJourney(options = {}) {
   const screenshotOptions = normalizeScreenshotOptions(recordScreenshots, secrets);
 
   await mkdir(outputDir, { recursive: true });
+  if (options.manageGitignore === true && !options.trackOutput) await ensureIgnoreRules(path.join(outputDir, ".gitignore"), [
+    "/.gitignore", "/modules/", "/runtime/", "/index.html", "/events.json",
+    "/walkthrough.json", "/capture-steps.json", "/.screenshots-temp/", "/.video-temp/"
+  ]);
   const session = await createCaptureSession({
     injectedPage,
     createSession,
     recordVideo,
-    recordDom,
+    recordDom: recordDom ? { ...recordDom, language: journey.language ?? recordDom.language } : false,
     secrets,
     outputDir
   });
@@ -180,7 +185,16 @@ export async function captureJourney(options = {}) {
       let assets = {};
       let moduleError;
       try {
+        await options.hooks?.beforeModule?.({ page, module, fixtures: options.fixtures });
+        for (const step of module.setup ?? []) {
+          await executeStep({ page, baseUrl: parsedBase.toString(), module, step, env, secrets });
+        }
+        await options.hooks?.beforeCapture?.({ page, module, fixtures: options.fixtures });
+        if (module.setup?.length || options.hooks?.beforeModule || options.hooks?.beforeCapture) {
+          await handle.restartRecording?.();
+        }
         for (const step of module.steps) {
+          const startRecorded = recordDom && shouldCapture ? await addDomStepEvent(page, step, "start", secrets) : true;
           const before = observer.snapshot();
           const screenshotBefore = step.annotation?.timing === "before" ||
             (step.annotation?.timing === undefined && hasAnnotatableTarget(step));
@@ -202,8 +216,14 @@ export async function captureJourney(options = {}) {
               module,
               step,
               env,
-              secrets
+              secrets,
+              onSettled: recordDom && shouldCapture ? async () => {
+                if (!startRecorded) await addDomStepEvent(page, step, "start", secrets);
+                await addDomStepEvent(page, step, "settled", secrets);
+              } : undefined
             });
+            await options.hooks?.afterStep?.({ page, module, step, fixtures: options.fixtures });
+            if (recordDom && shouldCapture) await addDomStepEvent(page, step, "end", secrets);
             if (screenshotOptions && shouldCapture && !screenshotBefore) {
               preparedScreenshot = await prepareStepScreenshot({
                 page,
@@ -261,6 +281,7 @@ export async function captureJourney(options = {}) {
       capturedModules.push({
         id: module.id,
         title: module.title,
+        setup: module.setup,
         route: module.route,
         steps: capturedSteps,
         observedRequests: moduleRequests,
@@ -277,6 +298,7 @@ export async function captureJourney(options = {}) {
     const generatedWalkthrough = buildWalkthrough({
       id: journey.id,
       title: journey.title,
+      language: journey.language,
       baseUrl: parsedBase.toString().replace(/\/$/, ""),
       goal,
       modules: capturedModules,
@@ -405,7 +427,7 @@ function isNavigationRace(error) {
 function collectEnvironmentNames(journey) {
   return [...new Set(
     journey.modules.flatMap((module) =>
-      module.steps.flatMap((step) => step.valueEnv ? [step.valueEnv] : [])
+      [...(module.setup ?? []), ...module.steps].flatMap((step) => step.valueEnv ? [step.valueEnv] : [])
     )
   )];
 }
@@ -422,12 +444,33 @@ function normalizeExecutableJourney(journey) {
     ...journey,
     modules: journey.modules.map((module) => ({
       ...module,
-      steps: module.steps.map((step) => ({
-        ...step,
-        target: step.target ?? parseSelector(step.selector)
-      }))
+      setup: module.setup?.map(normalizeStep),
+      steps: module.steps.map(normalizeStep)
     }))
   };
+}
+
+function normalizeStep(step) {
+  const condition = value => value ? { ...value, target: value.target ?? parseSelector(value.selector) } : undefined;
+  return { ...step, target: step.target ?? parseSelector(step.selector),
+    until: condition(step.until), expect: condition(step.expect) };
+}
+
+async function addDomStepEvent(page, step, phase, secrets) {
+  const payload = redactValue({ id: step.id, phase,
+    instruction: step.instruction ?? step.description, narration: step.narration ?? "" }, secrets);
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      return await page.evaluate(payload => {
+        if (!globalThis.rrwebRecord?.record?.addCustomEvent) return false;
+        globalThis.rrwebRecord.record.addCustomEvent("autotour:step", payload);
+        return true;
+      }, payload);
+    } catch (error) {
+      if (attempt === 4 || !/execution context was destroyed|cannot find context/i.test(error.message)) throw error;
+      await page.waitForTimeout(25);
+    }
+  }
 }
 
 function parseSelector(selector) {
@@ -441,6 +484,9 @@ function parseSelector(selector) {
   const indexMatch = / >> nth=(\d+)$/.exec(selector);
   const locatorSelector = indexMatch ? selector.slice(0, indexMatch.index) : selector;
   const index = indexMatch ? Number(indexMatch[1]) : undefined;
+  const attributes = index === undefined ? {} : { index };
+  if (locatorSelector.startsWith("css=")) return { css: locatorSelector.slice(4), ...attributes };
+  if (locatorSelector.startsWith("testid=")) return { testId: locatorSelector.slice(7), ...attributes };
   const roleMatch = /^role=([a-z][a-z0-9-]*)\[name=(.+)\]$/.exec(locatorSelector);
   const textMatch = /^text=(.+)$/.exec(locatorSelector);
   if (!roleMatch && !textMatch) {

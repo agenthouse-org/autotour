@@ -1,6 +1,10 @@
 import { normalizeDomPresentation } from "./presentation.js";
 
-export function buildReplayHtml({ moduleId, title, events, presentation }) {
+export function buildReplayHtml({ moduleId, title, events, presentation, language, autoplay = true, eventsScript = false }) {
+  const findLanguage = node => node?.tagName === "html" ? node.attributes?.lang : node?.childNodes?.map(findLanguage).find(Boolean);
+  language ??= findLanguage(events.find(event => event.type === 2)?.data?.node) ?? "en";
+  const de = language.toLowerCase().startsWith("de");
+  const labels = de ? { recorded: "Aufgezeichnete Produktführung – keine Live-Anwendung", play: "Abspielen", pause: "Pause", restart: "Neu starten", previous: "Vorheriger Schritt", next: "Nächster Schritt", timeline: "Zeitleiste", ready: "Bereit", playing: "Wiedergabe", paused: "Pausiert", complete: "Abgeschlossen", error: "Aufzeichnung konnte nicht geladen werden" } : { recorded: "Recorded walkthrough – not a live application", play: "Play replay", pause: "Pause replay", restart: "Restart replay", previous: "Previous step", next: "Next step", timeline: "Timeline", ready: "Ready", playing: "Playing", paused: "Paused", complete: "Complete", error: "Recording could not be loaded" };
   const eventJson = JSON.stringify(events).replaceAll("<", "\\u003c");
   const presentationJson = JSON.stringify(
     presentation ?? normalizeDomPresentation({})
@@ -9,17 +13,24 @@ export function buildReplayHtml({ moduleId, title, events, presentation }) {
   const safeModuleId = escapeHtml(moduleId);
 
   return `<!doctype html>
-<html lang="en">
+<html lang="${escapeHtml(language)}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; frame-src 'self' data: blob:; child-src 'self' data: blob:">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; frame-src 'self' data: blob:; child-src 'self' data: blob:">
   <title>${safeTitle} - AutoTour replay</title>
   <link rel="stylesheet" href="../../../runtime/rrweb-replay.css">
   <style>
     :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #0b0d0c; color: #f4f7f5; }
     * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; display: grid; grid-template-rows: auto 1fr; background: #0b0d0c; }
+    body { margin: 0; height: 100vh; display: grid; grid-template-rows: auto auto minmax(0,1fr); background: #0b0d0c; }
+    #timeline-controls { padding: 8px 16px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    #timeline { flex: 1; min-width: 80px; }
+    #step-caption { flex-basis: 100%; margin: 0; }
+    #replay { pointer-events: none; }
+    [hidden] { display: none !important; }
+    body[data-natural-size="true"] #canvas { width: max(100%, var(--natural-width)); height: auto; min-height: 100%; }
+    #natural-size { width: auto; padding: 0 10px; }
     header { min-height: 58px; display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-bottom: 1px solid #343936; background: #151816; }
     .identity { min-width: 0; flex: 1; }
     h1 { margin: 0; font-size: 16px; line-height: 1.25; font-weight: 650; }
@@ -30,7 +41,7 @@ export function buildReplayHtml({ moduleId, title, events, presentation }) {
     button:focus-visible { outline: 2px solid #8dff32; outline-offset: 2px; }
     #status { width: 58px; color: #b7c1bb; font-size: 12px; text-align: right; }
     main { min-width: 0; min-height: 0; overflow: auto; background: #050706; }
-    #canvas { min-width: 0; min-height: 100%; display: grid; place-items: center; padding: var(--canvas-padding); perspective: var(--motion-perspective); perspective-origin: center; }
+    #canvas { min-width: 0; height: 100%; box-sizing: border-box; display: grid; place-items: center; padding: var(--canvas-padding); perspective: var(--motion-perspective); perspective-origin: center; }
     #browser-frame { width: 100%; max-width: var(--frame-max-width); overflow: hidden; border-radius: var(--frame-radius); background: #0a0c0b; box-shadow: var(--frame-shadow); transform-style: preserve-3d; backface-visibility: hidden; }
     #window-bar { height: 38px; display: none; align-items: center; gap: 7px; padding: 0 13px; border-bottom: 1px solid #343936; background: #1b1f1c; }
     .window-dot { width: 10px; height: 10px; border-radius: 50%; background: #606a64; }
@@ -73,7 +84,7 @@ export function buildReplayHtml({ moduleId, title, events, presentation }) {
       to { transform: var(--motion-to); }
     }
     body[data-render="true"] { grid-template-rows: 1fr; }
-    body[data-render="true"] > header { display: none; }
+    body[data-render="true"] > header, body[data-render="true"] > #timeline-controls { display: none; }
     body[data-render="true"] main { height: 100vh; }
     @media (max-width: 680px) {
       header { flex-wrap: wrap; }
@@ -91,14 +102,21 @@ export function buildReplayHtml({ moduleId, title, events, presentation }) {
 </head>
 <body data-module-id="${safeModuleId}">
   <header>
-    <div class="identity"><h1>${safeTitle}</h1><p class="module">${safeModuleId}</p></div>
+    <div class="identity"><h1>${safeTitle}</h1><p class="module">${labels.recorded}</p></div>
     <div class="controls" aria-label="Replay controls">
-      <button id="play" type="button" aria-label="Play replay" title="Play">▶</button>
-      <button id="pause" type="button" aria-label="Pause replay" title="Pause">Ⅱ</button>
-      <button id="restart" type="button" aria-label="Restart replay" title="Restart">↺</button>
+      <button id="play" type="button" aria-label="${labels.play}" title="${labels.play}">▶</button>
+      <button id="pause" type="button" aria-label="${labels.pause}" title="${labels.pause}">Ⅱ</button>
+      <button id="restart" type="button" aria-label="${labels.restart}" title="${labels.restart}">↺</button>
     </div>
-    <span id="status" aria-live="polite">Ready</span>
+    <span id="status" aria-live="polite">${labels.ready}</span>
   </header>
+  <div id="timeline-controls">
+    <button id="previous-step" aria-label="${labels.previous}">‹</button>
+    <input id="timeline" type="range" min="0" value="0" step="10" aria-label="${labels.timeline}">
+    <button id="next-step" aria-label="${labels.next}">›</button>
+    <button id="natural-size" aria-pressed="false" aria-label="${de ? 'Originalgröße umschalten' : 'Toggle original size'}">1:1</button>
+    <span id="time"></span><p id="step-caption" aria-live="polite"></p>
+  </div>
   <main>
     <div id="canvas">
       <section id="browser-frame" aria-label="Presented walkthrough">
@@ -111,11 +129,14 @@ export function buildReplayHtml({ moduleId, title, events, presentation }) {
     </div>
   </main>
   <script src="../../../runtime/rrweb-replay.js"></script>
-  <script id="autotour-events" type="application/json">${eventJson}</script>
+  ${eventsScript ? '' : `<script id="autotour-events" type="application/json">${eventJson}</script>`}
   <script id="autotour-presentation" type="application/json">${presentationJson}</script>
   <script>
-    (() => {
-      const events = JSON.parse(document.getElementById("autotour-events").textContent);
+    (async () => {
+      const labels = ${JSON.stringify(labels)};
+      window.addEventListener("error", () => { document.getElementById("status").textContent = labels.error; });
+      window.addEventListener("unhandledrejection", () => { document.getElementById("status").textContent = labels.error; });
+      const events = ${eventsScript ? '(await fetch("events.json").then(response => { if (!response.ok) throw new Error("Events unavailable"); return response.json(); }))' : 'JSON.parse(document.getElementById("autotour-events").textContent)'};
       const presentation = JSON.parse(document.getElementById("autotour-presentation").textContent);
       const status = document.getElementById("status");
       const canvas = document.getElementById("canvas");
@@ -129,6 +150,8 @@ export function buildReplayHtml({ moduleId, title, events, presentation }) {
       const renderMode = new URLSearchParams(location.search).get("render") === "1";
       const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
       let focusTimer;
+      let naturalSize = false;
+      document.documentElement.style.setProperty("--natural-width", (replayWidth + presentation.padding * 2) + "px");
 
       document.body.dataset.frameMode = presentation.frame.mode;
       document.body.dataset.cursorVisible = String(presentation.cursor.visible);
@@ -199,7 +222,7 @@ export function buildReplayHtml({ moduleId, title, events, presentation }) {
           1,
           canvas.clientHeight - verticalPadding - chromeHeight
         );
-        const scale = Math.min(
+        const scale = naturalSize ? 1 : Math.min(
           1,
           frame.clientWidth / replayWidth,
           availableHeight / replayHeight
@@ -216,22 +239,53 @@ export function buildReplayHtml({ moduleId, title, events, presentation }) {
         showWarning: false,
         mouseTail: false
       });
+      document.getElementById("natural-size").addEventListener("click", event => {
+        naturalSize = !naturalSize;
+        document.body.dataset.naturalSize = String(naturalSize);
+        event.currentTarget.setAttribute("aria-pressed", String(naturalSize));
+        requestAnimationFrame(fitReplay);
+      });
+      const timeline = document.getElementById("timeline");
+      const caption = document.getElementById("step-caption");
+      const start = events[0]?.timestamp ?? 0;
+      const duration = Math.max(0, (events.at(-1)?.timestamp ?? start) - start);
+      const steps = events.filter(event => event.type === 5 && event.data?.tag === "autotour:step" && event.data.payload?.phase === "start");
+      timeline.max = String(duration);
+      const updatePosition = offset => {
+        timeline.value = String(offset);
+        document.getElementById("time").textContent = (offset / 1000).toFixed(1) + " / " + (duration / 1000).toFixed(1) + " s";
+        const index = steps.findLastIndex(event => event.timestamp - start <= offset);
+        caption.textContent = index < 0 ? "" : (index + 1) + " / " + steps.length + " · " + steps[index].data.payload.instruction + (steps[index].data.payload.narration ? " — " + steps[index].data.payload.narration : "");
+      };
+      const seek = offset => { resetFocus(); replayer.pause(offset); status.textContent = labels.paused; updatePosition(offset); };
+      timeline.addEventListener("input", () => seek(Number(timeline.value)));
+      document.getElementById("previous-step").disabled = !steps.length;
+      document.getElementById("next-step").disabled = !steps.length;
+      document.getElementById("previous-step").addEventListener("click", () => {
+        const event = steps.findLast(event => event.timestamp - start < Number(timeline.value) - 20) ?? steps[0];
+        if (event) seek(event.timestamp - start);
+      });
+      document.getElementById("next-step").addEventListener("click", () => {
+        const event = steps.find(event => event.timestamp - start > Number(timeline.value) + 20);
+        if (event) seek(event.timestamp - start);
+      });
+      setInterval(() => updatePosition(Math.min(duration, replayer.getCurrentTime())), 200);
       replayer.on("event-cast", (event) => {
         if (event.type === 3 && event.data?.source === 2 && event.data?.type === 2) focusClick(event);
       });
-      const play = (offset) => { replayer.play(offset); status.textContent = "Playing"; };
+      const play = (offset) => { replayer.play(offset); status.textContent = labels.playing; };
       document.getElementById("play").addEventListener("click", () => play());
       document.getElementById("pause").addEventListener("click", () => {
-        replayer.pause(); resetFocus(); status.textContent = "Paused";
+        replayer.pause(); resetFocus(); status.textContent = labels.paused;
       });
       document.getElementById("restart").addEventListener("click", () => {
         resetFocus(); replayer.pause(0); play(0);
       });
       replayer.on("finish", () => {
         resetFocus();
-        status.textContent = "Complete";
+        status.textContent = labels.complete;
         if (window.parent !== window) {
-          window.parent.postMessage({ type: "autotour:module-finished", moduleId: ${JSON.stringify(moduleId)} }, "*");
+          window.parent.postMessage({ type: "autotour:module-finished", moduleId: ${JSON.stringify(moduleId).replaceAll("<", "\\u003c")} }, location.origin === "null" ? "*" : location.origin);
         }
       });
       const resizeObserver = new ResizeObserver(fitReplay);
@@ -239,7 +293,14 @@ export function buildReplayHtml({ moduleId, title, events, presentation }) {
       resizeObserver.observe(canvas);
       reducedMotion.addEventListener("change", resetFocus);
       requestAnimationFrame(() => {
-        fitReplay(); play(0); document.body.dataset.autoplay = "started";
+        fitReplay();
+        const query = new URLSearchParams(location.search);
+        const checkpoint = events.find(event => event.type === 5 && event.data?.tag === "autotour:step" && event.data.payload?.id === query.get("step") && event.data.payload?.phase === "settled");
+        if (checkpoint && !renderMode) {
+          seek(checkpoint.timestamp - start); document.body.dataset.autoplay = "disabled";
+        } else if (renderMode || (${JSON.stringify(autoplay)} && !reducedMotion.matches && query.get("autoplay") !== "0")) {
+          play(0); document.body.dataset.autoplay = "started";
+        } else { seek(0); document.body.dataset.autoplay = "disabled"; }
       });
     })();
   </script>

@@ -15,7 +15,7 @@ Start with your role and the result you need; the agent handles the capture setu
 | Support or enablement: a visual how-to | “Document this task with annotated screenshots and a replay.” | Ordered PNGs and optional DOM replay. |
 | Engineering: keep a tour current | “Check which modules changed and regenerate only those.” | Dependency-aware invalidation and selective regeneration. |
 
-The agent starts with a brief planning conversation, asks only about missing choices, and confirms the deliverable before recording. See [role-based onboarding and commands](docs/onboarding.md), including Confluence embedding limits and optional authoring tools.
+The agent starts with a brief planning conversation, asks only about missing choices, and confirms the deliverable before recording or generating any artifact. A language, file format, and product name alone are not sufficient scope; Word and other office-document requests still require the underlying journey, audience, source environment, and permitted access to be confirmed. See [role-based onboarding and commands](docs/onboarding.md), including Confluence embedding limits and optional authoring tools.
 
 ## Modular video capture
 
@@ -43,6 +43,8 @@ Generated videos remain under the ignored `.autotour/output/` directory by defau
 Journey steps should prefer accessible role/name targets. When a page intentionally exposes duplicate controls with the same accessible name, set a zero-based `target.index` to choose one explicitly; AutoTour preserves that choice in the generated walkthrough selector as `>> nth=<index>`.
 
 ## Annotated screenshot capture
+
+For deterministic setup, CSS/test-ID targets, scoped stability waits, expected results, narration, replay seeking, privacy controls, local preview and ignored consumer outputs, see [Reliable tours](docs/reliable-tours.md).
 
 Set `recordScreenshots` to generate one deterministic PNG for every journey step. Role/name targets receive the configured highlight, numbered callout, and caption; navigation and other untargeted steps capture the resulting page state.
 
@@ -189,9 +191,12 @@ The documentation definition can declare multiple targets and keep the journey a
 
 Run any subset after capturing or regenerating the walkthrough, or omit `--walkthrough` to let AutoTour capture the definition automatically:
 
+First ask where artifacts and documentation should live (this repository or elsewhere), whether each should be versioned, and whether to modify `.gitignore`. Save those answers with `configure-storage`. For example, **only after approval** for local output and ignore edits:
+
 ```sh
+autotour configure-storage --output .autotour/output --documentation-output .autotour/output/documentation --artifacts local --documentation local --gitignore modify
 autotour run-docs .autotour/documentation.json \
-  --target markdown,html --mode create --output-dir .
+  --target markdown,html --mode create
 ```
 
 Automatic capture selects screenshot recording for screenshot blocks and DOM replay for video/replay blocks. Mixed capture modes still use separate capture runs and an explicit walkthrough manifest.

@@ -1,4 +1,5 @@
 import { CaptureError } from "./errors.js";
+import { waitForCondition } from "./conditions.js";
 
 /**
  * Resolve a Playwright locator from a role/name target contract.
@@ -7,12 +8,16 @@ import { CaptureError } from "./errors.js";
  */
 export function resolveTarget(page, target) {
   let locator;
-  if (typeof target?.text === "string" && target.text.length > 0) {
+  if (typeof target?.css === "string" && target.css.length > 0) {
+    locator = page.locator(target.css);
+  } else if (typeof target?.testId === "string" && target.testId.length > 0) {
+    locator = page.getByTestId(target.testId);
+  } else if (typeof target?.text === "string" && target.text.length > 0) {
     locator = page.getByText(target.text, { exact: true });
   } else if (target?.role && target?.name) {
     locator = page.getByRole(target.role, { name: target.name, exact: true });
   } else {
-    throw new Error("target requires role/name or exact text");
+    throw new Error("target requires role/name, exact text, css, or testId");
   }
   if (target.index === undefined) return locator;
   if (!Number.isInteger(target.index) || target.index < 0) {
@@ -58,9 +63,18 @@ export function resolveStepValue(step, env, secrets, context) {
  * @param {NodeJS.ProcessEnv} options.env
  * @param {Iterable<string>} options.secrets
  */
-export async function executeStep({ page, baseUrl, module, step, env, secrets }) {
+export async function executeStep({ page, baseUrl, module, step, env, secrets, onSettled }) {
   const context = { moduleId: module.id, stepId: step.id };
   try {
+    if (["click", "fill", "select"].includes(step.action)) {
+      const locator = resolveTarget(page, step.target);
+      if (typeof locator.count === "function") {
+        if (step.optional && await locator.count() === 0) return;
+        await locator.first().waitFor({ state: "attached", timeout: step.timeoutMs ?? 10000 });
+        const count = await locator.count();
+        if (count !== 1) throw new Error(`Target is not unique: ${count} elements found. Use a stable identifier or a scoped selector.`);
+      }
+    }
     switch (step.action) {
       case "goto": {
         const path = step.path ?? module.route;
@@ -108,14 +122,17 @@ export async function executeStep({ page, baseUrl, module, step, env, secrets })
       }
       case "scroll": {
         const scroll = normalizeScroll(step.scroll);
-        await page.evaluate(async ({ mode, x, y, durationMs }) => {
-          const startX = window.scrollX;
-          const startY = window.scrollY;
+        const runScroll = async (element, options) => {
+          if (!options) { options = element; element = null; }
+          const { mode, x, y, durationMs } = options;
+          const surface = element ?? window;
+          const startX = element ? element.scrollLeft : window.scrollX;
+          const startY = element ? element.scrollTop : window.scrollY;
           const targetX = mode === "by" ? startX + x : x;
           const targetY = mode === "by" ? startY + y : y;
 
           if (durationMs === 0) {
-            window.scrollTo(targetX, targetY);
+            surface.scrollTo(targetX, targetY);
             return;
           }
 
@@ -126,7 +143,7 @@ export async function executeStep({ page, baseUrl, module, step, env, secrets })
               const eased = progress < 0.5
                 ? 2 * progress * progress
                 : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-              window.scrollTo(
+              surface.scrollTo(
                 startX + (targetX - startX) * eased,
                 startY + (targetY - startY) * eased
               );
@@ -135,11 +152,18 @@ export async function executeStep({ page, baseUrl, module, step, env, secrets })
             };
             requestAnimationFrame(tick);
           });
-        }, scroll);
+        };
+        if (step.target) {
+          await resolveTarget(page, step.target).evaluate(runScroll, scroll);
+        } else {
+          await page.evaluate(runScroll, scroll);
+        }
         break;
       }
       case "wait": {
-        if (step.target) {
+        if (step.until) {
+          await waitForCondition(page, step.until);
+        } else if (step.target) {
           const timeoutMs = normalizeDuration(step.timeoutMs ?? 5000, "wait timeoutMs", {
             minimum: 1
           });
@@ -177,6 +201,11 @@ export async function executeStep({ page, baseUrl, module, step, env, secrets })
       }
       default:
         throw new Error(`unknown action ${step.action}`);
+    }
+    if (step.expect) await waitForCondition(page, step.expect);
+    await onSettled?.();
+    if (step.pauseAfterMs !== undefined) {
+      await page.waitForTimeout(normalizeDuration(step.pauseAfterMs, "pauseAfterMs", { minimum: 0 }));
     }
   } catch (error) {
     if (error instanceof CaptureError) {

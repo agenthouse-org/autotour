@@ -1,4 +1,4 @@
-export { createProjectConfig, validateWalkthrough } from "./project.js";
+export { createProjectConfig, validateWalkthrough, configureStorage, readStorageConfiguration } from "./project.js";
 export {
   captureJourney,
   CaptureError,
@@ -32,3 +32,5 @@ export {
   documentationSchemaPath, validateDocumentationSpec, readDocumentationSpec, prepareDocumentationCapture
 } from "./documentation/spec.js";
 export { generateDocumentation } from "./documentation/generate.js";
+export { createTourReview, openTourReview, reviewView, tourReport, applyReviewAction } from "./review/workflow.js";
+export { startTourReview } from "./review/server.js";

@@ -19,6 +19,17 @@ npm-debug.log*
 .autotour/cache/
 .autotour/output/
 .autotour/auth/
+.*.autotour-stage-*/
+.*.autotour-backup-*/
+/.screenshots-temp/
+/.video-temp/
 .env
 .env.*
 !.env.example
+
+# Local browser/test reports and package build output
+/coverage/
+/playwright-report/
+/test-results/
+/dist/
+/build/

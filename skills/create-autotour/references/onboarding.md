@@ -11,6 +11,8 @@
 
 ## Marketing clip
 
+For every route below, settle storage before creating artifacts: ask for working-output and final-documentation folders, whether documentation belongs in this repository or elsewhere, and whether each output is local or versioned. Offer ignore-file changes separately and save the user's answers with `configure-storage`. An example `docs/` path is not consent. Recommend `.autotour/output/` for working files; do not silently pick a delivery folder.
+
 For “I am a marketing manager and need a short clip for LinkedIn,” ask about audience, one product message, organic post versus paid ad, duration and exactness, aspect ratio, quality, cursor, zoom, and motion. Reuse supplied answers. Offer a restrained AutoTour showcase or optional motion-ad for a storyboard, typography, and call to action. Verify current destination specifications before choosing export format. AutoTour produces WebM; conversion to another format requires external tooling. Review the final artifact at delivery size and measure duration; posting is a separate authorized action.
 
 ## Product tour for Confluence

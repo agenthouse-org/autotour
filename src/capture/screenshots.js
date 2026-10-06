@@ -50,7 +50,7 @@ export function normalizeScreenshotOptions(value, secrets = []) {
 
 export function hasAnnotatableTarget(step) {
   const target = step.annotation?.target ?? step.target;
-  return typeof target?.role === "string" && typeof target?.name === "string";
+  return !!(target && ((target.role && target.name) || target.css || target.testId || target.text));
 }
 
 export async function prepareStepScreenshot({

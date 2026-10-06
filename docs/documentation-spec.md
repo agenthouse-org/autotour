@@ -1,11 +1,11 @@
 # Define how your documentation looks
 
-Keep the definition in the application repository:
+Keep the definition in the configured source location. Ask where final documentation belongs before generation; repository `docs/` is not a default:
 
 ```text
 .autotour/autotour.json       project configuration
 .autotour/documentation.json section layout, journeys, dependencies, targets
-docs/product.md              published Markdown with generated regions
+.autotour/output/            proposed working folder, subject to user choice
 ```
 
 `autotour init` points new configuration at `.autotour/documentation.json`; it does not invent a brief or journey. Existing configuration remains compatible. Agents author the specification after planning with the user. A definition can reference separate journey/map files for compatibility or include them inline for a single-file project contract.
@@ -14,18 +14,18 @@ Targets can be declared together and selected per run:
 
 ```json
 "targets": [
-  { "kind": "markdown", "path": "../docs/product.md" },
-  { "kind": "html", "path": "../site/index.html", "mode": "single-file" },
+  { "kind": "markdown", "path": "product.md" },
+  { "kind": "html", "path": "site/index.html", "mode": "single-file" },
   { "kind": "confluence", "siteUrl": "https://your-site.atlassian.net", "pageId": "12345" }
 ]
 ```
 
-Generate any subset from an existing walkthrough manifest:
+Ask whether captures and documentation are local or versioned, offer ignore changes separately, then save the choices with `configure-storage`. Paths above are relative to the chosen documentation-output folder, which may be inside or outside this repository. Generate any subset from an existing walkthrough manifest:
 
 ```sh
 npx autotour run-docs .autotour/documentation.json \
   --walkthrough .autotour/output/product/walkthrough.json \
-  --target markdown,html --mode adapt --output-dir .
+  --target markdown,html --mode adapt
 ```
 
 Markdown and HTML are written locally. Confluence produces a section patch plan; applying it still requires an authenticated connected publisher and explicit authorization.

@@ -48,6 +48,7 @@ export async function validateWalkthroughDocument(document) {
 export function buildWalkthrough({
   id,
   title,
+  language,
   baseUrl,
   goal,
   modules,
@@ -59,6 +60,7 @@ export function buildWalkthrough({
     schemaVersion: 1,
     id,
     title,
+    ...(language ? { language } : {}),
     target: {
       baseUrl,
       goal
@@ -70,6 +72,7 @@ export function buildWalkthrough({
       title: module.title,
       route: module.route,
       publish: module.publish ?? true,
+      ...(module.setup ? { setup: module.setup.map(serializeStep) } : {}),
       steps: module.steps.map((step) => {
         /** @type {Record<string, unknown>} */
         const entry = {
@@ -77,7 +80,11 @@ export function buildWalkthrough({
           action: step.action,
           description: step.description
         };
-        if (step.target?.name) {
+        if (step.target?.css) {
+          entry.selector = `css=${step.target.css}${formatTargetIndex(step.target)}`;
+        } else if (step.target?.testId) {
+          entry.selector = `testid=${step.target.testId}${formatTargetIndex(step.target)}`;
+        } else if (step.target?.name) {
           entry.selector = `role=${step.target.role}[name=${JSON.stringify(step.target.name)}]${formatTargetIndex(step.target)}`;
         } else if (step.target?.text) {
           entry.selector = `text=${JSON.stringify(step.target.text)}${formatTargetIndex(step.target)}`;
@@ -123,9 +130,7 @@ export function buildCaptureSteps(modules, secrets = []) {
         }
       };
       if (step.target) {
-        const target = step.target.text
-          ? { text: step.target.text }
-          : { role: step.target.role, name: step.target.name };
+        const target = { ...step.target };
         if (step.target.index !== undefined) target.index = step.target.index;
         entry.target = target;
       }
@@ -157,7 +162,7 @@ export async function writeCaptureArtifacts(outputDir, walkthrough, captureSteps
 export { schemaPath };
 
 function copyActionDetails(entry, step) {
-  for (const key of ["path", "value", "durationMs", "timeoutMs", "url", "state"]) {
+  for (const key of ["path", "value", "durationMs", "timeoutMs", "url", "state", "instruction", "narration", "pauseAfterMs", "until", "expect", "optional"]) {
     if (step[key] !== undefined) entry[key] = step[key];
   }
   if (step.scroll) {
@@ -168,6 +173,14 @@ function copyActionDetails(entry, step) {
       durationMs: step.scroll.durationMs ?? 0
     };
   }
+}
+
+function serializeStep(step) {
+  const entry = { id: step.id, action: step.action, description: step.description };
+  if (step.target) entry.target = step.target;
+  if (step.valueEnv) entry.valueEnv = step.valueEnv;
+  copyActionDetails(entry, step);
+  return entry;
 }
 
 function mergeDependencies(existing = {}, observedRequests = []) {

@@ -21,7 +21,7 @@ Before an npm release is available, use a reviewed checkout of this repository: 
 
 Install this repository through the host's supported local/Git plugin flow, or load `skills/create-autotour/SKILL.md` directly. The canonical package has root `plugin.json`, `skills/`, and `mcp.json`; `.codex-plugin`, `.claude-plugin`, and `.cursor` contain compatibility metadata. Verify the skill appears before claiming activation; follow any host-required reload/new-turn instructions.
 
-Start with: “Create a short LinkedIn clip,” “Create a Confluence DOM tour,” or “Check whether this PR changes documented behavior.” Plan with the user before capture. Keep credentials in environment variables and outputs under ignored `.autotour/output/` paths.
+Start with: “Create a short LinkedIn clip,” “Create a Confluence DOM tour,” or “Check whether this PR changes documented behavior.” The first response must be a planning exchange unless the user has already supplied a complete brief and explicitly authorized execution; do not create a document or capture merely because a language, format, and product were named. Keep credentials in environment variables and outputs under ignored `.autotour/output/` paths.
 
 ## 4. Connect the requested services
 

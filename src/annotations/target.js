@@ -1,4 +1,5 @@
 import { AnnotationErrorCode, createAnnotationError } from "./errors.js";
+import { resolveTarget } from "../capture/execute.js";
 
 /**
  * @typedef {{ role: string, name: string, index?: number }} RoleNameTarget
@@ -20,6 +21,12 @@ export function normalizeRoleNameTarget(target) {
   const role = /** @type {{ role?: unknown, name?: unknown }} */ (target).role;
   const name = /** @type {{ role?: unknown, name?: unknown }} */ (target).name;
   const index = /** @type {{ index?: unknown }} */ (target).index;
+  for (const key of ["css", "testId", "text"]) {
+    if (typeof target[key] === "string" && target[key].trim()) {
+      if (index !== undefined && (!Number.isInteger(index) || index < 0)) throw new Error("target index must be non-negative");
+      return { [key]: target[key], ...(index === undefined ? {} : { index }) };
+    }
+  }
   if (typeof role !== "string" || role.trim().length === 0) {
     throw createAnnotationError(
       AnnotationErrorCode.INVALID_INPUT,
@@ -54,10 +61,7 @@ export function normalizeRoleNameTarget(target) {
  */
 export async function locateByRoleName(page, target, context = {}) {
   const normalized = normalizeRoleNameTarget(target);
-  const locator = page.getByRole(/** @type {import('playwright').ARIARole} */ (normalized.role), {
-    name: normalized.name,
-    exact: true
-  });
+  const locator = resolveTarget(page, { ...normalized, index: undefined });
   const count = await locator.count();
   if (normalized.index !== undefined) {
     if (count <= normalized.index) {

@@ -10,6 +10,7 @@
     "schemaVersion": { "const": 1 },
     "id": { "$ref": "#/$defs/id" },
     "title": { "type": "string", "minLength": 1 },
+    "language": { "type": "string", "pattern": "^[a-zA-Z]{2,8}(-[a-zA-Z0-9]{1,8})*$" },
     "target": {
       "type": "object",
       "additionalProperties": false,
@@ -33,6 +34,37 @@
     }
   },
   "$defs": {
+    "target": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "role": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "text": { "type": "string", "minLength": 1 },
+        "css": { "type": "string", "minLength": 1 },
+        "testId": { "type": "string", "minLength": 1 },
+        "index": { "type": "integer", "minimum": 0 }
+      },
+      "oneOf": [
+        { "properties": { "role": {}, "name": {} }, "required": ["role", "name"] },
+        { "properties": { "text": {} }, "required": ["text"] },
+        { "properties": { "css": {} }, "required": ["css"] },
+        { "properties": { "testId": {} }, "required": ["testId"] }
+      ]
+    },
+    "condition": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "selector": { "type": "string", "minLength": 1 },
+        "target": { "$ref": "#/$defs/target" },
+        "state": { "enum": ["attached", "detached", "visible", "hidden"] },
+        "count": { "type": "integer", "minimum": 0 },
+        "minimumCount": { "type": "integer", "minimum": 0 },
+        "text": { "type": "string" },
+        "networkIdle": { "type": "boolean" },
+        "stableForMs": { "type": "integer", "minimum": 0, "maximum": 30000 },
+        "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 30000 }
+      }
+    },
     "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
     "stringList": {
       "type": "array",
@@ -57,6 +89,13 @@
         "id": { "$ref": "#/$defs/id" },
         "action": { "enum": ["goto", "click", "fill", "select", "scroll", "assert", "wait"] },
         "description": { "type": "string", "minLength": 1 },
+        "target": { "$ref": "#/$defs/target" },
+        "instruction": { "type": "string" },
+        "optional": { "type": "boolean" },
+        "narration": { "type": "string" },
+        "pauseAfterMs": { "type": "integer", "minimum": 0, "maximum": 30000 },
+        "until": { "$ref": "#/$defs/condition" },
+        "expect": { "$ref": "#/$defs/condition" },
         "selector": { "type": "string", "minLength": 1 },
         "path": { "type": "string", "minLength": 1 },
         "value": { "type": "string" },
@@ -92,6 +131,7 @@
           "minItems": 1,
           "items": { "$ref": "#/$defs/step" }
         },
+        "setup": { "type": "array", "items": { "$ref": "#/$defs/step" } },
         "dependencies": { "$ref": "#/$defs/dependencies" },
         "assets": {
           "type": "object",

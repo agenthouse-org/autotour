@@ -25,7 +25,7 @@
         "developerName": "Valerio Neri",
         "category": "Developer Tools",
         "capabilities": [],
-        "defaultPrompt": "Help me create a product clip, HTML DOM tour, or visual how-to for this web application. Ask about the audience, destination, duration, cursor, zoom, and motion before recording."
+      "defaultPrompt": "Help me plan a product clip, HTML DOM tour, or visual how-to for this web application. Before creating, capturing, exporting, or publishing anything, ask for the audience, exact task or journey, application URL/environment, permitted access, destination and format, and any relevant duration, cursor, zoom, or motion choices. Treat requests for Word or other office documents as incomplete until the content scope is confirmed."
       }
     }
   }

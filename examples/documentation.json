@@ -6,7 +6,7 @@
   "dependencyMap": "documentation-dependencies.json",
   "audience": "Product users updating their profile",
   "viewport": { "width": 1280, "height": 720 },
-  "destination": { "kind": "markdown", "path": "../docs/profile.md" },
+  "destination": { "kind": "markdown", "path": "profile.md" },
   "sections": [{
     "moduleId": "profile-settings",
     "heading": "Profile Settings",

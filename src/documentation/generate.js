@@ -9,7 +9,11 @@ export async function generateDocumentation({ spec, specPath, walkthrough, walkt
   if (!selected.length) throw new Error("No documentation targets were selected.");
   const manifestFile = walkthroughFile ? path.resolve(walkthroughFile) : (specPath ? path.resolve(specPath) : process.cwd());
   const manifestDir = path.dirname(manifestFile);
-  const root = path.resolve(outputRoot ?? manifestDir);
+  const root = path.resolve(outputRoot ?? ".autotour/output/documentation");
+  // Preflight every destination before copying assets or writing any target.
+  for (const target of selected) {
+    if (target.path) resolveTarget(root, target.path);
+  }
   const results = [];
   for (const target of selected) {
     if (target.kind === "markdown") results.push(await generateMarkdown({ spec, walkthrough, target, manifestDir, root, mode }));
@@ -81,7 +85,14 @@ async function renderBlocks({ section, walkthrough, manifestDir, assetsDir, docu
   return output;
 }
 
-function resolveTarget(root, target) { return path.resolve(root, target); }
+function resolveTarget(root, target) {
+  const destination = path.resolve(root, target);
+  const relative = path.relative(root, destination);
+  if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    throw new Error("Documentation target escapes the chosen output folder; ask the user and configure that destination first.");
+  }
+  return destination;
+}
 function adaptMarkdown(existing, generated) {
   let result = existing;
   for (const item of generated) {

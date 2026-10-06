@@ -38,7 +38,7 @@ export function normalizeDomPresentation(value, secrets = []) {
     cursor: {
       visible: booleanOption(cursor.visible ?? true, "cursor.visible", secrets),
       scale: numberOption(cursor.scale ?? 1, 1, 3, "cursor.scale", secrets),
-      moveDurationMs: integerOption(cursor.moveDurationMs ?? 650, 0, 2000, "cursor.moveDurationMs", secrets),
+      moveDurationMs: integerOption(cursor.moveDurationMs ?? 0, 0, 2000, "cursor.moveDurationMs", secrets),
       clickPulse: booleanOption(cursor.clickPulse ?? true, "cursor.clickPulse", secrets),
       clickDurationMs: integerOption(cursor.clickDurationMs ?? 700, 100, 2000, "cursor.clickDurationMs", secrets)
     },

@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { chromium } from "playwright";
 import { buildReplayHtml } from "./player.js";
 import { normalizeDomPresentation } from "./presentation.js";
@@ -8,6 +9,7 @@ import { ensureReplayRuntime, loadRecorderBundle } from "./runtime.js";
 export async function openPlaywrightDomSession(options, outputDir, secrets = []) {
   const presentation = normalizeDomPresentation(options.presentation, secrets);
   const recorderBundle = await loadRecorderBundle();
+  const recorderBootstrap = buildRecorderBootstrap(recorderBundle, options.redaction);
   await ensureReplayRuntime(outputDir);
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
@@ -31,11 +33,19 @@ export async function openPlaywrightDomSession(options, outputDir, secrets = [])
       await page.exposeBinding("__autotourRrwebEmit", (_source, event) => {
         events.push(event);
       });
-      await page.addInitScript({ content: buildRecorderBootstrap(recorderBundle) });
+      await page.addInitScript({ content: recorderBootstrap });
       let closed = false;
 
       return {
         page,
+        async restartRecording() {
+          await page.evaluate(async () => {
+            globalThis.__autotourRrwebStop?.();
+            await Promise.allSettled([...(globalThis.__autotourRrwebPending ?? [])]);
+          });
+          events.length = 0;
+          await page.evaluate(() => globalThis.__autotourRrwebStart());
+        },
         async close() {
           if (closed) return {};
           closed = true;
@@ -46,7 +56,7 @@ export async function openPlaywrightDomSession(options, outputDir, secrets = [])
             throw new Error(`DOM capture for module ${module.id} has no full snapshot.`);
           }
 
-          const serialized = `${JSON.stringify(events, null, 2)}\n`;
+          const serialized = `${JSON.stringify(events)}\n`;
           for (const secret of secrets) {
             if (secret && serialized.includes(secret)) {
               throw new Error(`DOM capture for module ${module.id} contains a protected value.`);
@@ -59,9 +69,23 @@ export async function openPlaywrightDomSession(options, outputDir, secrets = [])
           const eventsPath = path.join(moduleDirectory, "events.json");
           await mkdir(moduleDirectory, { recursive: true });
           await writeFile(eventsPath, serialized, "utf8");
+          const privacy = {
+            emailOccurrences: (serialized.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) ?? []).length,
+            localUrlOccurrences: (serialized.match(/https?:\/\/(?:localhost|127\.0\.0\.1)(?=[:/])/g) ?? []).length,
+            note: "Heuristic counts only; inspect recorded content before sharing. No matching values are included."
+          };
+          await writeFile(path.join(moduleDirectory, "capture-report.json"), JSON.stringify({
+            eventCount: events.length, eventBytes: Buffer.byteLength(serialized),
+            durationMs: events.at(-1).timestamp - events[0].timestamp,
+            privacy, capturedAt: new Date().toISOString(),
+            moduleHash: createHash("sha256").update(JSON.stringify(module)).digest("hex")
+          }, null, 2) + "\n");
           await writeFile(playerPath, `${buildReplayHtml({
             moduleId: module.id,
             title: module.title,
+            language: options.language,
+            autoplay: options.autoplay ?? true,
+            eventsScript: options.inlineEvents === false,
             events,
             presentation
           })}\n`, "utf8");
@@ -81,11 +105,15 @@ export async function openPlaywrightDomSession(options, outputDir, secrets = [])
   };
 }
 
-function buildRecorderBootstrap(bundle) {
+function buildRecorderBootstrap(bundle, redaction = {}) {
+  for (const key of ["blockSelector", "maskTextSelector"]) {
+    if (redaction[key] !== undefined && typeof redaction[key] !== "string") throw new Error(`redaction.${key} must be a CSS selector string`);
+  }
   return `${bundle}\n;(() => {
     if (globalThis.top !== globalThis) return;
     const pending = new Set();
     globalThis.__autotourRrwebPending = pending;
+    globalThis.__autotourRrwebStart = () => {
     globalThis.__autotourRrwebStop = globalThis.rrwebRecord.record({
       emit(event) {
         const promise = globalThis.__autotourRrwebEmit(event);
@@ -93,11 +121,15 @@ function buildRecorderBootstrap(bundle) {
         promise.finally(() => pending.delete(promise));
       },
       maskAllInputs: true,
+      blockSelector: ${JSON.stringify(redaction.blockSelector ?? "[data-autotour-private]")},
+      maskTextSelector: ${JSON.stringify(redaction.maskTextSelector ?? "[data-autotour-mask]")},
       inlineStylesheet: true,
       inlineImages: true,
       recordCanvas: false,
       collectFonts: true
     });
+    };
+    globalThis.__autotourRrwebStart();
   })();`;
 }
 
