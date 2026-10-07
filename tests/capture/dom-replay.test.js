@@ -153,12 +153,12 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
     assert.ok(headingBox.height >= 20);
     const frameText = await frameBody.textContent();
     assert.match(frameText, /Sign in|Profile settings/);
-    const replayLogo = frameBody.getByRole("img", { name: "AutoTour" });
-    // The replay remains deterministic even when the runner has not decoded
-    // the inline SVG before the animation advances. Verify the recorded asset
-    // is present without coupling the capture test to image decode timing.
-    await replayLogo.waitFor({ state: "attached", timeout: 30000 });
-    assert.match(await replayLogo.getAttribute("src"), /^data:image\//);
+    // Autoplay may already have advanced from the sign-in checkpoint (which
+    // contains the logo) to the profile checkpoint (which does not). Verify
+    // the logo asset in the recorded event stream instead of coupling the
+    // assertion to the current playback position.
+    assert.match(eventsText, /AutoTour/);
+    assert.match(eventsText, /data:image\/(?:svg\+xml|png);/);
 
     await page.locator("body[data-focus-active='true']").waitFor({ timeout: 5000 });
     const firstFocusPoint = await page.locator("body").getAttribute("data-focus-point");
