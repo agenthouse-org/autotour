@@ -106,6 +106,10 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
       assert.match(eventsText, /data:image\/png;base64/);
     }
   }
+  const signInEventsText = await readFile(
+    path.join(outputDir, "modules", "sign-in", "dom", "events.json"),
+    "utf8"
+  );
 
   const replayServer = await startStaticServer(outputDir);
   const browser = await chromium.launch({ headless: true });
@@ -157,8 +161,8 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
     // contains the logo) to the profile checkpoint (which does not). Verify
     // the logo asset in the recorded event stream instead of coupling the
     // assertion to the current playback position.
-    assert.match(eventsText, /AutoTour/);
-    assert.match(eventsText, /data:image\/(?:svg\+xml|png);/);
+    assert.match(signInEventsText, /AutoTour/);
+    assert.match(signInEventsText, /data:image\/(?:svg\+xml|png);/);
 
     await page.locator("body[data-focus-active='true']").waitFor({ timeout: 5000 });
     const firstFocusPoint = await page.locator("body").getAttribute("data-focus-point");
