@@ -1,6 +1,6 @@
 import { normalizeDomPresentation } from "./presentation.js";
 
-export function buildReplayHtml({ moduleId, title, events, presentation, language, autoplay = true, eventsScript = false }) {
+export function buildReplayHtml({ moduleId, title, events, presentation, language, autoplay = true, eventsScript = false, compressedEvents = false }) {
   const findLanguage = node => node?.tagName === "html" ? node.attributes?.lang : node?.childNodes?.map(findLanguage).find(Boolean);
   language ??= findLanguage(events.find(event => event.type === 2)?.data?.node) ?? "en";
   const de = language.toLowerCase().startsWith("de");
@@ -136,7 +136,9 @@ export function buildReplayHtml({ moduleId, title, events, presentation, languag
       const labels = ${JSON.stringify(labels)};
       window.addEventListener("error", () => { document.getElementById("status").textContent = labels.error; });
       window.addEventListener("unhandledrejection", () => { document.getElementById("status").textContent = labels.error; });
-      const events = ${eventsScript ? '(await fetch("events.json").then(response => { if (!response.ok) throw new Error("Events unavailable"); return response.json(); }))' : 'JSON.parse(document.getElementById("autotour-events").textContent)'};
+      const events = ${eventsScript ? (compressedEvents
+    ? '(await fetch("events.json.gz").then(async response => { if (!response.ok) throw new Error("Events unavailable"); if (typeof DecompressionStream !== "function") throw new Error("This browser cannot open compressed replay events"); return new Response(response.body.pipeThrough(new DecompressionStream("gzip"))).json(); }))'
+    : '(await fetch("events.json").then(response => { if (!response.ok) throw new Error("Events unavailable"); return response.json(); }))') : 'JSON.parse(document.getElementById("autotour-events").textContent)'};
       const presentation = JSON.parse(document.getElementById("autotour-presentation").textContent);
       const status = document.getElementById("status");
       const canvas = document.getElementById("canvas");

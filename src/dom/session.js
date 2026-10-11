@@ -1,10 +1,14 @@
 import { mkdir, writeFile } from "node:fs/promises";
+import { gzip } from "node:zlib";
+import { promisify } from "node:util";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { chromium } from "playwright";
 import { buildReplayHtml } from "./player.js";
 import { normalizeDomPresentation } from "./presentation.js";
 import { ensureReplayRuntime, loadRecorderBundle } from "./runtime.js";
+
+const gzipAsync = promisify(gzip);
 
 export async function openPlaywrightDomSession(options, outputDir, secrets = []) {
   const presentation = normalizeDomPresentation(options.presentation, secrets);
@@ -66,16 +70,18 @@ export async function openPlaywrightDomSession(options, outputDir, secrets = [])
           const relativePlayerPath = path.posix.join("modules", module.id, "dom", "index.html");
           const moduleDirectory = path.join(outputDir, "modules", module.id, "dom");
           const playerPath = path.join(moduleDirectory, "index.html");
-          const eventsPath = path.join(moduleDirectory, "events.json");
+          const compressedEvents = options.compressEvents === true && options.inlineEvents === false;
+          const eventsPath = path.join(moduleDirectory, compressedEvents ? "events.json.gz" : "events.json");
           await mkdir(moduleDirectory, { recursive: true });
-          await writeFile(eventsPath, serialized, "utf8");
+          const storedEvents = compressedEvents ? await gzipAsync(serialized, { level: 9 }) : Buffer.from(serialized);
+          await writeFile(eventsPath, storedEvents);
           const privacy = {
             emailOccurrences: (serialized.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) ?? []).length,
             localUrlOccurrences: (serialized.match(/https?:\/\/(?:localhost|127\.0\.0\.1)(?=[:/])/g) ?? []).length,
             note: "Heuristic counts only; inspect recorded content before sharing. No matching values are included."
           };
           await writeFile(path.join(moduleDirectory, "capture-report.json"), JSON.stringify({
-            eventCount: events.length, eventBytes: Buffer.byteLength(serialized),
+            eventCount: events.length, eventBytes: Buffer.byteLength(serialized), storedEventBytes: storedEvents.length,
             durationMs: events.at(-1).timestamp - events[0].timestamp,
             privacy, capturedAt: new Date().toISOString(),
             moduleHash: createHash("sha256").update(JSON.stringify(module)).digest("hex")
@@ -86,6 +92,7 @@ export async function openPlaywrightDomSession(options, outputDir, secrets = [])
             language: options.language,
             autoplay: options.autoplay ?? true,
             eventsScript: options.inlineEvents === false,
+            compressedEvents,
             events,
             presentation
           })}\n`, "utf8");

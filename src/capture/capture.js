@@ -34,7 +34,7 @@ import {
  * @property {import('playwright').Page} [page]
  * @property {() => Promise<{ page: import('playwright').Page, close?: () => Promise<void> }>} [createSession]
  * @property {false | { size?: { width: number, height: number }, viewport?: { width: number, height: number }, showActions?: object }} [recordVideo]
- * @property {false | { viewport?: { width: number, height: number }, stepDelayMs?: number, presentation?: object }} [recordDom]
+ * @property {false | { viewport?: { width: number, height: number }, stepDelayMs?: number, inlineEvents?: boolean, compressEvents?: boolean, presentation?: object }} [recordDom]
  * @property {boolean | { viewport?: { width: number, height: number }, redaction?: { selectors?: string[], texts?: string[] } }} [recordScreenshots]
  * @property {string[]} [moduleIds]
  * @property {object} [previousWalkthrough]
@@ -148,7 +148,7 @@ export async function captureJourney(options = {}) {
 
   await mkdir(outputDir, { recursive: true });
   if (options.manageGitignore === true && !options.trackOutput) await ensureIgnoreRules(path.join(outputDir, ".gitignore"), [
-    "/.gitignore", "/modules/", "/runtime/", "/index.html", "/events.json",
+    "/.gitignore", "/modules/", "/runtime/", "/index.html", "/events.json", "/events.json.gz",
     "/walkthrough.json", "/capture-steps.json", "/.screenshots-temp/", "/.video-temp/"
   ]);
   const session = await createCaptureSession({

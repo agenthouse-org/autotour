@@ -6,7 +6,7 @@ export async function startPreview(directory, { port = 0 } = {}) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error("Invalid preview port");
   const root = await realpath(directory);
   if (!(await stat(path.join(root, "index.html"))).isFile()) throw new Error("Preview requires index.html");
-  const types = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png", ".webm": "video/webm", ".svg": "image/svg+xml", ".woff2": "font/woff2" };
+  const types = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".gz": "application/gzip", ".png": "image/png", ".webm": "video/webm", ".svg": "image/svg+xml", ".woff2": "font/woff2" };
   const server = http.createServer(async (request, response) => {
     try {
       if (!["GET", "HEAD"].includes(request.method)) { response.writeHead(405).end(); return; }
