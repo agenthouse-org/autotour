@@ -81,7 +81,7 @@ export async function executeStep({ page, baseUrl, module, step, env, secrets, o
         if (initialCount === 0) throw new Error(`Target ${describeTarget(step.target)} matched 0 elements.`);
         await locator.first().waitFor({ state: "attached", timeout: step.timeoutMs ?? 10000 });
         const count = await locator.count();
-        if (count !== 1) throw new Error(`Target ${describeTarget(step.target)} matched ${count} elements; expected exactly 1.`);
+        if (count !== 1) throw new Error(`Target ${describeTarget(step.target)} is not unique: ${count} elements matched; expected exactly 1.`);
       }
     }
     switch (step.action) {
