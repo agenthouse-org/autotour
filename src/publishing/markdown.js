@@ -57,7 +57,7 @@ export async function syncMarkdownScreenshots({
   if (documentationSpec) {
     const specValidation = await validateDocumentationSpec(documentationSpec, { journey: walkthrough });
     if (!specValidation.valid) throw new PublishingError("AUTOTOUR_INVALID_DOCUMENTATION", JSON.stringify(specValidation.errors));
-    if (documentationSpec.destination?.kind === "confluence") {
+    if ((documentationSpec.targets?.find(target => target.kind === "confluence") ?? documentationSpec.destination)?.kind === "confluence") {
       throw new PublishingError("AUTOTOUR_INVALID_DOCUMENTATION", "Confluence specifications must be published through connected tools, not sync-markdown.");
     }
   }
@@ -89,13 +89,13 @@ export async function syncMarkdownScreenshots({
   }
   if (documentationSpec) {
     for (const section of documentationSpec.sections) {
-      const blocks = [`## ${escapeAlt(section.heading)}`];
+      const blocks = [`${"#".repeat(section.headingLevel ?? 2)} ${escapeAlt(section.heading)}`];
       for (const block of section.blocks) {
         if (block.kind === "text") blocks.push(block.text);
         else if (block.kind === "tour") blocks.push(`[${escapeAlt(block.label)}](<${block.url.replaceAll(">", "%3E").replaceAll("<", "%3C")}>)`);
         else {
           const asset = assetPlan.find(item => item.moduleId === section.moduleId && item.stepId === block.stepId);
-          blocks.push(asset.markdown, block.caption);
+          blocks.push(asset.markdown, `*${block.caption}*`);
         }
       }
       linksByModule.set(section.moduleId, [blocks.join("\n\n")]);

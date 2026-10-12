@@ -157,7 +157,7 @@ Regeneration happens in a sibling staging directory. The assembled walkthrough i
 
 ## Markdown screenshot synchronization
 
-Define [`.autotour/documentation.json`](docs/documentation-spec.md) for section headings, ordered text, selected screenshot steps, UI views, captions, highlight targets, and dependencies. `autotour validate-docs` validates linked journeys/maps; `prepareDocumentationCapture` applies capture instructions; `sync-markdown --spec` renders the layout. A complete example is in `examples/documentation.json`.
+Define [`.autotour/documentation.json`](docs/documentation-spec.md) for section headings, ordered text, selected screenshot steps, UI views, captions, highlight targets, and dependencies. `autotour validate-docs` validates linked journeys/maps; `prepareDocumentationCapture` applies capture instructions; `sync-markdown --spec` renders the layout. Screenshot steps with a target capture before the action by default; untargeted steps capture after the action. Use `captionInImage: false` or `captionPlacement` when the Markdown caption should be the only caption. A complete example is in `examples/documentation.json`.
 
 AutoTour can refresh screenshot references inside explicit managed regions while preserving the surrounding documentation:
 
@@ -201,7 +201,7 @@ autotour run-docs .autotour/documentation.json \
 
 Automatic capture selects screenshot recording for screenshot blocks and DOM replay for video/replay blocks. Mixed capture modes still use separate capture runs and an explicit walkthrough manifest.
 
-The command creates complete local Markdown or HTML output, copies referenced screenshots, and writes a Confluence section plan for connected publication. `--mode adapt` is available when updating an existing documentation tree. The planning skill discusses targets, prose approval, HTML layout, and screenshot/DOM/WebM media choices before producing the definition.
+The command creates complete local Markdown, HTML, or print-ready PDF output, copies referenced screenshots, and writes a Confluence section plan for connected publication. `--mode adapt` is available when updating an existing documentation tree. The planning skill discusses targets, prose approval, HTML/PDF layout, and screenshot/DOM/WebM media choices before producing the definition.
 
 > AutoTour is in active development. The package supports annotated modular screenshots, raw WebM video, presented DOM autoplay with optional WebM rendering, dependency-aware invalidation, selective screenshot/DOM/video regeneration, and managed Markdown screenshot synchronization; portable remote-asset harvesting, screenshot presentation profiles, and hosted publishing remain future slices.
 
@@ -214,7 +214,7 @@ npm install --global autotour
 autotour doctor
 ```
 
-Until the first npm release, install directly from a checkout:
+Install the published package, or install directly from a checkout for development:
 
 ```sh
 npm install

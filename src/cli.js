@@ -1,10 +1,11 @@
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { initializeProject, validateWalkthrough, configureStorage, readStorageConfiguration } from "./project.js";
 import { readDocumentationSpec, prepareDocumentationCapture } from "./documentation/spec.js";
 import { generateDocumentation } from "./documentation/generate.js";
 import { captureJourney } from "./capture/index.js";
+import { validateWalkthroughDocument } from "./capture/manifest.js";
 import { startPreview } from "./preview.js";
 import { createTourReview } from "./review/workflow.js";
 import { startTourReview } from "./review/server.js";
@@ -32,11 +33,12 @@ Usage:
   autotour init [directory] [--force]
   autotour configure-storage [directory] --output <folder> --documentation-output <folder> --artifacts local|versioned --documentation local|versioned --gitignore modify|keep
   autotour validate <walkthrough.json>
+  autotour approve <walkthrough.json> [--module <id>]
   autotour validate-docs <documentation.json>
-  autotour run-docs <documentation.json> [--walkthrough <walkthrough.json>] [--target markdown,html,confluence] [--output-dir <directory>] [--capture-dir <directory>] [--mode create|adapt]
+  autotour run-docs <documentation.json> [--walkthrough <walkthrough.json>] [--target markdown,html,pdf,confluence] [--output-dir <directory>] [--capture-dir <directory>] [--mode create|adapt]
   autotour invalidate <walkthrough.json> --map <dependency-map.json> (--changed-file <path>... | --base <ref> [--head <ref>]) [--output <plan.json>] [--check]
   autotour regenerate <journey.json> --plan <invalidation-plan.json> --output-dir <directory> [--spec <documentation.json>]
-  autotour sync-markdown <walkthrough.json> --markdown <file> --assets-dir <directory> [--spec <documentation.json>] [--dry-run | --check]
+  autotour sync-markdown <walkthrough.json> [--markdown <file>] --assets-dir <directory> [--spec <documentation.json>] [--dry-run | --check]
   autotour doctor
   autotour preview <output-directory> [--port <number>]
   autotour plan-tour <journey.json> --brief <brief.json> [--mode screenshots|dom|video]
@@ -84,6 +86,10 @@ export async function run(args) {
 
   if (!command || command === "--help" || command === "-h" || command === "help") {
     console.log(help);
+    return 0;
+  }
+  if (rest.includes("--help") || rest.includes("-h")) {
+    console.log(`Usage for autotour ${command}:\n\n${help}`);
     return 0;
   }
   if (command === "--version" || command === "-v") {
@@ -167,6 +173,27 @@ export async function run(args) {
     }
     console.error(JSON.stringify(result.errors, null, 2));
     return 1;
+  }
+
+  if (command === "approve") {
+    try {
+      if (!rest[0] || rest.length > 3 || (rest.length === 2 && rest[1] !== "--module") || rest.length === 3 && rest[1] !== "--module") {
+        throw new Error("Usage: autotour approve <walkthrough.json> [--module <id>]");
+      }
+      const file = path.resolve(rest[0]);
+      const document = await readJsonDocument(file);
+      const validation = await validateWalkthroughDocument(document);
+      if (!validation.valid) throw new Error(`Walkthrough is invalid: ${JSON.stringify(validation.errors)}`);
+      const moduleId = rest[1] === "--module" ? rest[2] : undefined;
+      if (moduleId) {
+        const module = document.modules.find(candidate => candidate.id === moduleId);
+        if (!module) throw new Error(`Unknown module: ${moduleId}`);
+        module.publish = true;
+      } else document.publish = true;
+      await writeFile(file, `${JSON.stringify(document, null, 2)}\n`, "utf8");
+      console.log(JSON.stringify({ approved: true, walkthrough: file, ...(moduleId ? { module: moduleId } : {}) }, null, 2));
+      return 0;
+    } catch (error) { console.error(error.message); return 1; }
   }
 
   if (command === "validate-docs") {
@@ -270,14 +297,16 @@ async function syncMarkdown(args) {
   const options = parseSyncMarkdownArgs(args);
   const walkthrough = await readJsonDocument(options.walkthroughFile);
   const documentation = options.specFile ? await readDocumentationSpec(options.specFile) : undefined;
-  if (documentation?.spec.destination?.kind === "markdown" &&
-      path.resolve(path.dirname(documentation.specPath), documentation.spec.destination.path) !== options.markdownFile) {
+  const declaredMarkdown = documentation?.spec.targets?.find(target => target.kind === "markdown") ?? documentation?.spec.destination;
+  const markdownFile = options.markdownFile ?? (declaredMarkdown?.kind === "markdown" ? path.resolve(path.dirname(documentation.specPath), declaredMarkdown.path) : undefined);
+  if (!markdownFile) throw new Error("sync-markdown requires --markdown or a Markdown target in --spec");
+  if (declaredMarkdown?.kind === "markdown" && path.resolve(path.dirname(documentation.specPath), declaredMarkdown.path) !== markdownFile) {
     throw new Error("--markdown does not match the documentation specification destination");
   }
   const result = await syncMarkdownScreenshots({
     walkthrough,
     walkthroughFile: options.walkthroughFile,
-    markdownFile: options.markdownFile,
+    markdownFile,
     assetsDir: options.assetsDir,
     dryRun: options.dryRun || options.check,
     documentationSpec: documentation?.spec
@@ -304,13 +333,13 @@ function parseSyncMarkdownArgs(args) {
     else if (!walkthroughFile) walkthroughFile = path.resolve(argument);
     else throw new Error(`Unexpected sync-markdown argument: ${argument}`);
   }
-  if (!walkthroughFile || !markdownFile || !assetsDir) {
-    throw new Error("sync-markdown requires a walkthrough file, --markdown, and --assets-dir");
+  if (!walkthroughFile || !assetsDir) {
+    throw new Error("sync-markdown requires a walkthrough file and --assets-dir");
   }
   if (dryRun && check) throw new Error("Choose --dry-run or --check, not both");
   return {
     walkthroughFile,
-    markdownFile: path.resolve(markdownFile),
+    markdownFile: markdownFile ? path.resolve(markdownFile) : undefined,
     assetsDir: path.resolve(assetsDir),
     dryRun,
     check,

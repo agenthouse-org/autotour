@@ -46,7 +46,9 @@ import { ensureIgnoreRules } from "../project.js";
  *   redaction?: { selectors?: string[], texts?: string[] },
  *   keepOverlays?: boolean,
  *   restorePage?: boolean,
- *   subdirectory?: string
+ *   subdirectory?: string,
+ *   captionInImage?: boolean,
+ *   captionPlacement?: string | string[]
  * }} input
  * @returns {Promise<AnnotationResult>}
  */
@@ -64,7 +66,9 @@ export async function annotateStep(input) {
     cwd = process.cwd(),
     keepOverlays = false,
     restorePage = false,
-    subdirectory
+    subdirectory,
+    captionInImage = true,
+    captionPlacement
   } = input;
 
   const target = normalizeRoleNameTarget(input.target);
@@ -126,7 +130,7 @@ export async function annotateStep(input) {
     }
 
     const calloutBox = placeCallout(targetBox, resolvedViewport);
-    const captionBox = placeCaption(targetBox, resolvedViewport, caption);
+    const captionBox = captionInImage ? placeCaption(targetBox, resolvedViewport, caption, { placement: captionPlacement }) : null;
     await injectAnnotationOverlays(page, {
       targetBox,
       calloutBox,

@@ -15,16 +15,19 @@ export async function openPlaywrightDomSession(options, outputDir, secrets = [])
   const recorderBundle = await loadRecorderBundle();
   const recorderBootstrap = buildRecorderBootstrap(recorderBundle, options.redaction);
   await ensureReplayRuntime(outputDir);
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true, args: options.browserArgs });
   const context = await browser.newContext({
     viewport: options.viewport ?? { width: 1280, height: 720 },
-    reducedMotion: "reduce"
+    reducedMotion: "reduce",
+    locale: options.locale
   });
+  if (options.initScript) await context.addInitScript({ content: options.initScript });
 
   return {
     async openModule(module, { capture = true } = {}) {
       const events = [];
       const page = await context.newPage();
+      if (options.hideSelectors?.length) await page.addStyleTag({ content: options.hideSelectors.map(selector => `${selector}{visibility:hidden !important}`).join("\n") });
       if (!capture) {
         return {
           page,

@@ -250,7 +250,12 @@ export function placeCaption(targetBox, viewport, caption, options = {}) {
     }
   ];
 
-  for (const candidate of candidates) {
+  const preferred = options.placement
+    ? (Array.isArray(options.placement) ? options.placement : [options.placement])
+    : candidates.map(candidate => candidate.id);
+  const ordered = [...preferred.map(id => candidates.find(candidate => candidate.id === id)).filter(Boolean), ...candidates.filter(candidate => !preferred.includes(candidate.id))];
+
+  for (const candidate of ordered) {
     const box = roundRect({ x: candidate.x, y: candidate.y, width, height });
     if (isFullyInside(box, view) && !rectsIntersect(box, target)) {
       return {
@@ -264,7 +269,7 @@ export function placeCaption(targetBox, viewport, caption, options = {}) {
     }
   }
 
-  for (const candidate of candidates) {
+  for (const candidate of ordered) {
     const clamped = clampRectToViewport(
       { x: candidate.x, y: candidate.y, width, height },
       view

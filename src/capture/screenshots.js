@@ -41,6 +41,8 @@ export function normalizeScreenshotOptions(value, secrets = []) {
   }
   return {
     viewport,
+    captionInImage: options.captionInImage !== false,
+    captionPlacement: options.captionPlacement,
     redaction: {
       selectors: redaction.selectors,
       texts: [...new Set([...redaction.texts, ...secrets])]
@@ -81,6 +83,8 @@ export async function prepareStepScreenshot({
         target: step.annotation?.target ?? step.target,
         callout: step.annotation?.callout ?? 1,
         caption: step.annotation?.caption ?? step.description,
+        captionInImage: step.annotation?.captionInImage ?? options.captionInImage,
+        captionPlacement: step.annotation?.captionPlacement ?? options.captionPlacement,
         viewport: options.viewport,
         outputRoot: ".screenshots-temp",
         subdirectory: "screenshots",

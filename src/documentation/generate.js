@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { validateDocumentationSpec } from "./spec.js";
 
@@ -18,6 +18,7 @@ export async function generateDocumentation({ spec, specPath, walkthrough, walkt
   for (const target of selected) {
     if (target.kind === "markdown") results.push(await generateMarkdown({ spec, walkthrough, target, manifestDir, root, mode }));
     else if (target.kind === "html") results.push(await generateHtml({ spec, walkthrough, target, manifestDir, root, mode }));
+    else if (target.kind === "pdf") results.push(await generatePdf({ spec, walkthrough, target, manifestDir, root, mode }));
     else results.push(await generateConfluencePlan({ spec, target, root }));
   }
   return { mode, targets: results };
@@ -34,7 +35,7 @@ async function generateMarkdown({ spec, walkthrough, target, manifestDir, root, 
   for (const section of spec.sections) {
     generated.push({
       moduleId: section.moduleId,
-      content: [`## ${escapeMarkdown(section.heading)}`, `<!-- autotour:module=${section.moduleId}:start -->`, ...await renderBlocks({ section, walkthrough, manifestDir, assetsDir, documentDir: path.dirname(destination), format: "markdown" }), `<!-- autotour:module=${section.moduleId}:end -->`].join("\n")
+      content: [`${"#".repeat(section.headingLevel ?? 2)} ${escapeMarkdown(section.heading)}`, `<!-- autotour:module=${section.moduleId}:start -->`, ...await renderBlocks({ section, walkthrough, manifestDir, assetsDir, documentDir: path.dirname(destination), format: "markdown" }), `<!-- autotour:module=${section.moduleId}:end -->`].join("\n")
     });
   }
   const existing = mode === "adapt" && await exists(destination) ? await readFile(destination, "utf8") : undefined;
@@ -49,7 +50,8 @@ async function generateHtml({ spec, walkthrough, target, manifestDir, root, mode
   const sections = [];
   for (const section of spec.sections) {
     const blocks = await renderBlocks({ section, walkthrough, manifestDir, assetsDir: path.join(path.dirname(destination), "assets"), documentDir: path.dirname(destination), format: "html" });
-    sections.push(`<section id="${section.moduleId}"><h2>${escapeHtml(section.heading)}</h2>${blocks.join("\n")}</section>`);
+    const level = section.headingLevel ?? 2;
+    sections.push(`<section id="${section.moduleId}"><h${level}>${escapeHtml(section.heading)}</h${level}>${blocks.join("\n")}</section>`);
   }
   const title = escapeHtml(spec.title ?? walkthrough.title ?? walkthrough.id);
   const html = `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${title}</title></head><body><header><h1>${title}</h1><nav><ol>${spec.sections.map(section => `<li><a href="#${section.moduleId}">${escapeHtml(section.heading)}</a></li>`).join("")}</ol></nav></header><main>${sections.join("\n")}</main></body></html>\n`;
@@ -64,6 +66,31 @@ async function generateConfluencePlan({ spec, target, root }) {
   await mkdir(path.dirname(destination), { recursive: true });
   await writeFile(destination, `${JSON.stringify(plan, null, 2)}\n`, "utf8");
   return { kind: "confluence", path: destination, pageId: target.pageId, status: "plan-created" };
+}
+
+async function generatePdf({ spec, walkthrough, target, manifestDir, root, mode }) {
+  const destination = resolveTarget(root, target.path);
+  const temporary = `${destination}.autotour.html`;
+  const sections = [];
+  for (const section of spec.sections) {
+    const blocks = await renderBlocks({ section, walkthrough, manifestDir, assetsDir: path.join(path.dirname(destination), "assets"), documentDir: path.dirname(destination), format: "html" });
+    const level = section.headingLevel ?? 2;
+    sections.push(`<section><h${level}>${escapeHtml(section.heading)}</h${level}>${blocks.join("\n")}</section>`);
+  }
+  const title = escapeHtml(spec.title ?? walkthrough.title ?? walkthrough.id);
+  await mkdir(path.dirname(destination), { recursive: true });
+  await writeFile(temporary, `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>@page{size:A4;margin:18mm}body{font:12pt/1.5 system-ui}img{max-width:100%}figure{break-inside:avoid}figcaption{font-style:italic;margin-top:.4rem}</style></head><body><h1>${title}</h1>${sections.join("\n")}</body></html>`);
+  const { chromium } = await import("playwright");
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.goto(`file://${temporary.replaceAll("\\", "/")}`, { waitUntil: "load" });
+    await page.pdf({ path: destination, format: "A4", printBackground: true });
+  } finally {
+    await browser.close();
+    await rm(temporary, { force: true });
+  }
+  return { kind: "pdf", path: destination, mode };
 }
 
 async function renderBlocks({ section, walkthrough, manifestDir, assetsDir, documentDir, format }) {

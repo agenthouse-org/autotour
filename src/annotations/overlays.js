@@ -61,10 +61,11 @@ export async function injectAnnotationOverlays(page, overlay) {
         "border:2px solid #fff"
       ].join(";");
 
-      const caption = document.createElement("div");
-      caption.setAttribute("data-autotour-caption", "true");
-      caption.textContent = captionBox.lines.join("\n");
-      caption.style.cssText = [
+      const caption = captionBox && document.createElement("div");
+      if (caption) {
+        caption.setAttribute("data-autotour-caption", "true");
+        caption.textContent = captionBox.lines.join("\n");
+        caption.style.cssText = [
         "position:absolute",
         `left:${captionBox.x}px`,
         `top:${captionBox.y}px`,
@@ -79,16 +80,18 @@ export async function injectAnnotationOverlays(page, overlay) {
         "border-radius:8px",
         "white-space:pre-wrap",
         "overflow:hidden"
-      ].join(";");
+        ].join(";");
+      }
 
-      root.append(highlight, badge, caption);
+      root.append(highlight, badge);
+      if (caption) root.append(caption);
       document.documentElement.appendChild(root);
     },
     {
       rootId: OVERLAY_ROOT_ID,
       targetBox: overlay.targetBox,
       calloutBox: overlay.calloutBox,
-      captionBox: {
+      captionBox: overlay.captionBox && {
         x: overlay.captionBox.x,
         y: overlay.captionBox.y,
         width: overlay.captionBox.width,

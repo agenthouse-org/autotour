@@ -87,12 +87,25 @@
       "required": ["id", "action", "description"],
       "properties": {
         "id": { "$ref": "#/$defs/id" },
-        "action": { "enum": ["goto", "click", "fill", "select", "scroll", "assert", "wait"] },
+        "action": { "enum": ["goto", "click", "dblclick", "fill", "select", "press", "upload", "scroll", "assert", "wait", "custom"] },
         "description": { "type": "string", "minLength": 1 },
         "target": { "$ref": "#/$defs/target" },
+        "button": { "enum": ["left", "middle", "right"] },
+        "clickCount": { "type": "integer", "minimum": 1, "maximum": 2 },
         "instruction": { "type": "string" },
         "optional": { "type": "boolean" },
         "narration": { "type": "string" },
+        "annotation": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "caption": { "type": "string" },
+            "captionInImage": { "type": "boolean" },
+            "captionPlacement": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] },
+            "callout": { "type": "integer", "minimum": 1 },
+            "timing": { "enum": ["before", "after"] },
+            "target": { "$ref": "#/$defs/target" }
+          }
+        },
         "pauseAfterMs": { "type": "integer", "minimum": 0, "maximum": 30000 },
         "until": { "$ref": "#/$defs/condition" },
         "expect": { "$ref": "#/$defs/condition" },
@@ -100,6 +113,7 @@
         "path": { "type": "string", "minLength": 1 },
         "value": { "type": "string" },
         "valueEnv": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+        "publicValueEnv": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
         "durationMs": { "type": "integer", "minimum": 0, "maximum": 30000 },
         "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 30000 },
         "url": { "type": "string", "minLength": 1 },
