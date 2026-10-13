@@ -9,11 +9,12 @@
 [![Node.js](https://img.shields.io/badge/node-%E2%89%A5%2020-339933?logo=node.js&logoColor=white)](package.json)
 
 <p align="center">
-  <video autoplay muted loop playsinline controls poster="docs/assets/agenthouse-homepage-reveal.png" width="100%">
-    <source src="docs/assets/agenthouse-homepage-reveal.webm" type="video/webm">
-    <a href="docs/assets/agenthouse-homepage-reveal.webm">Watch the AutoTour demo</a>
-  </video>
+  <a href="docs/assets/agenthouse-homepage-reveal.webm">
+    <img src="docs/assets/agenthouse-homepage-reveal.gif" alt="AutoTour homepage demo" width="100%">
+  </a>
 </p>
+
+<p align="center"><sub>Animated preview · <a href="docs/assets/agenthouse-homepage-reveal.webm">watch the full-quality WebM</a></sub></p>
 
 AutoTour is an open-source toolkit for coding agents that captures reliable, reviewable product documentation from real browser journeys. Create annotated screenshots, DOM replays, modular videos, and dependency-aware refresh plans without recapturing everything after every UI change.
 
@@ -34,7 +35,26 @@ autotour init
 autotour doctor
 ```
 
-AutoTour requires Node.js 20 or newer and Chromium for browser capture. For a checkout, contributor setup, or connected services, see [INSTALL.md](INSTALL.md).
+AutoTour requires Node.js 20 or newer and Chromium for browser capture. For agent-oriented plugin installation, checkout setup, or connected services, see [INSTALL.md](INSTALL.md).
+
+## Ready-to-use prompt for an AI agent
+
+Copy this prompt into your coding agent when you want it to install and use AutoTour:
+
+```text
+Install and use the AutoTour plugin from https://github.com/agenthouse-org/autotour.
+
+First read the repository's AGENTS.md and AutoTour's INSTALL.md. Use the host's supported
+local or Git plugin-installation flow to load the repository's root plugin.json and
+skills/create-autotour/SKILL.md. Verify that the AutoTour skill is available before using it.
+
+In the target application, install the runtime with `npm install autotour`, then run
+`npx playwright install chromium`, `npx autotour doctor`, and `npx autotour init`.
+Keep credentials in environment variables, reuse existing configuration, and place generated
+output under an ignored `.autotour/output/` directory. Before capturing anything, ask me for
+the audience, exact journey, application URL/environment, permitted access, output format,
+destination, and any duration, cursor, zoom, or motion preferences.
+```
 
 ## A small example
 
