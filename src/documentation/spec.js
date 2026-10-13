@@ -15,7 +15,6 @@ export async function validateDocumentationSpec(spec, { journey, dependencyMap }
     validator = ajv.compile(JSON.parse(await readFile(documentationSchemaPath, "utf8")));
   }
   if (!validator(spec)) return { valid: false, errors: structuredClone(validator.errors) };
-  if (spec.targets && spec.destination) return { valid: false, errors: [{ message: "Use targets or destination, not both." }] };
   if (spec.targets?.length && new Set(spec.targets.map(target => target.kind)).size !== spec.targets.length) {
     return { valid: false, errors: [{ message: "Documentation targets must have unique kinds." }] };
   }
@@ -100,6 +99,8 @@ export async function prepareDocumentationCapture({ spec, journey, dependencyMap
         ...step.annotation,
         caption: block.caption,
         callout: block.callout ?? 1,
+        captionInImage: block.captionInImage ?? true,
+        ...(block.captionPlacement ? { captionPlacement: block.captionPlacement } : {}),
         timing: block.timing,
         ...(block.target ? { target: block.target } : {})
       };

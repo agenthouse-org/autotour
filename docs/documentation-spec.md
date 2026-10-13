@@ -16,6 +16,7 @@ Targets can be declared together and selected per run:
 "targets": [
   { "kind": "markdown", "path": "product.md" },
   { "kind": "html", "path": "site/index.html", "mode": "single-file" },
+  { "kind": "pdf", "path": "product.pdf" },
   { "kind": "confluence", "siteUrl": "https://your-site.atlassian.net", "pageId": "12345" }
 ]
 ```
@@ -64,7 +65,9 @@ Start from [documentation.json](../examples/documentation.json), its [journey](.
 }
 ```
 
-Blocks appear in order. `stepId` selects an image; `sourceView` identifies the UI dependency. Optional `target` controls the highlight independently of the action target. `timing` selects before/after the action; add an assertion/wait step when a screenshot needs a settled save result. Captions appear on annotated captures and under Markdown images. Optional `viewport` sets capture dimensions.
+Blocks appear in order. `stepId` selects an image; `sourceView` identifies the UI dependency. Optional `target` controls the highlight independently of the action target. `timing` selects before/after the action; when omitted, targeted steps capture before the action and untargeted steps capture after it. Add an assertion/wait step when a screenshot needs a settled save result. Captions appear on annotated captures and as italic captions under Markdown images; set `captionInImage` to false to suppress the in-image copy, or set `captionPlacement` to `above`, `below`, `left`, or `right`. Optional `viewport` sets capture dimensions.
+
+Set `headingLevel` on a section to control its Markdown/HTML heading depth. `targets` and the legacy `destination` form may coexist; explicit `targets` take precedence. A Markdown target is also used by `sync-markdown --spec`, so `--markdown` is optional when the spec declares one.
 
 Dependencies must exist on the journey module and have source-file mappings. Validation rejects unknown views, missing/ambiguous steps, duplicate sections/screenshots, and unmapped declared dependencies. It verifies reference consistency, not the visual truth of a claimed view. Inspect captures. Map the specification and journey files to affected views too: layout/caption changes need regeneration. The sample map shows this.
 

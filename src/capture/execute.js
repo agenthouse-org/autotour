@@ -34,6 +34,13 @@ export function resolveTarget(page, target) {
  * @param {{ moduleId: string, stepId: string }} context
  */
 export function resolveStepValue(step, env, secrets, context) {
+  if (step.publicValueEnv) {
+    const value = env[step.publicValueEnv];
+    if (typeof value !== "string" || value.length === 0) {
+      throw new CaptureError({ message: `Missing environment variable ${step.publicValueEnv} for step ${context.stepId}.`, moduleId: context.moduleId, stepId: context.stepId, cause: "public environment variable is unset or empty", secrets });
+    }
+    return value;
+  }
   if (step.valueEnv) {
     const value = env[step.valueEnv];
     if (typeof value !== "string" || value.length === 0) {
@@ -63,16 +70,18 @@ export function resolveStepValue(step, env, secrets, context) {
  * @param {NodeJS.ProcessEnv} options.env
  * @param {Iterable<string>} options.secrets
  */
-export async function executeStep({ page, baseUrl, module, step, env, secrets, onSettled }) {
+export async function executeStep({ page, baseUrl, module, step, env, secrets, onSettled, customAction, fixtures }) {
   const context = { moduleId: module.id, stepId: step.id };
   try {
-    if (["click", "fill", "select"].includes(step.action)) {
+    if (["click", "dblclick", "fill", "select", "upload"].includes(step.action) || (step.action === "press" && step.target)) {
       const locator = resolveTarget(page, step.target);
       if (typeof locator.count === "function") {
-        if (step.optional && await locator.count() === 0) return;
+        const initialCount = await locator.count();
+        if (step.optional && initialCount === 0) return;
+        if (initialCount === 0) throw new Error(`Target ${describeTarget(step.target)} matched 0 elements.`);
         await locator.first().waitFor({ state: "attached", timeout: step.timeoutMs ?? 10000 });
         const count = await locator.count();
-        if (count !== 1) throw new Error(`Target is not unique: ${count} elements found. Use a stable identifier or a scoped selector.`);
+        if (count !== 1) throw new Error(`Target ${describeTarget(step.target)} is not unique: ${count} elements matched; expected exactly 1.`);
       }
     }
     switch (step.action) {
@@ -104,11 +113,31 @@ export async function executeStep({ page, baseUrl, module, step, env, secrets, o
         });
         const beforeUrl = typeof page.url === "function" ? page.url() : undefined;
         try {
-          await locator.click({ timeout: timeoutMs });
+          const clickOptions = { timeout: timeoutMs };
+          if (step.button !== undefined) clickOptions.button = step.button;
+          if (step.clickCount !== undefined) clickOptions.clickCount = step.clickCount;
+          await locator.click(clickOptions);
         } catch (error) {
           const afterUrl = typeof page.url === "function" ? page.url() : undefined;
           if (!isCompletedNavigationTimeout(error, beforeUrl, afterUrl)) throw error;
         }
+        break;
+      }
+      case "dblclick": {
+        await resolveTarget(page, step.target).dblclick({ timeout: step.timeoutMs ?? 10000 });
+        break;
+      }
+      case "press": {
+        const value = resolveStepValue(step, env, secrets, context);
+        if (typeof value !== "string" || value.length === 0) throw new Error("press steps require valueEnv or value");
+        if (step.target) await resolveTarget(page, step.target).press(value, { timeout: step.timeoutMs ?? 10000 });
+        else await page.keyboard.press(value);
+        break;
+      }
+      case "upload": {
+        const value = resolveStepValue(step, env, secrets, context);
+        if (typeof value !== "string" || value.length === 0) throw new Error("upload steps require valueEnv or value");
+        await resolveTarget(page, step.target).setInputFiles(value);
         break;
       }
       case "select": {
@@ -199,6 +228,11 @@ export async function executeStep({ page, baseUrl, module, step, env, secrets, o
         }
         throw new Error("assert steps require url or target");
       }
+      case "custom": {
+        if (typeof customAction !== "function") throw new Error("custom steps require a customAction hook");
+        await customAction({ page, module, step, env, fixtures });
+        break;
+      }
       default:
         throw new Error(`unknown action ${step.action}`);
     }
@@ -220,6 +254,13 @@ export async function executeStep({ page, baseUrl, module, step, env, secrets, o
       original: error
     });
   }
+}
+
+function describeTarget(target = {}) {
+  if (target.css) return `css selector ${JSON.stringify(target.css)}`;
+  if (target.testId) return `test id ${JSON.stringify(target.testId)}`;
+  if (target.text) return `text ${JSON.stringify(target.text)}`;
+  return `role ${JSON.stringify(target.role)} / name ${JSON.stringify(target.name)}`;
 }
 
 function isCompletedNavigationTimeout(error, beforeUrl, afterUrl) {

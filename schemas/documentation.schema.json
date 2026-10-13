@@ -54,6 +54,7 @@
         "oneOf": [
           { "$ref": "#/$defs/markdownTarget" },
           { "$ref": "#/$defs/htmlTarget" },
+          { "$ref": "#/$defs/pdfTarget" },
           { "$ref": "#/$defs/confluenceTarget" }
         ]
       }
@@ -77,6 +78,7 @@
         "properties": {
           "moduleId": { "$ref": "#/$defs/id" },
           "heading": { "type": "string", "minLength": 1 },
+          "headingLevel": { "type": "integer", "minimum": 1, "maximum": 6, "default": 2 },
           "endHeading": { "type": "string", "minLength": 1 },
           "dependencies": { "$ref": "#/$defs/dependencies" },
           "blocks": {
@@ -97,6 +99,8 @@
                   "alt": { "type": "string", "minLength": 1 },
                   "caption": { "type": "string", "minLength": 1 },
                   "timing": { "enum": ["before", "after"] },
+                  "captionInImage": { "type": "boolean", "default": true },
+                  "captionPlacement": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] },
                   "callout": { "type": "integer", "minimum": 1 },
                   "target": {
                     "type": "object", "additionalProperties": false,
@@ -147,6 +151,7 @@
     "dependencyMap": { "type": "object", "required": ["schemaVersion", "rules"], "properties": { "schemaVersion": { "const": 1 }, "rules": { "type": "array" } }, "additionalProperties": true },
     "markdownTarget": { "type": "object", "additionalProperties": false, "required": ["kind", "path"], "properties": { "kind": { "const": "markdown" }, "path": { "type": "string", "minLength": 1 } } },
     "htmlTarget": { "type": "object", "additionalProperties": false, "required": ["kind", "path"], "properties": { "kind": { "const": "html" }, "path": { "type": "string", "minLength": 1 }, "mode": { "enum": ["site", "single-file"] } } },
+    "pdfTarget": { "type": "object", "additionalProperties": false, "required": ["kind", "path"], "properties": { "kind": { "const": "pdf" }, "path": { "type": "string", "minLength": 1 } } },
     "confluenceTarget": { "type": "object", "additionalProperties": false, "required": ["kind", "siteUrl", "pageId"], "properties": { "kind": { "const": "confluence" }, "siteUrl": { "type": "string", "format": "uri", "pattern": "^https://" }, "pageId": { "type": "string", "pattern": "^[0-9]+$" } } },
     "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
     "dependencies": {

@@ -30,11 +30,15 @@ import {
  * @property {string} [displayName]
  * @property {string} [outputDir]
  * @property {object} [journey]
+ * @property {string} [locale]
+ * @property {string[]} [browserArgs]
+ * @property {string} [initScript]
+ * @property {string[]} [hideSelectors]
  * @property {NodeJS.ProcessEnv} [env]
  * @property {import('playwright').Page} [page]
  * @property {() => Promise<{ page: import('playwright').Page, close?: () => Promise<void> }>} [createSession]
  * @property {false | { size?: { width: number, height: number }, viewport?: { width: number, height: number }, showActions?: object }} [recordVideo]
- * @property {false | { viewport?: { width: number, height: number }, stepDelayMs?: number, presentation?: object }} [recordDom]
+ * @property {false | { viewport?: { width: number, height: number }, stepDelayMs?: number, inlineEvents?: boolean, compressEvents?: boolean, presentation?: object }} [recordDom]
  * @property {boolean | { viewport?: { width: number, height: number }, redaction?: { selectors?: string[], texts?: string[] } }} [recordScreenshots]
  * @property {string[]} [moduleIds]
  * @property {object} [previousWalkthrough]
@@ -65,7 +69,11 @@ export async function captureJourney(options = {}) {
     recordScreenshots = false,
     moduleIds,
     previousWalkthrough,
-    previousCaptureSteps
+    previousCaptureSteps,
+    locale,
+    browserArgs,
+    initScript,
+    hideSelectors
   } = options;
 
   const journey = normalizeExecutableJourney(
@@ -148,14 +156,18 @@ export async function captureJourney(options = {}) {
 
   await mkdir(outputDir, { recursive: true });
   if (options.manageGitignore === true && !options.trackOutput) await ensureIgnoreRules(path.join(outputDir, ".gitignore"), [
-    "/.gitignore", "/modules/", "/runtime/", "/index.html", "/events.json",
+    "/.gitignore", "/modules/", "/runtime/", "/index.html", "/events.json", "/events.json.gz",
     "/walkthrough.json", "/capture-steps.json", "/.screenshots-temp/", "/.video-temp/"
   ]);
   const session = await createCaptureSession({
     injectedPage,
     createSession,
     recordVideo,
-    recordDom: recordDom ? { ...recordDom, language: journey.language ?? recordDom.language } : false,
+    recordDom: recordDom ? { ...recordDom, language: journey.language ?? recordDom.language, locale, browserArgs, initScript, hideSelectors } : false,
+    locale,
+    browserArgs,
+    initScript,
+    hideSelectors,
     secrets,
     outputDir
   });
@@ -187,7 +199,7 @@ export async function captureJourney(options = {}) {
       try {
         await options.hooks?.beforeModule?.({ page, module, fixtures: options.fixtures });
         for (const step of module.setup ?? []) {
-          await executeStep({ page, baseUrl: parsedBase.toString(), module, step, env, secrets });
+          await executeStep({ page, baseUrl: parsedBase.toString(), module, step, env, secrets, fixtures: options.fixtures, customAction: options.hooks?.steps?.[step.id]?.custom ?? options.hooks?.customAction });
         }
         await options.hooks?.beforeCapture?.({ page, module, fixtures: options.fixtures });
         if (module.setup?.length || options.hooks?.beforeModule || options.hooks?.beforeCapture) {
@@ -210,6 +222,8 @@ export async function captureJourney(options = {}) {
                 secrets
               });
             }
+            await options.hooks?.beforeStep?.({ page, module, step, fixtures: options.fixtures });
+            await options.hooks?.steps?.[step.id]?.before?.({ page, module, step, fixtures: options.fixtures });
             await executeStep({
               page,
               baseUrl: parsedBase.toString(),
@@ -217,12 +231,15 @@ export async function captureJourney(options = {}) {
               step,
               env,
               secrets,
+              fixtures: options.fixtures,
+              customAction: options.hooks?.steps?.[step.id]?.custom ?? options.hooks?.customAction,
               onSettled: recordDom && shouldCapture ? async () => {
                 if (!startRecorded) await addDomStepEvent(page, step, "start", secrets);
                 await addDomStepEvent(page, step, "settled", secrets);
               } : undefined
             });
             await options.hooks?.afterStep?.({ page, module, step, fixtures: options.fixtures });
+            await options.hooks?.steps?.[step.id]?.after?.({ page, module, step, fixtures: options.fixtures });
             if (recordDom && shouldCapture) await addDomStepEvent(page, step, "end", secrets);
             if (screenshotOptions && shouldCapture && !screenshotBefore) {
               preparedScreenshot = await prepareStepScreenshot({
@@ -521,7 +538,11 @@ async function createCaptureSession({
   recordVideo,
   recordDom,
   secrets,
-  outputDir
+  outputDir,
+  locale,
+  browserArgs,
+  initScript,
+  hideSelectors
 }) {
   if (injectedPage) return createSharedPageSession(injectedPage);
   if (createSession) {
@@ -530,9 +551,9 @@ async function createCaptureSession({
     session.close = custom.close ?? session.close;
     return session;
   }
-  if (recordVideo) return openPlaywrightVideoSession(recordVideo, outputDir);
+  if (recordVideo) return openPlaywrightVideoSession({ ...recordVideo, locale, browserArgs, initScript, hideSelectors }, outputDir);
   if (recordDom) return openPlaywrightDomSession(recordDom, outputDir, secrets);
-  return openPlaywrightSession();
+  return openPlaywrightSession({ locale, browserArgs, initScript, hideSelectors });
 }
 
 function createSharedPageSession(page) {
@@ -549,10 +570,13 @@ function createSharedPageSession(page) {
   };
 }
 
-async function openPlaywrightSession() {
+async function openPlaywrightSession(options = {}) {
   const { chromium } = await import("playwright");
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
+  const browser = await chromium.launch({ headless: true, args: options.browserArgs });
+  const context = await browser.newContext({ locale: options.locale, reducedMotion: "reduce" });
+  if (options.initScript) await context.addInitScript({ content: options.initScript });
+  const page = await context.newPage();
+  if (options.hideSelectors?.length) await page.addStyleTag({ content: options.hideSelectors.map(selector => `${selector}{visibility:hidden !important}`).join("\n") });
   return {
     async openModule() {
       return {
@@ -563,6 +587,7 @@ async function openPlaywrightSession() {
       };
     },
     async close() {
+      await context.close();
       await browser.close();
     }
   };
@@ -572,19 +597,22 @@ async function openPlaywrightVideoSession(options, outputDir) {
   const { chromium } = await import("playwright");
   const temporaryDir = path.join(outputDir, ".video-temp");
   await mkdir(temporaryDir, { recursive: true });
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless: true, args: options.browserArgs });
   const recordVideo = { dir: temporaryDir };
   if (options.size) recordVideo.size = options.size;
   if (options.showActions) recordVideo.showActions = options.showActions;
   const context = await browser.newContext({
     viewport: options.viewport ?? options.size ?? { width: 1280, height: 720 },
     recordVideo,
-    reducedMotion: "reduce"
+    reducedMotion: "reduce",
+    locale: options.locale
   });
+  if (options.initScript) await context.addInitScript({ content: options.initScript });
 
   return {
     async openModule(module, { capture = true } = {}) {
       const page = await context.newPage();
+      if (options.hideSelectors?.length) await page.addStyleTag({ content: options.hideSelectors.map(selector => `${selector}{visibility:hidden !important}`).join("\n") });
       const video = page.video();
       let closed = false;
       return {

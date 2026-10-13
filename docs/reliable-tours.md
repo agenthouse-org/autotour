@@ -67,13 +67,13 @@ The player includes instructions/narration, a seek slider, elapsed/total time, p
 
 Click focus remains opt-in. Cursor movement defaults to recorded timing (no extra CSS lag). Autoplay remains enabled for compatibility unless `recordDom.autoplay: false`; reduced-motion viewers start paused. Render-to-video mode still starts automatically.
 
-`inlineEvents: false` produces a small HTML player loading a single compact `events.json`, avoiding a duplicated event payload. Serve the complete output directory over HTTP:
+`inlineEvents: false` produces a small HTML player loading a separate `events.json`, avoiding a duplicated event payload. Add `compressEvents: true` to store that file as `events.json.gz`; supported browsers decompress it during playback. The capture report records both the uncompressed event size and the stored size. Compression only applies when events are external, so existing inline and uncompressed captures remain unchanged. Serve the complete output directory over HTTP:
 
 ```sh
 autotour preview .autotour/output/my-tour
 ```
 
-Preview binds only to loopback, selects a free port by default, and supports `--port`. It does not open a browser automatically. Hidden paths, traversal outside the served root, and non-read requests are rejected. The default inline event format remains available for portable existing workflows. Event compression, aggressive mutation/CSS deduplication, and a separate static-DOM playback engine are deferred: changing recorded events without a fidelity test could change the demonstrated behavior.
+Preview binds only to loopback, selects a free port by default, and supports `--port`. It does not open a browser automatically. Hidden paths, traversal outside the served root, and non-read requests are rejected. The default inline event format remains available for portable existing workflows. Aggressive mutation/CSS deduplication and a separate static-DOM playback engine remain deferred: changing recorded events without a fidelity test could change the demonstrated behavior.
 
 Each module gets `capture-report.json` with size, duration, event count, capture date, source module hash, and counts of possible emails/local URLs. Counts contain no matched values and are review hints, not proof of anonymization. All form inputs remain masked. DOM recording defaults to blocking `[data-autotour-private]` and masking text in `[data-autotour-mask]`; override selectors in `recordDom.redaction`. Review recorded text, attributes, URLs, screenshots and snapshots before publication. Known credential residuals still fail capture.
 

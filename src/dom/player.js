@@ -1,6 +1,6 @@
 import { normalizeDomPresentation } from "./presentation.js";
 
-export function buildReplayHtml({ moduleId, title, events, presentation, language, autoplay = true, eventsScript = false }) {
+export function buildReplayHtml({ moduleId, title, events, presentation, language, autoplay = true, eventsScript = false, compressedEvents = false }) {
   const findLanguage = node => node?.tagName === "html" ? node.attributes?.lang : node?.childNodes?.map(findLanguage).find(Boolean);
   language ??= findLanguage(events.find(event => event.type === 2)?.data?.node) ?? "en";
   const de = language.toLowerCase().startsWith("de");
@@ -41,9 +41,10 @@ export function buildReplayHtml({ moduleId, title, events, presentation, languag
     button:focus-visible { outline: 2px solid #8dff32; outline-offset: 2px; }
     #status { width: 58px; color: #b7c1bb; font-size: 12px; text-align: right; }
     main { min-width: 0; min-height: 0; overflow: auto; background: #050706; }
-    #canvas { min-width: 0; height: 100%; box-sizing: border-box; display: grid; place-items: center; padding: var(--canvas-padding); perspective: var(--motion-perspective); perspective-origin: center; }
-    #browser-frame { width: 100%; max-width: var(--frame-max-width); overflow: hidden; border-radius: var(--frame-radius); background: #0a0c0b; box-shadow: var(--frame-shadow); transform-style: preserve-3d; backface-visibility: hidden; }
-    #window-bar { height: 38px; display: none; align-items: center; gap: 7px; padding: 0 13px; border-bottom: 1px solid #343936; background: #1b1f1c; }
+    #canvas { position: relative; min-width: 0; height: 100%; box-sizing: border-box; display: grid; place-items: center; padding: var(--canvas-padding); perspective: var(--motion-perspective); perspective-origin: center; }
+    #canvas::before { content: ""; display: none; position: absolute; inset: 0; background: #050706; pointer-events: none; z-index: 0; }
+    #browser-frame { position: relative; z-index: 1; width: 100%; max-width: var(--frame-max-width); overflow: hidden; border-radius: var(--frame-radius); background: #0a0c0b; box-shadow: var(--frame-shadow); transform-style: preserve-3d; backface-visibility: hidden; }
+    #window-bar { height: 38px; display: none; align-items: center; gap: 7px; padding: 0 13px; border-bottom: 1px solid #343936; background: #1b1f1c; overflow: hidden; }
     .window-dot { width: 10px; height: 10px; border-radius: 50%; background: #606a64; }
     #window-title { min-width: 0; margin-left: 7px; overflow: hidden; color: #c6cec9; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
     #viewport { position: relative; width: 100%; overflow: hidden; background: #050706; }
@@ -79,9 +80,29 @@ export function buildReplayHtml({ moduleId, title, events, presentation, languag
     body[data-frame-mode="pure"] #canvas { background: #050706 !important; }
     body[data-frame-mode="pure"] #browser-frame { border-radius: 0; box-shadow: none; }
     body[data-motion-mode="showcase"] #browser-frame { animation: autotour-showcase var(--motion-duration) cubic-bezier(.4,0,.2,1) both; }
+    body[data-motion-reveal="true"] #canvas::before { display: block; animation: autotour-canvas-reveal var(--motion-duration) cubic-bezier(.4,0,.2,1) both; }
+    body[data-motion-reveal="true"] #canvas { animation: autotour-canvas-padding var(--motion-duration) cubic-bezier(.4,0,.2,1) both; }
+    body[data-motion-reveal="true"] #browser-frame { animation: autotour-showcase var(--motion-duration) cubic-bezier(.4,0,.2,1) both, autotour-frame-reveal var(--motion-duration) cubic-bezier(.4,0,.2,1) both; }
+    body[data-motion-reveal="true"] #window-bar { animation: autotour-window-reveal var(--motion-duration) cubic-bezier(.4,0,.2,1) both; }
     @keyframes autotour-showcase {
       from { transform: var(--motion-from); }
       to { transform: var(--motion-to); }
+    }
+    @keyframes autotour-canvas-reveal {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+    @keyframes autotour-canvas-padding {
+      from { padding: 0; }
+      to { padding: var(--canvas-padding); }
+    }
+    @keyframes autotour-frame-reveal {
+      from { border-radius: 0; box-shadow: none; }
+      to { border-radius: var(--frame-radius); box-shadow: var(--frame-shadow); }
+    }
+    @keyframes autotour-window-reveal {
+      from { height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; }
+      to { height: 38px; opacity: 1; padding-top: 0; padding-bottom: 0; }
     }
     body[data-render="true"] { grid-template-rows: 1fr; }
     body[data-render="true"] > header, body[data-render="true"] > #timeline-controls { display: none; }
@@ -136,7 +157,9 @@ export function buildReplayHtml({ moduleId, title, events, presentation, languag
       const labels = ${JSON.stringify(labels)};
       window.addEventListener("error", () => { document.getElementById("status").textContent = labels.error; });
       window.addEventListener("unhandledrejection", () => { document.getElementById("status").textContent = labels.error; });
-      const events = ${eventsScript ? '(await fetch("events.json").then(response => { if (!response.ok) throw new Error("Events unavailable"); return response.json(); }))' : 'JSON.parse(document.getElementById("autotour-events").textContent)'};
+      const events = ${eventsScript ? (compressedEvents
+    ? '(await fetch("events.json.gz").then(async response => { if (!response.ok) throw new Error("Events unavailable"); if (typeof DecompressionStream !== "function") throw new Error("This browser cannot open compressed replay events"); return new Response(response.body.pipeThrough(new DecompressionStream("gzip"))).json(); }))'
+    : '(await fetch("events.json").then(response => { if (!response.ok) throw new Error("Events unavailable"); return response.json(); }))') : 'JSON.parse(document.getElementById("autotour-events").textContent)'};
       const presentation = JSON.parse(document.getElementById("autotour-presentation").textContent);
       const status = document.getElementById("status");
       const canvas = document.getElementById("canvas");
@@ -157,6 +180,7 @@ export function buildReplayHtml({ moduleId, title, events, presentation, languag
       document.body.dataset.cursorVisible = String(presentation.cursor.visible);
       document.body.dataset.clickPulse = String(presentation.cursor.clickPulse);
       document.body.dataset.motionMode = presentation.motion.mode;
+      document.body.dataset.motionReveal = String(presentation.motion.reveal);
       document.body.dataset.render = String(renderMode);
       document.getElementById("window-title").textContent = presentation.frame.title;
       document.documentElement.style.setProperty("--canvas-padding", presentation.padding + "px");
@@ -170,9 +194,11 @@ export function buildReplayHtml({ moduleId, title, events, presentation, languag
       document.documentElement.style.setProperty("--motion-perspective", presentation.motion.perspective + "px");
       document.documentElement.style.setProperty("--motion-duration", presentation.motion.durationMs + "ms");
       const motion = presentation.motion;
-      const fromScale = motion.scale;
-      const toScale = Math.min(1, motion.scale + 0.025);
-      const fromTransform = "translate3d(" + (-motion.driftX / 2) + "px," + (-motion.driftY / 2) + "px,0) rotateX(" + motion.rotateX + "deg) rotateY(" + motion.rotateY + "deg) scale(" + fromScale + ")";
+      const fromScale = motion.reveal ? 1 : motion.scale;
+      const toScale = motion.reveal ? motion.scale : Math.min(1, motion.scale + 0.025);
+      const fromTransform = motion.reveal
+        ? "translate3d(0,0,0) rotateX(0deg) rotateY(0deg) scale(1)"
+        : "translate3d(" + (-motion.driftX / 2) + "px," + (-motion.driftY / 2) + "px,0) rotateX(" + motion.rotateX + "deg) rotateY(" + motion.rotateY + "deg) scale(" + fromScale + ")";
       const toTransform = "translate3d(" + (motion.driftX / 2) + "px," + (motion.driftY / 2) + "px,18px) rotateX(" + (motion.rotateX * 0.55) + "deg) rotateY(" + (motion.rotateY * 0.6) + "deg) scale(" + toScale + ")";
       const staticTransform = "rotateX(" + (motion.rotateX * 0.75) + "deg) rotateY(" + (motion.rotateY * 0.8) + "deg) scale(" + motion.scale + ")";
       document.documentElement.style.setProperty("--motion-from", fromTransform);

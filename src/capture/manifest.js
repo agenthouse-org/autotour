@@ -93,6 +93,7 @@ export function buildWalkthrough({
           entry.valueEnv = step.valueEnv;
         }
         copyActionDetails(entry, step);
+        if (step.annotation) entry.annotation = step.annotation;
         return entry;
       }),
       dependencies: mergeDependencies(module.dependencies, module.observedRequests),
@@ -162,9 +163,10 @@ export async function writeCaptureArtifacts(outputDir, walkthrough, captureSteps
 export { schemaPath };
 
 function copyActionDetails(entry, step) {
-  for (const key of ["path", "value", "durationMs", "timeoutMs", "url", "state", "instruction", "narration", "pauseAfterMs", "until", "expect", "optional"]) {
+  for (const key of ["path", "value", "valueEnv", "publicValueEnv", "durationMs", "timeoutMs", "url", "state", "instruction", "narration", "pauseAfterMs", "until", "expect", "optional", "button", "clickCount"]) {
     if (step[key] !== undefined) entry[key] = step[key];
   }
+  if (step.annotation) entry.annotation = step.annotation;
   if (step.scroll) {
     entry.scroll = {
       mode: step.scroll.mode ?? "by",
