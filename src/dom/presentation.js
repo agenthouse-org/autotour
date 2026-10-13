@@ -56,6 +56,7 @@ export function normalizeDomPresentation(value, secrets = []) {
       driftX: integerOption(motion.driftX ?? 24, -160, 160, "motion.driftX", secrets),
       driftY: integerOption(motion.driftY ?? -14, -160, 160, "motion.driftY", secrets),
       scale: numberOption(motion.scale ?? 0.92, 0.7, 1, "motion.scale", secrets),
+      reveal: booleanOption(motion.reveal ?? false, "motion.reveal", secrets),
       durationMs: integerOption(motion.durationMs ?? 10000, 1000, 60000, "motion.durationMs", secrets)
     }
   };
