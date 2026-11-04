@@ -28,7 +28,7 @@ test("stable targets, explicit ambiguity, nested scrolling and annotation geomet
     assert.equal(await page.locator("#board").evaluate(el => el.scrollLeft), 250);
     assert.equal(await page.evaluate(() => window.scrollX), 0);
     await execute({ action: "click", target: { testId: "chosen" }, expect: { target: { css: "#result" }, text: "Opened", stableForMs: 80 }, pauseAfterMs: 20 });
-    await assert.rejects(waitForCondition(page, { target: { css: "#result" }, count: 2, timeoutMs: 100 }), /did not settle/);
+    await assert.rejects(waitForCondition(page, { target: { css: "#result" }, count: 2, timeoutMs: 100 }), /count was 1 for css selector "#result"; expected 2/);
     await page.evaluate(() => { setTimeout(() => document.querySelector('#result').textContent = 'Settled', 60); });
     await waitForCondition(page, { target: { css: "#result" }, text: "Settled", stableForMs: 100, timeoutMs: 1500 });
     const result = await annotateStep({ page, moduleId: "generic", stepId: "chosen", target: { testId: "chosen" }, callout: 1, caption: "Open this item", outputRoot: ".agenthouse/evidence/generic-tour", keepOverlays: true });
