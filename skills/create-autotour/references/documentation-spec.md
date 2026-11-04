@@ -10,7 +10,7 @@
 
 ## Author the contract
 
-Read the project configuration's optional `documentation` path, default `.autotour/documentation.json`. Start from packaged `examples/documentation.json` and its linked files, with the user's actual brief and application evidence. Ask only about missing choices. Record headings, ordered text/screenshot/tour blocks, audience, viewport, and destination. One section corresponds to one module. Use stable step IDs for screenshots and exact recorded view/dependency names; map those names to reviewed source-file globs. Do not invent source ownership to satisfy validation.
+Read the project configuration's optional `documentation` path, default `.autotour/documentation.json`. Start from packaged `examples/documentation.json` and its linked files, with the user's actual brief and application evidence. Ask only about missing choices. Record headings, ordered text/screenshot/tour blocks, audience, language, viewport, and destination. Text blocks are Markdown. HTML `single-file` embeds screenshots; `site` links copied image files. Ask about the viewer's content security policy before choosing the mode. One section corresponds to one module. Use stable step IDs for screenshots and exact recorded view/dependency names; map those names to reviewed source-file globs. Do not invent source ownership to satisfy validation.
 
 `sourceView` states which UI the screenshot describes. `target` controls a role/name highlight independently of the action. `timing` specifies before/after that action; use explicit assertions/waits to capture settled results. Captions and alt text serve different purposes. Read packaged `docs/documentation-spec.md` for the schema and examples.
 

@@ -32,7 +32,10 @@ test("generates selected Markdown, HTML, and Confluence plan targets from one de
   const result = await generateDocumentation({ spec, specPath: path.join(root, "documentation.json"), walkthrough, walkthroughFile, outputRoot: root });
   assert.deepEqual(result.targets.map(target => target.kind), ["markdown", "html", "confluence"]);
   assert.match(await readFile(path.join(root, "docs/profile.md"), "utf8"), /!\[Profile form\]\(assets\/autotour\/profile-docs\/profile\/save\.png\)/);
-  assert.match(await readFile(path.join(root, "site/index.html"), "utf8"), /<img src="assets\/profile\/save\.png"/);
+  const html = await readFile(path.join(root, "site/index.html"), "utf8");
+  assert.match(html, /<html lang="en">/);
+  assert.match(html, /<img src="data:image\/png;base64,aW1hZ2U="/);
+  assert.doesNotMatch(html, /assets\/profile\/save\.png/);
   assert.equal(JSON.parse(await readFile(path.join(root, "confluence-42.json"), "utf8")).pageId, "42");
   await assert.rejects(readFile(path.join(root, ".gitignore")), { code: "ENOENT" });
   await assert.rejects(generateDocumentation({ spec: { ...spec, targets: [{ kind: "markdown", path: "../unapproved.md" }] }, walkthrough, walkthroughFile, outputRoot: root }), /escapes the chosen output folder/);

@@ -51,6 +51,17 @@ Enter Plan mode when the host provides that capability. Otherwise present a shor
 - Should the camera zoom and follow clicks, or keep a fixed full view?
 - Should there be motion animations? Choose static framing, restrained showcase drift/tilt, or a more animated ad; confirm pacing and reduced-motion behavior.
 
+When the deliverable is a product manual, also resolve whichever of these the brief has not already answered. Record the answers. Do not choose them on the author's behalf:
+
+- Should images be clickable, and should chapters collapse?
+- Which navigation does the reader need: a top menu, a sidebar, breadcrumbs, previous and next links, search?
+- Which languages are required, and should a language switch be one linked file per language or one file with a toggle?
+- How deep should the table of contents go, and should chapters be grouped into parts?
+- Should the page use a brand (logo, colours, and font) or a neutral look?
+- Is there an intro chapter, and should it be animated? Animation belongs to the motion-ad route.
+- Which test accounts and roles does each module need, and do they come from a seed or from fixtures?
+- Where will the output be opened? Ask about that viewer's content security policy before choosing a site or a single file. A viewer that allows only `data:` images and no frames needs `single-file`, which embeds the screenshots in the page.
+
 Explain proposed settings in plain language and resolve required choices before capture. If the user explicitly delegates choices, state assumptions and continue. Do not re-ask answered questions or require another confirmation of an already approved plan. Record the agreed brief in the task's existing planning record, keeping credentials out of it.
 
 Distinguish presentation timing from encoded duration: the current `renderDomReplayVideo.durationMs` records an interval after player readiness, and its WebM can include startup overhead. Never promise an exact file duration from this option alone. When exact output is required, plan startup removal and duration verification with available media tools; disclose missing tooling before capture. Capture source detail at the agreed resolution; later re-encoding cannot restore detail lost by the recorder.
@@ -61,7 +72,7 @@ Destination and Git-policy choices must be explicit or already saved as confirme
 
 For an approved first-tour review, use `plan-tour <journey.json> --brief <brief.json> --mode screenshots|dom|video`, then `review <tour-id>`. The brief requires `audience`, `outcome`, `privacy`, and `testDataEffects`; save it only in an approved source/work folder. Follow the saved review workflow in [reliable tour authoring](../../docs/reliable-tours.md). Never mark scenes approved on the user's behalf merely because automated checks pass. Explain that recapture can rerun prerequisite actions and requires consent; changed wording invalidates the scene’s approval. Prepare local delivery only after current human review. Do not count synthetic fixture tests as real viewer trials or imply local preparation publishes anything.
 
-For repeatable documentation, author or update the project-configured `documentation` file (default `.autotour/documentation.json`) after planning. Read [references/documentation-spec.md](references/documentation-spec.md). The definition may keep the journey and dependency map inline in one file, declare Markdown, HTML, and Confluence targets, and select a subset of targets for each run. Discuss whether to create or adapt an existing tree, whether HTML is a site or single file, and whether media should be annotated screenshots, rendered DOM replay, or WebM fallback. Offer prose proposals from repository evidence, but mark them for user approval. Validate references before capture; use `run-docs` to assemble complete local targets and connected publishing for Confluence. Keep dependencies evidence-based and preserve unrelated published content.
+For repeatable documentation, author or update the project-configured `documentation` file (default `.autotour/documentation.json`) after planning. Read [references/documentation-spec.md](references/documentation-spec.md). The definition may keep the journey and dependency map inline in one file, declare Markdown, HTML, and Confluence targets, and select a subset of targets for each run. Discuss whether to create or adapt an existing tree, whether HTML is a site or single file, and whether media should be annotated screenshots, rendered DOM replay, or WebM fallback. Set the spec `language`. `single-file` embeds screenshots as `data:` URLs; `site` writes linked image files. Text blocks are Markdown. Offer prose proposals from repository evidence, but mark them for user approval. Validate references before capture; use `run-docs` to assemble complete local targets and connected publishing for Confluence. Keep dependencies evidence-based and preserve unrelated published content.
 
 ## Optional motion ads
 

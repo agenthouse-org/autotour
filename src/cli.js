@@ -23,6 +23,7 @@ import {
 import {
   syncMarkdownScreenshots
 } from "./publishing/index.js";
+import { packageVersionCheck, readProjectAutotourVersion } from "./doctor.js";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const packageJson = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8"));
@@ -54,7 +55,7 @@ Commands:
   invalidate  Identify modules affected by repository changes
   regenerate  Replace only modules marked for regeneration
   sync-markdown  Refresh managed walkthrough screenshots in Markdown
-  doctor    Check the local Node.js and Playwright installation
+  doctor    Check Node.js, Playwright, and whether the project package is older than this CLI
 `;
 
 function parseInitArgs(args) {
@@ -64,19 +65,21 @@ function parseInitArgs(args) {
   };
 }
 
-async function doctor() {
+export async function runDoctor({ cwd = process.cwd(), cliVersion = packageJson.version, log = console.log } = {}) {
   const major = Number.parseInt(process.versions.node.split(".")[0], 10);
-  const checks = [{ name: "Node.js >= 20", ok: major >= 20, detail: process.version }];
+  const checks = [{ name: "Node.js >= 20", ok: major >= 20, advisory: false, detail: process.version }];
 
   try {
     const playwright = await import("playwright");
-    checks.push({ name: "Playwright", ok: Boolean(playwright.chromium), detail: "installed" });
+    checks.push({ name: "Playwright", ok: Boolean(playwright.chromium), advisory: false, detail: "installed" });
   } catch (error) {
-    checks.push({ name: "Playwright", ok: false, detail: error.message });
+    checks.push({ name: "Playwright", ok: false, advisory: false, detail: error.message });
   }
+  checks.push(packageVersionCheck({ cliVersion, project: await readProjectAutotourVersion(cwd) }));
 
   for (const check of checks) {
-    console.log(`${check.ok ? "ok" : "not ok"} - ${check.name} (${check.detail})`);
+    const label = check.advisory ? "warn" : check.ok ? "ok" : "not ok";
+    log(`${label} - ${check.name} (${check.detail})`);
   }
   return checks.every((check) => check.ok) ? 0 : 1;
 }
@@ -96,7 +99,7 @@ export async function run(args) {
     console.log(packageJson.version);
     return 0;
   }
-  if (command === "doctor") return doctor();
+  if (command === "doctor") return runDoctor();
   if (command === "plan-tour") {
     try {
       if (!rest[0] || rest[1] !== "--brief" || !rest[2] || (rest.length !== 3 && !(rest.length === 5 && rest[3] === "--mode"))) throw new Error("Usage: autotour plan-tour <journey.json> --brief <brief.json> [--mode screenshots|dom|video]");

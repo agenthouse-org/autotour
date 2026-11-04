@@ -22,6 +22,7 @@
       ]
     },
     "audience": { "type": "string", "minLength": 1 },
+    "language": { "type": "string", "pattern": "^[a-zA-Z]{2,8}(-[a-zA-Z0-9]{1,8})*$" },
     "viewport": {
       "type": "object", "additionalProperties": false,
       "required": ["width", "height"],

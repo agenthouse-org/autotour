@@ -1,5 +1,6 @@
 import { copyFile, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
+import { renderMarkdown } from "./markdown.js";
 import { validateDocumentationSpec } from "./spec.js";
 
 export async function generateDocumentation({ spec, specPath, walkthrough, walkthroughFile, targets, outputRoot, mode = "create" }) {
@@ -47,17 +48,27 @@ async function generateMarkdown({ spec, walkthrough, target, manifestDir, root, 
 
 async function generateHtml({ spec, walkthrough, target, manifestDir, root, mode }) {
   const destination = resolveTarget(root, target.path);
+  const htmlMode = target.mode ?? spec.generation?.htmlMode ?? "site";
   const sections = [];
   for (const section of spec.sections) {
-    const blocks = await renderBlocks({ section, walkthrough, manifestDir, assetsDir: path.join(path.dirname(destination), "assets"), documentDir: path.dirname(destination), format: "html" });
+    const blocks = await renderBlocks({
+      section,
+      walkthrough,
+      manifestDir,
+      assetsDir: path.join(path.dirname(destination), "assets"),
+      documentDir: path.dirname(destination),
+      format: "html",
+      embedImages: htmlMode === "single-file"
+    });
     const level = section.headingLevel ?? 2;
     sections.push(`<section id="${section.moduleId}"><h${level}>${escapeHtml(section.heading)}</h${level}>${blocks.join("\n")}</section>`);
   }
   const title = escapeHtml(spec.title ?? walkthrough.title ?? walkthrough.id);
-  const html = `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${title}</title></head><body><header><h1>${title}</h1><nav><ol>${spec.sections.map(section => `<li><a href="#${section.moduleId}">${escapeHtml(section.heading)}</a></li>`).join("")}</ol></nav></header><main>${sections.join("\n")}</main></body></html>\n`;
+  const language = escapeHtml(documentLanguage(spec, walkthrough));
+  const html = `<!doctype html>\n<html lang="${language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${title}</title><style>${manualStyle}</style></head><body><header><h1>${title}</h1><nav><ol>${spec.sections.map(section => `<li><a href="#${section.moduleId}">${escapeHtml(section.heading)}</a></li>`).join("")}</ol></nav></header><main>${sections.join("\n")}</main></body></html>\n`;
   await mkdir(path.dirname(destination), { recursive: true });
   await writeFile(destination, html, "utf8");
-  return { kind: "html", path: destination, mode: target.mode ?? spec.generation?.htmlMode ?? "site" };
+  return { kind: "html", path: destination, mode: htmlMode };
 }
 
 async function generateConfluencePlan({ spec, target, root }) {
@@ -93,20 +104,24 @@ async function generatePdf({ spec, walkthrough, target, manifestDir, root, mode 
   return { kind: "pdf", path: destination, mode };
 }
 
-async function renderBlocks({ section, walkthrough, manifestDir, assetsDir, documentDir, format }) {
+async function renderBlocks({ section, walkthrough, manifestDir, assetsDir, documentDir, format, embedImages = false }) {
   const module = walkthrough.modules.find(candidate => candidate.id === section.moduleId);
   const output = [];
   for (const block of section.blocks) {
-    if (block.kind === "text") output.push(format === "html" ? `<p>${escapeHtml(block.text)}</p>` : block.text);
+    if (block.kind === "text") output.push(format === "html" ? renderMarkdown(block.text) : block.text);
     if (block.kind === "tour") output.push(format === "html" ? `<p><a href="${escapeHtml(block.url)}">${escapeHtml(block.label)}</a></p>` : `[${block.label}](${block.url})`);
     if (block.kind === "video") output.push(format === "html" ? `<p><a href="${escapeHtml(block.path)}">${escapeHtml(block.label)}</a></p>${block.caption ? `<p>${escapeHtml(block.caption)}</p>` : ""}` : `[${block.label}](${block.path})${block.caption ? `\n\n${block.caption}` : ""}`);
     if (block.kind !== "screenshot") continue;
     const assetPath = module.assets?.screenshots?.find(candidate => candidate.endsWith(`/${block.stepId}.png`)) ?? `modules/${module.id}/screenshots/${block.stepId}.png`;
     const source = safeResolve(manifestDir, assetPath);
     const destination = path.join(assetsDir, module.id, path.basename(source));
-    await mkdir(path.dirname(destination), { recursive: true });
-    await copyFile(source, destination);
-    const relative = portable(path.relative(documentDir, destination));
+    const relative = embedImages
+      ? `data:${mimeType(source)};base64,${(await readFile(source)).toString("base64")}`
+      : portable(path.relative(documentDir, destination));
+    if (!embedImages) {
+      await mkdir(path.dirname(destination), { recursive: true });
+      await copyFile(source, destination);
+    }
     output.push(format === "html" ? `<figure><img src="${escapeHtml(relative)}" alt="${escapeHtml(block.alt)}"><figcaption>${escapeHtml(block.caption)}</figcaption></figure>` : `![${escapeMarkdown(block.alt)}](${relative})\n\n${block.caption}`);
   }
   return output;
@@ -135,5 +150,18 @@ function safeResolve(root, relative) {
 }
 async function exists(file) { try { await readFile(file); return true; } catch { return false; } }
 function portable(value) { return value.split(path.sep).join("/"); }
+function documentLanguage(spec, walkthrough) {
+  const value = spec.language ?? walkthrough.language ?? "en";
+  return /^[a-zA-Z]{2,8}(-[a-zA-Z0-9]{1,8})*$/.test(value) ? value : "en";
+}
+function mimeType(file) {
+  const extension = path.extname(file).toLowerCase();
+  if (extension === ".jpg" || extension === ".jpeg") return "image/jpeg";
+  if (extension === ".gif") return "image/gif";
+  if (extension === ".webp") return "image/webp";
+  if (extension === ".svg") return "image/svg+xml";
+  return "image/png";
+}
+const manualStyle = "body{margin:0 auto;max-width:52rem;padding:1.5rem;font:1rem/1.5 system-ui,sans-serif}img{max-width:100%;height:auto}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:.4rem .6rem;text-align:left}aside.autotour-note,blockquote{border-left:.25rem solid #888;margin:1rem 0;padding:.25rem 1rem}figure{break-inside:avoid;margin:1.5rem 0}pre{overflow:auto}";
 function escapeHtml(value) { return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;"); }
 function escapeMarkdown(value) { return String(value).replace(/[\\[\]]/g, "\\$&"); }

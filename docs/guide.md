@@ -20,6 +20,8 @@ npx autotour init
 npx autotour doctor
 ```
 
+`doctor` checks Node.js and Playwright. When this command is a newer CLI than the project's installed `autotour` package, it prints a warning and still exits 0. Capture is unchanged.
+
 For an unreleased checkout, follow [INSTALL.md](../INSTALL.md). Keep test credentials in environment variables and captures in ignored `.autotour/output/` paths.
 
 ## Capture an existing journey
