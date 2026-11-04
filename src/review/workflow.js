@@ -211,7 +211,7 @@ export async function applyReviewAction(review, action, { capture = captureJourn
       // Do not serialize arbitrary exception text (URLs, page content or credential values).
       const failedId = state.journey.modules.some(m => m.id === error.moduleId) ? error.moduleId : module?.id ?? null;
       const reason = String(error.cause?.message ?? error.cause ?? error.message);
-      const diagnosis = /not unique|ambiguous|multiple elements/i.test(reason) ? "A target matched multiple controls. Scope it to a unique control." : /protected value|credential/i.test(reason) ? "A credential or protected-value check failed. Review secure test access and redaction." : /timeout|did not settle/i.test(reason) ? "The expected target or state did not become ready in time." : "Check target uniqueness, the expected state and permitted test access.";
+      const diagnosis = /not unique|ambiguous|multiple elements/i.test(reason) ? "A target matched multiple controls. Scope it to a unique control." : /protected value|credential/i.test(reason) ? "A credential or protected-value check failed. Review secure test access and redaction." : /timeout|did not settle|no element matched|count was|kept changing|text or visibility/i.test(reason) ? "The expected target or state did not become ready in time." : "Check target uniqueness, the expected state and permitted test access.";
       state.failure = { sceneId: failedId, at: now(), message: "Capture did not complete. The previous capture is preserved.",
         advice: diagnosis + " Correct the source journey in a new plan if execution must change. Retry only after reviewing test-data effects." };
       state.version++;

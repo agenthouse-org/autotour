@@ -169,7 +169,8 @@ export async function captureJourney(options = {}) {
     initScript,
     hideSelectors,
     secrets,
-    outputDir
+    outputDir,
+    viewport: screenshotOptions ? screenshotOptions.viewport : undefined
   });
   /** @type {object[]} */
   const capturedModules = [];
@@ -188,6 +189,9 @@ export async function captureJourney(options = {}) {
       const shouldCapture = selection.selectedIds.has(module.id);
       const handle = await session.openModule(module, { capture: shouldCapture });
       const page = handle.page;
+      if (screenshotOptions?.viewport && typeof page.setViewportSize === "function") {
+        await page.setViewportSize(screenshotOptions.viewport);
+      }
       const observer = observeSameOriginRequests(page, parsedBase);
       const moduleRequests = [];
       const capturedSteps = [];
@@ -281,6 +285,10 @@ export async function captureJourney(options = {}) {
         }
       } catch (error) {
         moduleError = error;
+        const failurePath = await saveFailureScreenshot(page, outputDir, module.id);
+        if (failurePath && error instanceof Error && !error.message.includes("Failure screenshot:")) {
+          error.message += ` Failure screenshot: ${failurePath}.`;
+        }
         throw error;
       } finally {
         observer.stop();
@@ -461,16 +469,41 @@ function normalizeExecutableJourney(journey) {
     ...journey,
     modules: journey.modules.map((module) => ({
       ...module,
-      setup: module.setup?.map(normalizeStep),
-      steps: module.steps.map(normalizeStep)
+      setup: module.setup?.map(step => normalizeStep(step, module)),
+      steps: module.steps.map(step => normalizeStep(step, module))
     }))
   };
 }
 
-function normalizeStep(step) {
-  const condition = value => value ? { ...value, target: value.target ?? parseSelector(value.selector) } : undefined;
-  return { ...step, target: step.target ?? parseSelector(step.selector),
-    until: condition(step.until), expect: condition(step.expect) };
+function normalizeStep(step, module) {
+  try {
+    const parse = selector => parseSelector(selector);
+    const condition = value => value ? { ...value, target: value.target ?? parse(value.selector) } : undefined;
+    return { ...step, target: step.target ?? parse(step.selector),
+      until: condition(step.until), expect: condition(step.expect) };
+  } catch (error) {
+    if (!(error instanceof CaptureError)) throw error;
+    throw new CaptureError({
+      message: `Failed at module ${module.id}, step ${step.id}: ${error.message}`,
+      moduleId: module.id,
+      stepId: step.id,
+      cause: error.cause,
+      original: error
+    });
+  }
+}
+
+async function saveFailureScreenshot(page, outputDir, moduleId) {
+  if (typeof page?.screenshot !== "function") return undefined;
+  const relativePath = path.posix.join("modules", moduleId, "failure.png");
+  const destination = path.join(outputDir, "modules", moduleId, "failure.png");
+  try {
+    await mkdir(path.dirname(destination), { recursive: true });
+    await page.screenshot({ path: destination, type: "png", animations: "disabled", caret: "hide" });
+    return relativePath;
+  } catch {
+    return undefined;
+  }
 }
 
 async function addDomStepEvent(page, step, phase, secrets) {
@@ -542,7 +575,8 @@ async function createCaptureSession({
   locale,
   browserArgs,
   initScript,
-  hideSelectors
+  hideSelectors,
+  viewport
 }) {
   if (injectedPage) return createSharedPageSession(injectedPage);
   if (createSession) {
@@ -553,7 +587,7 @@ async function createCaptureSession({
   }
   if (recordVideo) return openPlaywrightVideoSession({ ...recordVideo, locale, browserArgs, initScript, hideSelectors }, outputDir);
   if (recordDom) return openPlaywrightDomSession(recordDom, outputDir, secrets);
-  return openPlaywrightSession({ locale, browserArgs, initScript, hideSelectors });
+  return openPlaywrightSession({ locale, browserArgs, initScript, hideSelectors, viewport });
 }
 
 function createSharedPageSession(page) {
@@ -573,7 +607,11 @@ function createSharedPageSession(page) {
 async function openPlaywrightSession(options = {}) {
   const { chromium } = await import("playwright");
   const browser = await chromium.launch({ headless: true, args: options.browserArgs });
-  const context = await browser.newContext({ locale: options.locale, reducedMotion: "reduce" });
+  const context = await browser.newContext({
+    locale: options.locale,
+    reducedMotion: "reduce",
+    ...(options.viewport ? { viewport: options.viewport } : {})
+  });
   if (options.initScript) await context.addInitScript({ content: options.initScript });
   const page = await context.newPage();
   if (options.hideSelectors?.length) await page.addStyleTag({ content: options.hideSelectors.map(selector => `${selector}{visibility:hidden !important}`).join("\n") });

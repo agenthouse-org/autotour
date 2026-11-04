@@ -1,11 +1,19 @@
 import { CaptureError } from "./errors.js";
 import { waitForCondition } from "./conditions.js";
+import { MAX_WAIT_MS, MAX_PACING_MS } from "./limits.js";
 
 /**
  * Resolve a Playwright locator from a role/name target contract.
  * @param {import('playwright').Page} page
  * @param {{ role?: string, name?: string, text?: string, index?: number }} target
  */
+export function describeTarget(target = {}) {
+  if (target.css) return `css selector ${JSON.stringify(target.css)}`;
+  if (target.testId) return `test id ${JSON.stringify(target.testId)}`;
+  if (target.text) return `text ${JSON.stringify(target.text)}`;
+  return `role ${JSON.stringify(target.role)} / name ${JSON.stringify(target.name)}`;
+}
+
 export function resolveTarget(page, target) {
   let locator;
   if (typeof target?.css === "string" && target.css.length > 0) {
@@ -109,7 +117,8 @@ export async function executeStep({ page, baseUrl, module, step, env, secrets, o
       case "click": {
         const locator = resolveTarget(page, step.target);
         const timeoutMs = normalizeDuration(step.timeoutMs ?? 10000, "click timeoutMs", {
-          minimum: 1
+          minimum: 1,
+          maximum: MAX_WAIT_MS
         });
         const beforeUrl = typeof page.url === "function" ? page.url() : undefined;
         try {
@@ -124,13 +133,23 @@ export async function executeStep({ page, baseUrl, module, step, env, secrets, o
         break;
       }
       case "dblclick": {
-        await resolveTarget(page, step.target).dblclick({ timeout: step.timeoutMs ?? 10000 });
+        const timeoutMs = normalizeDuration(step.timeoutMs ?? 10000, "dblclick timeoutMs", {
+          minimum: 1,
+          maximum: MAX_WAIT_MS
+        });
+        await resolveTarget(page, step.target).dblclick({ timeout: timeoutMs });
         break;
       }
       case "press": {
         const value = resolveStepValue(step, env, secrets, context);
         if (typeof value !== "string" || value.length === 0) throw new Error("press steps require valueEnv or value");
-        if (step.target) await resolveTarget(page, step.target).press(value, { timeout: step.timeoutMs ?? 10000 });
+        if (step.target) {
+          const timeoutMs = normalizeDuration(step.timeoutMs ?? 10000, "press timeoutMs", {
+            minimum: 1,
+            maximum: MAX_WAIT_MS
+          });
+          await resolveTarget(page, step.target).press(value, { timeout: timeoutMs });
+        }
         else await page.keyboard.press(value);
         break;
       }
@@ -194,7 +213,8 @@ export async function executeStep({ page, baseUrl, module, step, env, secrets, o
           await waitForCondition(page, step.until);
         } else if (step.target) {
           const timeoutMs = normalizeDuration(step.timeoutMs ?? 5000, "wait timeoutMs", {
-            minimum: 1
+            minimum: 1,
+            maximum: MAX_WAIT_MS
           });
           const locator = resolveTarget(page, step.target);
           await locator.waitFor({
@@ -211,7 +231,8 @@ export async function executeStep({ page, baseUrl, module, step, env, secrets, o
       }
       case "assert": {
         const timeoutMs = normalizeDuration(step.timeoutMs ?? 5000, "assert timeoutMs", {
-          minimum: 1
+          minimum: 1,
+          maximum: MAX_WAIT_MS
         });
         if (step.url) {
           const expectedUrl = new URL(step.url, baseUrl).toString();
@@ -245,8 +266,9 @@ export async function executeStep({ page, baseUrl, module, step, env, secrets, o
     if (error instanceof CaptureError) {
       throw error;
     }
+    const target = step.target ? ` Target: ${describeTarget(step.target)}.` : "";
     throw new CaptureError({
-      message: `Failed at module ${module.id}, step ${step.id}: ${error.message}`,
+      message: `Failed at module ${module.id}, step ${step.id}.${target} ${error.message}`,
       moduleId: module.id,
       stepId: step.id,
       cause: error.message,
@@ -254,13 +276,6 @@ export async function executeStep({ page, baseUrl, module, step, env, secrets, o
       original: error
     });
   }
-}
-
-function describeTarget(target = {}) {
-  if (target.css) return `css selector ${JSON.stringify(target.css)}`;
-  if (target.testId) return `test id ${JSON.stringify(target.testId)}`;
-  if (target.text) return `text ${JSON.stringify(target.text)}`;
-  return `role ${JSON.stringify(target.role)} / name ${JSON.stringify(target.name)}`;
 }
 
 function isCompletedNavigationTimeout(error, beforeUrl, afterUrl) {
@@ -331,9 +346,9 @@ function normalizeCoordinate(value, label) {
   return value;
 }
 
-function normalizeDuration(value, label, { minimum }) {
-  if (!Number.isInteger(value) || value < minimum || value > 30000) {
-    throw new Error(`${label} must be an integer between ${minimum} and 30000`);
+function normalizeDuration(value, label, { minimum, maximum = MAX_PACING_MS }) {
+  if (!Number.isInteger(value) || value < minimum || value > maximum) {
+    throw new Error(`${label} must be an integer between ${minimum} and ${maximum}`);
   }
   return value;
 }

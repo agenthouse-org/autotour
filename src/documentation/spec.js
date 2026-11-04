@@ -5,6 +5,7 @@ import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import { validateDependencyMapDocument } from "../invalidation/index.js";
 import { checkTranslationLinks } from "./languages.js";
+import { MAX_WAIT_MS } from "../capture/limits.js";
 
 export const documentationSchemaPath = fileURLToPath(new URL("../../schemas/documentation.schema.json", import.meta.url));
 let validator;
@@ -37,6 +38,18 @@ export async function validateDocumentationSpec(spec, { journey, dependencyMap }
   if (dependencyMap) {
     const result = await validateDependencyMapDocument(dependencyMap);
     if (!result.valid) return { valid: false, errors: [...errors, ...result.errors] };
+  }
+  if (Array.isArray(journey?.modules)) {
+    for (const module of journey.modules) {
+      for (const step of [...(module.setup ?? []), ...(module.steps ?? [])]) {
+        checkWaitLimit(fail, module, step, "timeoutMs", step.timeoutMs, 1);
+        checkWaitLimit(fail, module, step, "stableForMs", step.stableForMs, 0);
+        for (const field of ["until", "expect"]) {
+          checkWaitLimit(fail, module, step, `${field}.timeoutMs`, step[field]?.timeoutMs, 1);
+          checkWaitLimit(fail, module, step, `${field}.stableForMs`, step[field]?.stableForMs, 0);
+        }
+      }
+    }
   }
   const seen = new Set();
   for (const section of spec.sections) {
@@ -99,6 +112,13 @@ export async function readDocumentationSpec(file) {
   if (!result.valid) throw new Error(`Documentation references are invalid: ${JSON.stringify(result.errors)}`);
   await checkTranslationLinks(spec, specPath);
   return { spec, journey, dependencyMap, specPath };
+}
+
+function checkWaitLimit(fail, module, step, label, value, minimum) {
+  if (value === undefined) return;
+  if (!Number.isInteger(value) || value < minimum || value > MAX_WAIT_MS) {
+    fail(`${module.id} step ${step.id}: ${label} must be an integer between ${minimum} and ${MAX_WAIT_MS}.`);
+  }
 }
 
 async function readJsonReference(specPath, reference) {

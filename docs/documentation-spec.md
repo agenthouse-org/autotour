@@ -85,6 +85,8 @@ A section `status` is `ready` when omitted. A ready chapter must name a journey 
 npx autotour validate-docs .autotour/documentation.json
 ```
 
+Validation checks journey `timeoutMs` and `stableForMs` with the same 120000 ms ceiling capture enforces. A value above that ceiling fails here instead of during the browser run.
+
 Paths resolve relative to the specification. Source files stay separate; preparation does not rewrite the journey or invent dependency evidence.
 
 ```js
