@@ -1,11 +1,13 @@
-import { copyFile, mkdir, readFile, writeFile, rm } from "node:fs/promises";
+import { access, copyFile, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { renderMarkdown } from "./markdown.js";
 import { readerChrome } from "./reader.js";
 import { languageSwitchMarkup } from "./languages.js";
 import { validateDocumentationSpec } from "./spec.js";
 
-export async function generateDocumentation({ spec, specPath, walkthrough, walkthroughFile, targets, outputRoot, mode = "create" }) {
+const placeholderStyle = "figure.autotour-placeholder{border:1px dashed #666;padding:1rem;margin:1rem 0;background:#f6f6f6}";
+
+export async function generateDocumentation({ spec, specPath, walkthrough, walkthroughFile, targets, outputRoot, mode = "create", draft = false }) {
   const validation = await validateDocumentationSpec(spec, { journey: walkthrough });
   if (!validation.valid) throw new Error(`Cannot generate documentation: ${JSON.stringify(validation.errors)}`);
   const selected = (targets?.length ? targetList(spec).filter(target => targets.includes(target.kind)) : targetList(spec));
@@ -19,9 +21,9 @@ export async function generateDocumentation({ spec, specPath, walkthrough, walkt
   }
   const results = [];
   for (const target of selected) {
-    if (target.kind === "markdown") results.push(await generateMarkdown({ spec, walkthrough, target, manifestDir, root, mode }));
-    else if (target.kind === "html") results.push(await generateHtml({ spec, specPath, walkthrough, target, manifestDir, root, mode }));
-    else if (target.kind === "pdf") results.push(await generatePdf({ spec, walkthrough, target, manifestDir, root, mode }));
+    if (target.kind === "markdown") results.push(await generateMarkdown({ spec, walkthrough, target, manifestDir, root, mode, draft }));
+    else if (target.kind === "html") results.push(await generateHtml({ spec, specPath, walkthrough, target, manifestDir, root, mode, draft }));
+    else if (target.kind === "pdf") results.push(await generatePdf({ spec, walkthrough, target, manifestDir, root, mode, draft }));
     else results.push(await generateConfluencePlan({ spec, target, root }));
   }
   return { mode, targets: results };
@@ -31,14 +33,14 @@ function targetList(spec) {
   return spec.targets ?? (spec.destination ? [spec.destination] : []);
 }
 
-async function generateMarkdown({ spec, walkthrough, target, manifestDir, root, mode }) {
+async function generateMarkdown({ spec, walkthrough, target, manifestDir, root, mode, draft }) {
   const destination = resolveTarget(root, target.path);
   const assetsDir = path.join(path.dirname(destination), "assets", "autotour", walkthrough.id);
   const generated = [];
   for (const section of spec.sections) {
     generated.push({
       moduleId: section.moduleId,
-      content: [`${"#".repeat(section.headingLevel ?? 2)} ${escapeMarkdown(section.heading)}`, `<!-- autotour:module=${section.moduleId}:start -->`, ...await renderBlocks({ section, walkthrough, manifestDir, assetsDir, documentDir: path.dirname(destination), format: "markdown" }), `<!-- autotour:module=${section.moduleId}:end -->`].join("\n")
+      content: [`${"#".repeat(section.headingLevel ?? 2)} ${escapeMarkdown(section.heading)}`, `<!-- autotour:module=${section.moduleId}:start -->`, ...await renderBlocks({ section, walkthrough, manifestDir, assetsDir, documentDir: path.dirname(destination), format: "markdown", draft }), `<!-- autotour:module=${section.moduleId}:end -->`].join("\n")
     });
   }
   const existing = mode === "adapt" && await exists(destination) ? await readFile(destination, "utf8") : undefined;
@@ -48,7 +50,7 @@ async function generateMarkdown({ spec, walkthrough, target, manifestDir, root, 
   return { kind: "markdown", path: destination, mode, assetsDir };
 }
 
-async function generateHtml({ spec, specPath, walkthrough, target, manifestDir, root, mode }) {
+async function generateHtml({ spec, specPath, walkthrough, target, manifestDir, root, mode, draft }) {
   const destination = resolveTarget(root, target.path);
   const htmlMode = target.mode ?? spec.generation?.htmlMode ?? "site";
   const sections = [];
@@ -60,7 +62,8 @@ async function generateHtml({ spec, specPath, walkthrough, target, manifestDir, 
       assetsDir: path.join(path.dirname(destination), "assets"),
       documentDir: path.dirname(destination),
       format: "html",
-      embedImages: htmlMode === "single-file"
+      embedImages: htmlMode === "single-file",
+      draft
     });
     const level = section.headingLevel ?? 2;
     sections.push(`<section id="${section.moduleId}"><h${level}>${escapeHtml(section.heading)}</h${level}>${blocks.join("\n")}</section>`);
@@ -69,7 +72,7 @@ async function generateHtml({ spec, specPath, walkthrough, target, manifestDir, 
   const language = escapeHtml(documentLanguage(spec, walkthrough));
   const reader = readerChrome(spec.sections);
   const switcher = await languageSwitchMarkup({ spec, specPath, outputRoot: root, currentHtmlPath: destination });
-  const html = `<!doctype html>\n<html lang="${language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${title}</title><style>${manualStyle}${reader.style}</style>${switcher.style}</head><body><header><h1>${title}</h1>${switcher.markup}${reader.header}</header><main>${sections.join("\n")}</main>${reader.script}${switcher.script}</body></html>\n`;
+  const html = `<!doctype html>\n<html lang="${language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${title}</title><style>${manualStyle}${reader.style}${placeholderStyle}</style>${switcher.style}</head><body><header><h1>${title}</h1>${switcher.markup}${reader.header}</header><main>${sections.join("\n")}</main>${reader.script}${switcher.script}</body></html>\n`;
   await mkdir(path.dirname(destination), { recursive: true });
   await writeFile(destination, html, "utf8");
   return { kind: "html", path: destination, mode: htmlMode };
@@ -83,18 +86,18 @@ async function generateConfluencePlan({ spec, target, root }) {
   return { kind: "confluence", path: destination, pageId: target.pageId, status: "plan-created" };
 }
 
-async function generatePdf({ spec, walkthrough, target, manifestDir, root, mode }) {
+async function generatePdf({ spec, walkthrough, target, manifestDir, root, mode, draft }) {
   const destination = resolveTarget(root, target.path);
   const temporary = `${destination}.autotour.html`;
   const sections = [];
   for (const section of spec.sections) {
-    const blocks = await renderBlocks({ section, walkthrough, manifestDir, assetsDir: path.join(path.dirname(destination), "assets"), documentDir: path.dirname(destination), format: "html" });
+    const blocks = await renderBlocks({ section, walkthrough, manifestDir, assetsDir: path.join(path.dirname(destination), "assets"), documentDir: path.dirname(destination), format: "html", draft });
     const level = section.headingLevel ?? 2;
     sections.push(`<section><h${level}>${escapeHtml(section.heading)}</h${level}>${blocks.join("\n")}</section>`);
   }
   const title = escapeHtml(spec.title ?? walkthrough.title ?? walkthrough.id);
   await mkdir(path.dirname(destination), { recursive: true });
-  await writeFile(temporary, `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>@page{size:A4;margin:18mm}body{font:12pt/1.5 system-ui}img{max-width:100%}figure{break-inside:avoid}figcaption{font-style:italic;margin-top:.4rem}</style></head><body><h1>${title}</h1>${sections.join("\n")}</body></html>`);
+  await writeFile(temporary, `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>@page{size:A4;margin:18mm}body{font:12pt/1.5 system-ui}img{max-width:100%}figure{break-inside:avoid}figcaption{font-style:italic;margin-top:.4rem}${placeholderStyle}</style></head><body><h1>${title}</h1>${sections.join("\n")}</body></html>`);
   const { chromium } = await import("playwright");
   const browser = await chromium.launch({ headless: true });
   try {
@@ -108,7 +111,8 @@ async function generatePdf({ spec, walkthrough, target, manifestDir, root, mode 
   return { kind: "pdf", path: destination, mode };
 }
 
-async function renderBlocks({ section, walkthrough, manifestDir, assetsDir, documentDir, format, embedImages = false }) {
+async function renderBlocks({ section, walkthrough, manifestDir, assetsDir, documentDir, format, embedImages = false, draft = false }) {
+  const status = section.status ?? "ready";
   const module = walkthrough.modules.find(candidate => candidate.id === section.moduleId);
   const output = [];
   for (const block of section.blocks) {
@@ -116,19 +120,45 @@ async function renderBlocks({ section, walkthrough, manifestDir, assetsDir, docu
     if (block.kind === "tour") output.push(format === "html" ? `<p><a href="${escapeHtml(block.url)}">${escapeHtml(block.label)}</a></p>` : `[${block.label}](${block.url})`);
     if (block.kind === "video") output.push(format === "html" ? `<p><a href="${escapeHtml(block.path)}">${escapeHtml(block.label)}</a></p>${block.caption ? `<p>${escapeHtml(block.caption)}</p>` : ""}` : `[${block.label}](${block.path})${block.caption ? `\n\n${block.caption}` : ""}`);
     if (block.kind !== "screenshot") continue;
-    const assetPath = module.assets?.screenshots?.find(candidate => candidate.endsWith(`/${block.stepId}.png`)) ?? `modules/${module.id}/screenshots/${block.stepId}.png`;
-    const source = safeResolve(manifestDir, assetPath);
-    const destination = path.join(assetsDir, module.id, path.basename(source));
-    const relative = embedImages
-      ? `data:${mimeType(source)};base64,${(await readFile(source)).toString("base64")}`
-      : portable(path.relative(documentDir, destination));
-    if (!embedImages) {
-      await mkdir(path.dirname(destination), { recursive: true });
-      await copyFile(source, destination);
+    const assetPath = module
+      ? module.assets?.screenshots?.find(candidate => candidate.endsWith(`/${block.stepId}.png`)) ?? `modules/${module.id}/screenshots/${block.stepId}.png`
+      : undefined;
+    const source = assetPath ? safeResolve(manifestDir, assetPath) : undefined;
+    if (source && await fileExists(source)) {
+      const destination = path.join(assetsDir, module.id, path.basename(source));
+      const relative = embedImages
+        ? `data:${mimeType(source)};base64,${(await readFile(source)).toString("base64")}`
+        : portable(path.relative(documentDir, destination));
+      if (!embedImages) {
+        await mkdir(path.dirname(destination), { recursive: true });
+        await copyFile(source, destination);
+      }
+      output.push(format === "html" ? `<figure><img src="${escapeHtml(relative)}" alt="${escapeHtml(block.alt)}"><figcaption>${escapeHtml(block.caption)}</figcaption></figure>` : `![${escapeMarkdown(block.alt)}](${relative})\n\n${block.caption}`);
+      continue;
     }
-    output.push(format === "html" ? `<figure><img src="${escapeHtml(relative)}" alt="${escapeHtml(block.alt)}"><figcaption>${escapeHtml(block.caption)}</figcaption></figure>` : `![${escapeMarkdown(block.alt)}](${relative})\n\n${block.caption}`);
+    if (draft || status === "planned") {
+      output.push(screenshotPlaceholder(block, format));
+      continue;
+    }
+    const where = assetPath ? ` (${assetPath})` : "";
+    throw new Error(`${section.moduleId}: screenshot for step ${block.stepId} has not been captured${where}. Capture it, or run with --draft to show a placeholder.`);
   }
   return output;
+}
+
+function screenshotPlaceholder(block, format) {
+  if (format === "html") {
+    return `<figure class="autotour-placeholder"><p>Screenshot not captured yet.</p><p>Step: ${escapeHtml(block.stepId)}</p><p>${escapeHtml(block.alt)}</p><figcaption>${escapeHtml(block.caption)}</figcaption></figure>`;
+  }
+  return [
+    "> Screenshot not captured yet.",
+    ">",
+    `> Step: ${escapeMarkdown(block.stepId)}`,
+    ">",
+    `> ${escapeMarkdown(block.alt)}`,
+    ">",
+    `> ${escapeMarkdown(block.caption)}`
+  ].join("\n");
 }
 
 function resolveTarget(root, target) {
@@ -153,6 +183,7 @@ function safeResolve(root, relative) {
   return resolved;
 }
 async function exists(file) { try { await readFile(file); return true; } catch { return false; } }
+async function fileExists(file) { try { await access(file); return true; } catch { return false; } }
 function portable(value) { return value.split(path.sep).join("/"); }
 function documentLanguage(spec, walkthrough) {
   const value = spec.language ?? walkthrough.language ?? "en";
