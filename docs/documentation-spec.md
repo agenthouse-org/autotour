@@ -21,6 +21,8 @@ Targets can be declared together and selected per run:
 ]
 ```
 
+Set `language` on the specification (`de`, `en`, or another BCP 47 tag). HTML uses that value for `lang`, and uses the walkthrough language when the specification omits it. An HTML target with `"mode": "single-file"` embeds each screenshot as a `data:` URL in the page. `"mode": "site"` copies image files under `assets/` and links them. Ask what the viewer's content security policy allows before choosing a mode. A viewer that allows only `data:` images needs `single-file`.
+
 Ask whether captures and documentation are local or versioned, offer ignore changes separately, then save the choices with `configure-storage`. Paths above are relative to the chosen documentation-output folder, which may be inside or outside this repository. Generate any subset from an existing walkthrough manifest:
 
 ```sh
