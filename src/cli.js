@@ -35,7 +35,7 @@ Usage:
   autotour validate <walkthrough.json>
   autotour approve <walkthrough.json> [--module <id>]
   autotour validate-docs <documentation.json>
-  autotour run-docs <documentation.json> [--walkthrough <walkthrough.json>] [--target markdown,html,pdf,confluence] [--output-dir <directory>] [--capture-dir <directory>] [--mode create|adapt]
+  autotour run-docs <documentation.json> [--walkthrough <walkthrough.json>] [--target markdown,html,pdf,confluence] [--output-dir <directory>] [--capture-dir <directory>] [--mode create|adapt] [--draft]
   autotour invalidate <walkthrough.json> --map <dependency-map.json> (--changed-file <path>... | --base <ref> [--head <ref>]) [--output <plan.json>] [--check]
   autotour regenerate <journey.json> --plan <invalidation-plan.json> --output-dir <directory> [--spec <documentation.json>]
   autotour sync-markdown <walkthrough.json> [--markdown <file>] --assets-dir <directory> [--spec <documentation.json>] [--dry-run | --check]
@@ -252,7 +252,8 @@ export async function run(args) {
         walkthroughFile,
         targets: options.targets,
         outputRoot: storage.documentationOutput,
-        mode: options.mode
+        mode: options.mode,
+        draft: options.draft
       });
       console.log(JSON.stringify(result, null, 2));
       return 0;
@@ -354,6 +355,7 @@ function parseRunDocsArgs(args) {
   let captureDir;
   let targets;
   let mode = "create";
+  let draft = false;
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
     if (argument === "--walkthrough") walkthroughFile = path.resolve(requireOptionValue(args, ++index, argument));
@@ -361,13 +363,14 @@ function parseRunDocsArgs(args) {
     else if (argument === "--capture-dir") captureDir = path.resolve(requireOptionValue(args, ++index, argument));
     else if (argument === "--target") targets = requireOptionValue(args, ++index, argument).split(",").filter(Boolean);
     else if (argument === "--mode") mode = requireOptionValue(args, ++index, argument);
+    else if (argument === "--draft") draft = true;
     else if (argument.startsWith("-")) throw new Error(`Unknown run-docs option: ${argument}`);
     else if (!specFile) specFile = path.resolve(argument);
     else throw new Error(`Unexpected run-docs argument: ${argument}`);
   }
   if (!specFile) throw new Error("run-docs requires a documentation specification file");
   if (!['create', 'adapt'].includes(mode)) throw new Error("run-docs --mode must be create or adapt");
-  return { specFile, walkthroughFile, outputDir, captureDir, targets, mode };
+  return { specFile, walkthroughFile, outputDir, captureDir, targets, mode, draft };
 }
 
 async function regenerate(args) {

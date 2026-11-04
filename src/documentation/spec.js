@@ -31,21 +31,27 @@ export async function validateDocumentationSpec(spec, { journey, dependencyMap }
   }
   const seen = new Set();
   for (const section of spec.sections) {
+    const status = section.status ?? "ready";
     if (/autotour:module=|[\r\n]/.test(section.heading)) fail("Section headings must be single-line text without managed-region markers.");
     if (seen.has(section.moduleId)) fail(`Duplicate documentation section for ${section.moduleId}.`);
     seen.add(section.moduleId);
     const module = journey?.modules?.find(m => m.id === section.moduleId);
-    if (journey && !module) fail(`Unknown module ${section.moduleId}.`);
+    if (status === "ready" && journey && !module) fail(`Unknown module ${section.moduleId}.`);
     if (module && (!Array.isArray(module.steps) || new Set(module.steps.map(step => step.id)).size !== module.steps.length)) {
       fail(`${section.moduleId}: journey steps must have unique IDs.`);
     }
-    for (const [kind, values] of Object.entries(section.dependencies)) {
-      for (const value of values) {
-        if (module && (!Array.isArray(module.dependencies?.[kind]) || !module.dependencies[kind].includes(value))) {
-          fail(`${section.moduleId}: dependency ${kind}:${value} is not recorded by the journey.`);
-        }
-        if (dependencyMap && !dependencyMap.rules?.some(rule => rule.dependencies?.[kind]?.includes(value))) {
-          fail(`${section.moduleId}: dependency ${kind}:${value} has no source-file mapping.`);
+    if (status === "ready" && (!section.dependencies || Object.keys(section.dependencies).length === 0)) {
+      fail(`${section.moduleId}: a ready chapter needs at least one recorded dependency.`);
+    }
+    if (status === "ready") {
+      for (const [kind, values] of Object.entries(section.dependencies ?? {})) {
+        for (const value of values) {
+          if (module && (!Array.isArray(module.dependencies?.[kind]) || !module.dependencies[kind].includes(value))) {
+            fail(`${section.moduleId}: dependency ${kind}:${value} is not recorded by the journey.`);
+          }
+          if (dependencyMap && !dependencyMap.rules?.some(rule => rule.dependencies?.[kind]?.includes(value))) {
+            fail(`${section.moduleId}: dependency ${kind}:${value} has no source-file mapping.`);
+          }
         }
       }
     }
@@ -55,10 +61,15 @@ export async function validateDocumentationSpec(spec, { journey, dependencyMap }
         fail("Documentation blocks cannot contain managed-region markers.");
       }
       if (block.alt && /[\r\n]/.test(block.alt)) fail("Screenshot alt text must be a single line.");
+      if (status === "text" && block.kind !== "text") {
+        fail(`${section.moduleId}: a text chapter can only contain prose.`);
+        continue;
+      }
       if (block.kind !== "screenshot") continue;
       if (screenshots.has(block.stepId)) fail(`${section.moduleId}: duplicate screenshot step ${block.stepId}.`);
       screenshots.add(block.stepId);
-      if (!section.dependencies.views?.includes(block.sourceView)) fail(`${section.moduleId}: sourceView ${block.sourceView} must be a section view dependency.`);
+      if (status !== "ready") continue;
+      if (!section.dependencies?.views?.includes(block.sourceView)) fail(`${section.moduleId}: sourceView ${block.sourceView} must be a section view dependency.`);
       if (module && (!Array.isArray(module.steps) || module.steps.filter(step => step.id === block.stepId).length !== 1)) {
         fail(`${section.moduleId}: screenshot step ${block.stepId} is missing or ambiguous.`);
       }
@@ -92,9 +103,13 @@ export async function prepareDocumentationCapture({ spec, journey, dependencyMap
   if (!result.valid) throw new Error(`Cannot prepare documentation capture: ${JSON.stringify(result.errors)}`);
   const prepared = structuredClone(journey);
   for (const section of spec.sections) {
+    const status = section.status ?? "ready";
+    if (status === "text") continue;
     const module = prepared.modules.find(m => m.id === section.moduleId);
+    if (!module) continue;
     for (const block of section.blocks.filter(b => b.kind === "screenshot")) {
       const step = module.steps.find(s => s.id === block.stepId);
+      if (!step) continue;
       step.annotation = {
         ...step.annotation,
         caption: block.caption,

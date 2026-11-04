@@ -31,7 +31,9 @@ npx autotour run-docs .autotour/documentation.json \
 
 Markdown and HTML are written locally. Confluence produces a section patch plan; applying it still requires an authenticated connected publisher and explicit authorization.
 
-When `--walkthrough` is omitted, `run-docs` prepares and captures the definition automatically. Screenshot blocks use annotated screenshot capture; replay/video blocks use DOM capture. Because the capture engine keeps recording modes separate, definitions mixing both modes require separate capture runs for now.
+Add `--draft` when generating from an incomplete capture. A missing screenshot file then becomes a visible placeholder instead of stopping the run. Pass `--walkthrough` for that review copy; omitting it still captures first. A captured file is used either way.
+
+When `--walkthrough` is omitted, `run-docs` prepares and captures the definition automatically. Screenshot blocks use annotated screenshot capture; replay/video blocks use DOM capture. Because the capture engine keeps recording modes separate, definitions mixing both modes require separate capture runs for now. Text chapters and planned chapters whose module or step is not in the journey are left out of that capture.
 
 ## Example: screenshot XYZ based on UI Y
 
@@ -69,7 +71,9 @@ Blocks appear in order. `stepId` selects an image; `sourceView` identifies the U
 
 Set `headingLevel` on a section to control its Markdown/HTML heading depth. `targets` and the legacy `destination` form may coexist; explicit `targets` take precedence. A Markdown target is also used by `sync-markdown --spec`, so `--markdown` is optional when the spec declares one.
 
-Dependencies must exist on the journey module and have source-file mappings. Validation rejects unknown views, missing/ambiguous steps, duplicate sections/screenshots, and unmapped declared dependencies. It verifies reference consistency, not the visual truth of a claimed view. Inspect captures. Map the specification and journey files to affected views too: layout/caption changes need regeneration. The sample map shows this.
+A section `status` is `ready` when omitted. A ready chapter must name a journey module, at least one recorded dependency, and exactly one journey step for every screenshot. Those dependencies must exist on the journey module and have source-file mappings. Validation rejects unknown views, missing or ambiguous steps, duplicate sections or screenshots, and unmapped declared dependencies for ready chapters. It verifies reference consistency, not the visual truth of a claimed view. Inspect captures. Map the specification and journey files to affected views too: layout or caption changes need regeneration. The sample map shows this.
+
+`status: "text"` is prose only. It keeps `moduleId` as its anchor, needs no journey module, and cannot contain a screenshot, tour, or video block. `status: "planned"` may name a chapter before its module or screenshot step exists. Generation draws a placeholder for a planned screenshot that has not been captured, even without `--draft`. The placeholder shows the alt text, caption, and step id. Markdown uses a blockquote, and HTML uses `<figure class="autotour-placeholder">`. `sync-markdown` still requires the captured image and does not publish that placeholder.
 
 ## Validate and capture
 

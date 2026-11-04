@@ -14,6 +14,8 @@ Read the project configuration's optional `documentation` path, default `.autoto
 
 `sourceView` states which UI the screenshot describes. `target` controls a role/name highlight independently of the action. `timing` specifies before/after that action; use explicit assertions/waits to capture settled results. Captions and alt text serve different purposes. Read packaged `docs/documentation-spec.md` for the schema and examples.
 
+Leave `status` unset, or set `ready`, once the chapter has a journey module, recorded dependencies, and a step for every screenshot. Use `status: "text"` for prose that has no module yet; that chapter cannot contain a screenshot. Use `status: "planned"` to name a screenshot before its module or capture exists. `moduleId` stays the chapter anchor in every case. Generate a review copy with `run-docs --draft` so a missing image becomes a placeholder. Do not treat a placeholder as a published image: `sync-markdown` still requires the captured file.
+
 ## Capture and publish
 
 Run `autotour validate-docs <spec>` to check the schema and linked files. Use `readDocumentationSpec` and `prepareDocumentationCapture` before `captureJourney`. Preparation supplies screenshot annotation settings and viewport without changing the source journey or dependencies. Merge project-specific redaction options. Keep source credentials out of the specification.
