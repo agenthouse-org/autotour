@@ -1,6 +1,7 @@
 import { copyFile, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { renderMarkdown } from "./markdown.js";
+import { readerChrome } from "./reader.js";
 import { validateDocumentationSpec } from "./spec.js";
 
 export async function generateDocumentation({ spec, specPath, walkthrough, walkthroughFile, targets, outputRoot, mode = "create" }) {
@@ -65,7 +66,8 @@ async function generateHtml({ spec, walkthrough, target, manifestDir, root, mode
   }
   const title = escapeHtml(spec.title ?? walkthrough.title ?? walkthrough.id);
   const language = escapeHtml(documentLanguage(spec, walkthrough));
-  const html = `<!doctype html>\n<html lang="${language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${title}</title><style>${manualStyle}</style></head><body><header><h1>${title}</h1><nav><ol>${spec.sections.map(section => `<li><a href="#${section.moduleId}">${escapeHtml(section.heading)}</a></li>`).join("")}</ol></nav></header><main>${sections.join("\n")}</main></body></html>\n`;
+  const reader = readerChrome(spec.sections);
+  const html = `<!doctype html>\n<html lang="${language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${title}</title><style>${manualStyle}${reader.style}</style></head><body><header><h1>${title}</h1>${reader.header}</header><main>${sections.join("\n")}</main>${reader.script}</body></html>\n`;
   await mkdir(path.dirname(destination), { recursive: true });
   await writeFile(destination, html, "utf8");
   return { kind: "html", path: destination, mode: htmlMode };
