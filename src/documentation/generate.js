@@ -3,6 +3,7 @@ import path from "node:path";
 import { renderMarkdown } from "./markdown.js";
 import { readerChrome } from "./reader.js";
 import { languageSwitchMarkup } from "./languages.js";
+import { pageForText, pdfPageTexts } from "./pdf-text.js";
 import { validateDocumentationSpec } from "./spec.js";
 
 const placeholderStyle = "figure.autotour-placeholder{border:1px dashed #666;padding:1rem;margin:1rem 0;background:#f6f6f6}";
@@ -53,26 +54,18 @@ async function generateMarkdown({ spec, walkthrough, target, manifestDir, root, 
 async function generateHtml({ spec, specPath, walkthrough, target, manifestDir, root, mode, draft }) {
   const destination = resolveTarget(root, target.path);
   const htmlMode = target.mode ?? spec.generation?.htmlMode ?? "site";
-  const sections = [];
-  for (const section of spec.sections) {
-    const blocks = await renderBlocks({
-      section,
-      walkthrough,
-      manifestDir,
-      assetsDir: path.join(path.dirname(destination), "assets"),
-      documentDir: path.dirname(destination),
-      format: "html",
-      embedImages: htmlMode === "single-file",
-      draft
-    });
-    const level = section.headingLevel ?? 2;
-    sections.push(`<section id="${section.moduleId}"><h${level}>${escapeHtml(section.heading)}</h${level}>${blocks.join("\n")}</section>`);
-  }
-  const title = escapeHtml(spec.title ?? walkthrough.title ?? walkthrough.id);
-  const language = escapeHtml(documentLanguage(spec, walkthrough));
-  const reader = readerChrome(spec.sections);
+  const reader = await readerContent({
+    spec,
+    walkthrough,
+    manifestDir,
+    documentDir: path.dirname(destination),
+    assetsDir: path.join(path.dirname(destination), "assets"),
+    embedImages: htmlMode === "single-file",
+    draft
+  });
+  const chrome = readerChrome(spec.sections);
   const switcher = await languageSwitchMarkup({ spec, specPath, outputRoot: root, currentHtmlPath: destination });
-  const html = `<!doctype html>\n<html lang="${language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${title}</title><style>${manualStyle}${reader.style}${placeholderStyle}</style>${switcher.style}</head><body><header><h1>${title}</h1>${switcher.markup}${reader.header}</header><main>${sections.join("\n")}</main>${reader.script}${switcher.script}</body></html>\n`;
+  const html = documentationDocument(reader, { print: false, chrome, switcher });
   await mkdir(path.dirname(destination), { recursive: true });
   await writeFile(destination, html, "utf8");
   return { kind: "html", path: destination, mode: htmlMode };
@@ -89,26 +82,103 @@ async function generateConfluencePlan({ spec, target, root }) {
 async function generatePdf({ spec, walkthrough, target, manifestDir, root, mode, draft }) {
   const destination = resolveTarget(root, target.path);
   const temporary = `${destination}.autotour.html`;
-  const sections = [];
-  for (const section of spec.sections) {
-    const blocks = await renderBlocks({ section, walkthrough, manifestDir, assetsDir: path.join(path.dirname(destination), "assets"), documentDir: path.dirname(destination), format: "html", draft });
-    const level = section.headingLevel ?? 2;
-    sections.push(`<section><h${level}>${escapeHtml(section.heading)}</h${level}>${blocks.join("\n")}</section>`);
-  }
-  const title = escapeHtml(spec.title ?? walkthrough.title ?? walkthrough.id);
-  await mkdir(path.dirname(destination), { recursive: true });
-  await writeFile(temporary, `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>@page{size:A4;margin:18mm}body{font:12pt/1.5 system-ui}img{max-width:100%}figure{break-inside:avoid}figcaption{font-style:italic;margin-top:.4rem}${placeholderStyle}</style></head><body><h1>${title}</h1>${sections.join("\n")}</body></html>`);
+  const documentDir = path.dirname(temporary);
+  const assetsDir = path.join(documentDir, "assets");
+  await mkdir(documentDir, { recursive: true });
+  const reader = await readerContent({ spec, walkthrough, manifestDir, documentDir, assetsDir, draft });
+  const language = reader.language;
   const { chromium } = await import("playwright");
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();
-    await page.goto(`file://${temporary.replaceAll("\\", "/")}`, { waitUntil: "load" });
-    await page.pdf({ path: destination, format: "A4", printBackground: true });
+    let tocPages = {};
+    let pdf;
+    for (let pass = 0; pass < 2; pass += 1) {
+      await writeFile(temporary, documentationDocument(reader, { print: true, tocPages }), "utf8");
+      await page.goto(fileUrl(temporary), { waitUntil: "load" });
+      pdf = await page.pdf(pdfOptions(reader.title, language));
+      tocPages = Object.fromEntries(reader.sections.map(section => [section.moduleId, pageForText(pdfPageTexts(pdf), section.heading, reader.title)]).filter(([, pageNumber]) => pageNumber > 0));
+    }
+    await writeFile(destination, pdf);
   } finally {
     await browser.close();
     await rm(temporary, { force: true });
   }
   return { kind: "pdf", path: destination, mode };
+}
+
+async function readerContent({ spec, walkthrough, manifestDir, documentDir, assetsDir, embedImages = false, draft = false }) {
+  const sections = [];
+  for (const section of spec.sections) {
+    const blocks = await renderBlocks({ section, walkthrough, manifestDir, assetsDir, documentDir, format: "html", embedImages, draft });
+    const level = section.headingLevel ?? 2;
+    sections.push({
+      moduleId: section.moduleId,
+      heading: section.heading,
+      level,
+      html: `<section id="${section.moduleId}"><h${level}>${escapeHtml(section.heading)}</h${level}>${blocks.join("\n")}</section>`
+    });
+  }
+  return {
+    title: spec.title ?? walkthrough.title ?? walkthrough.id,
+    language: documentLanguage(spec, walkthrough),
+    sections
+  };
+}
+
+function documentationDocument(reader, { print, tocPages = {}, chrome, switcher }) {
+  const title = escapeHtml(reader.title);
+  const nav = `<nav aria-label="Contents"><ol>${reader.sections.map(section => `<li><a href="#${section.moduleId}">${escapeHtml(section.heading)}</a></li>`).join("")}</ol></nav>`;
+  const cover = print ? `<section class="autotour-cover"><h1>${title}</h1><nav aria-label="Contents"><ol>${reader.sections.map(section => `<li><a href="#${section.moduleId}">${escapeHtml(section.heading)}</a>${tocPages[section.moduleId] ? ` <span class="autotour-toc-page">${tocPages[section.moduleId]}</span>` : ""}</li>`).join("")}</ol></nav></section>` : "";
+  const style = print
+    ? `<style>@page{size:A4}body{font:12pt/1.5 system-ui}img{max-width:100%}figure{break-inside:avoid}figcaption{break-before:avoid;font-style:italic;margin-top:.4rem}h1,h2,h3{break-after:avoid}.autotour-cover{break-after:page;min-height:70vh}header h1,header nav{display:none}${placeholderStyle}</style>`
+    : `<style>${manualStyle}${chrome?.style ?? ""}${placeholderStyle}</style>${switcher?.style ?? ""}`;
+  return `<!doctype html>\n<html lang="${escapeHtml(reader.language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${title}</title>${style}</head><body>${cover}<header><h1>${title}</h1>${print ? nav : `${switcher?.markup ?? ""}${chrome?.header ?? nav}`}</header><main>${reader.sections.map(section => section.html).join("\n")}</main>${print ? "" : `${chrome?.script ?? ""}${switcher?.script ?? ""}`}</body></html>\n`;
+}
+
+function pdfOptions(title, language) {
+  const german = String(language).toLowerCase().startsWith("de");
+  const footer = german
+    ? "Seite <span class=\"pageNumber\"></span> von <span class=\"totalPages\"></span>"
+    : "Page <span class=\"pageNumber\"></span> of <span class=\"totalPages\"></span>";
+  return {
+    format: "A4",
+    printBackground: true,
+    preferCSSPageSize: true,
+    outline: true,
+    tagged: true,
+    displayHeaderFooter: true,
+    headerTemplate: `<div style="font-size:9px;width:100%;padding:0 12mm;color:#444">${escapeHtml(title)}</div>`,
+    footerTemplate: `<div style="font-size:10px;width:100%;text-align:center;color:#333">${footer}</div>`,
+    margin: { top: "18mm", bottom: "20mm", left: "16mm", right: "16mm" }
+  };
+}
+
+function fileUrl(file) {
+  return `file://${file.replaceAll("\\", "/")}`;
+}
+
+async function renderVideo({ block, section, manifestDir, assetsDir, documentDir, format }) {
+  const caption = block.caption ? (format === "html" ? `<figcaption>${escapeHtml(block.caption)}</figcaption>` : block.caption) : "";
+  const link = format === "html" ? `<a href="${escapeHtml(block.path)}">${escapeHtml(block.label)}</a>` : `[${block.label}](${block.path})`;
+  if (!block.still) return format === "html" ? `<p>${link}</p>${block.caption ? `<p>${escapeHtml(block.caption)}</p>` : ""}` : `${link}${block.caption ? `\n\n${block.caption}` : ""}`;
+  if (format !== "html") return `${link}${block.caption ? `\n\n${block.caption}` : ""}`;
+  let source;
+  try {
+    source = safeResolve(manifestDir, block.still);
+  } catch (error) {
+    throw new Error(`${section.moduleId}: motion still for ${block.label} is not a safe file (${block.still}).`);
+  }
+  const destination = path.join(assetsDir, "stills", path.basename(source));
+  await mkdir(path.dirname(destination), { recursive: true });
+  try {
+    await copyFile(source, destination);
+  } catch (error) {
+    if (error?.code === "ENOENT") throw new Error(`${section.moduleId}: motion still for ${block.label} was not found (${block.still}).`);
+    throw error;
+  }
+  const relative = portable(path.relative(documentDir, destination));
+  return `<figure class="autotour-still"><img src="${escapeHtml(relative)}" alt="${escapeHtml(block.label)}">${caption}<p>${link}</p></figure>`;
 }
 
 async function renderBlocks({ section, walkthrough, manifestDir, assetsDir, documentDir, format, embedImages = false, draft = false }) {
@@ -118,7 +188,7 @@ async function renderBlocks({ section, walkthrough, manifestDir, assetsDir, docu
   for (const block of section.blocks) {
     if (block.kind === "text") output.push(format === "html" ? renderMarkdown(block.text) : block.text);
     if (block.kind === "tour") output.push(format === "html" ? `<p><a href="${escapeHtml(block.url)}">${escapeHtml(block.label)}</a></p>` : `[${block.label}](${block.url})`);
-    if (block.kind === "video") output.push(format === "html" ? `<p><a href="${escapeHtml(block.path)}">${escapeHtml(block.label)}</a></p>${block.caption ? `<p>${escapeHtml(block.caption)}</p>` : ""}` : `[${block.label}](${block.path})${block.caption ? `\n\n${block.caption}` : ""}`);
+    if (block.kind === "video") output.push(await renderVideo({ block, section, manifestDir, assetsDir, documentDir, format }));
     if (block.kind !== "screenshot") continue;
     const assetPath = module
       ? module.assets?.screenshots?.find(candidate => candidate.endsWith(`/${block.stepId}.png`)) ?? `modules/${module.id}/screenshots/${block.stepId}.png`
