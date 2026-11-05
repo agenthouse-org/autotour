@@ -71,7 +71,7 @@ Connected publishing updates only the agreed page sections or issue fields, chec
 
 ## Detect changes and refresh
 
-Define layout, screenshot selection, captions, and UI dependencies in [`.autotour/documentation.json`](documentation-spec.md). Validate with `autotour validate-docs`; use `sync-markdown --spec` to render the agreed layout inside managed sections.
+Define layout, screenshot selection, captions, and UI dependencies in [`.autotour/documentation.json`](documentation-spec.md). Validate with `autotour validate-docs`; use `sync-markdown --spec` to render the agreed layout inside managed sections. An `openapi` block can render one operation from a local OpenAPI or Swagger file beside those screenshots, using the same `METHOD /path` name as the module's API dependency.
 
 ```sh
 npx autotour invalidate .autotour/walkthrough.json --map .autotour/dependency-map.json --base origin/main --head HEAD --check --output .autotour/output/plan.json

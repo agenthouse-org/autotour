@@ -111,6 +111,8 @@ autotour regenerate .autotour/journey.json \
 
 Use `--check` in CI to fail when tracked modules are stale. See the [CI examples](docs/ci.md) and [reliable tours guide](docs/reliable-tours.md).
 
+The same endpoint names can document the contract those modules call. An `openapi` block in the documentation specification points at a local OpenAPI 3 or Swagger 2 file and renders that operation into Markdown, HTML, or PDF. AutoTour does not call the API or embed Swagger UI. See the [documentation specification](docs/documentation-spec.md#openapi-and-swagger).
+
 ## Documentation
 
 - [Getting started and end-to-end guide](docs/guide.md)

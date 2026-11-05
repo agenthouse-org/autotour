@@ -1,0 +1,43 @@
+openapi: 3.0.3
+info:
+  title: Profile API
+  version: "1.0.0"
+paths:
+  /api/profile:
+    put:
+      operationId: updateProfile
+      summary: Update the signed-in profile
+      description: Replaces the display name for the current user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdate"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+        "401":
+          description: Authentication is required
+components:
+  schemas:
+    ProfileUpdate:
+      type: object
+      required:
+        - displayName
+      properties:
+        displayName:
+          type: string
+          description: Name shown to other people.
+    Profile:
+      type: object
+      required:
+        - displayName
+      properties:
+        displayName:
+          type: string
+          description: Name currently saved for this user.

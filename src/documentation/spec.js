@@ -4,11 +4,12 @@ import { fileURLToPath } from "node:url";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import { validateDependencyMapDocument } from "../invalidation/index.js";
+import { loadOpenApiDocuments, operationFor } from "./openapi.js";
 
 export const documentationSchemaPath = fileURLToPath(new URL("../../schemas/documentation.schema.json", import.meta.url));
 let validator;
 
-export async function validateDocumentationSpec(spec, { journey, dependencyMap } = {}) {
+export async function validateDocumentationSpec(spec, { journey, dependencyMap, openApiDocuments } = {}) {
   if (!validator) {
     const ajv = new Ajv2020({ allErrors: true, strict: true });
     addFormats(ajv);
@@ -50,11 +51,31 @@ export async function validateDocumentationSpec(spec, { journey, dependencyMap }
       }
     }
     const screenshots = new Set();
+    const operations = new Set();
     for (const block of section.blocks) {
-      if ([block.text, block.caption, block.alt, block.label].some(value => /autotour:module=/.test(value ?? ""))) {
+      if ([block.text, block.caption, block.alt, block.label, block.document, block.operation].some(value => /autotour:module=/.test(value ?? ""))) {
         fail("Documentation blocks cannot contain managed-region markers.");
       }
       if (block.alt && /[\r\n]/.test(block.alt)) fail("Screenshot alt text must be a single line.");
+      if (block.kind === "openapi") {
+        if (operations.has(block.operation)) fail(`${section.moduleId}: duplicate OpenAPI operation ${block.operation}.`);
+        operations.add(block.operation);
+        if (!section.dependencies.apiEndpoints?.includes(block.operation)) {
+          fail(`${section.moduleId}: OpenAPI operation ${block.operation} must be an apiEndpoints dependency.`);
+        }
+        if (openApiDocuments) {
+          const loaded = openApiDocuments.get(block.document);
+          if (!loaded) fail(`${section.moduleId}: OpenAPI document ${block.document} was not loaded.`);
+          else {
+            try {
+              const operation = operationFor(loaded, block.operation);
+              if (!operation) fail(`${section.moduleId}: OpenAPI document does not define ${block.operation}.`);
+            } catch (error) {
+              fail(`${section.moduleId}: ${error.message}`);
+            }
+          }
+        }
+      }
       if (block.kind !== "screenshot") continue;
       if (screenshots.has(block.stepId)) fail(`${section.moduleId}: duplicate screenshot step ${block.stepId}.`);
       screenshots.add(block.stepId);
@@ -72,12 +93,14 @@ export async function readDocumentationSpec(file) {
   const spec = JSON.parse(await readFile(specPath, "utf8"));
   const shape = await validateDocumentationSpec(spec);
   if (!shape.valid) throw new Error(`Documentation specification is invalid: ${JSON.stringify(shape.errors)}`);
-  const [journey, dependencyMap] = await Promise.all([
-    readJsonReference(specPath, spec.journey), readJsonReference(specPath, spec.dependencyMap)
+  const [journey, dependencyMap, openApiDocuments] = await Promise.all([
+    readJsonReference(specPath, spec.journey),
+    readJsonReference(specPath, spec.dependencyMap),
+    loadOpenApiDocuments(specPath, spec)
   ]);
-  const result = await validateDocumentationSpec(spec, { journey, dependencyMap });
+  const result = await validateDocumentationSpec(spec, { journey, dependencyMap, openApiDocuments });
   if (!result.valid) throw new Error(`Documentation references are invalid: ${JSON.stringify(result.errors)}`);
-  return { spec, journey, dependencyMap, specPath };
+  return { spec, journey, dependencyMap, specPath, openApiDocuments };
 }
 
 async function readJsonReference(specPath, reference) {
@@ -86,9 +109,9 @@ async function readJsonReference(specPath, reference) {
   return JSON.parse(await readFile(path.resolve(path.dirname(specPath), reference), "utf8"));
 }
 
-export async function prepareDocumentationCapture({ spec, journey, dependencyMap }) {
+export async function prepareDocumentationCapture({ spec, journey, dependencyMap, openApiDocuments }) {
   if (!journey || !dependencyMap) throw new Error("Documentation capture requires both journey and dependencyMap.");
-  const result = await validateDocumentationSpec(spec, { journey, dependencyMap });
+  const result = await validateDocumentationSpec(spec, { journey, dependencyMap, openApiDocuments });
   if (!result.valid) throw new Error(`Cannot prepare documentation capture: ${JSON.stringify(result.errors)}`);
   const prepared = structuredClone(journey);
   for (const section of spec.sections) {

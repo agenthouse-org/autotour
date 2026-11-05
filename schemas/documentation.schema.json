@@ -139,6 +139,18 @@
                   "label": { "type": "string", "minLength": 1 },
                   "caption": { "type": "string", "minLength": 1 }
                 }
+              },
+              {
+                "type": "object", "additionalProperties": false,
+                "required": ["kind", "document", "operation"],
+                "properties": {
+                  "kind": { "const": "openapi" },
+                  "document": { "type": "string", "minLength": 1 },
+                  "operation": {
+                    "type": "string",
+                    "pattern": "^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS|TRACE) /\\S+$"
+                  }
+                }
               }
             ] }
           }

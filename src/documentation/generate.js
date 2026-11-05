@@ -1,9 +1,11 @@
 import { copyFile, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { validateDocumentationSpec } from "./spec.js";
+import { loadOpenApiDocuments, operationFor, renderOpenApiHtml, renderOpenApiMarkdown } from "./openapi.js";
 
-export async function generateDocumentation({ spec, specPath, walkthrough, walkthroughFile, targets, outputRoot, mode = "create" }) {
-  const validation = await validateDocumentationSpec(spec, { journey: walkthrough });
+export async function generateDocumentation({ spec, specPath, walkthrough, walkthroughFile, targets, outputRoot, mode = "create", openApiDocuments }) {
+  const documents = openApiDocuments ?? await loadOpenApiForGeneration(spec, specPath);
+  const validation = await validateDocumentationSpec(spec, { journey: walkthrough, openApiDocuments: documents });
   if (!validation.valid) throw new Error(`Cannot generate documentation: ${JSON.stringify(validation.errors)}`);
   const selected = (targets?.length ? targetList(spec).filter(target => targets.includes(target.kind)) : targetList(spec));
   if (!selected.length) throw new Error("No documentation targets were selected.");
@@ -16,10 +18,10 @@ export async function generateDocumentation({ spec, specPath, walkthrough, walkt
   }
   const results = [];
   for (const target of selected) {
-    if (target.kind === "markdown") results.push(await generateMarkdown({ spec, walkthrough, target, manifestDir, root, mode }));
-    else if (target.kind === "html") results.push(await generateHtml({ spec, walkthrough, target, manifestDir, root, mode }));
-    else if (target.kind === "pdf") results.push(await generatePdf({ spec, walkthrough, target, manifestDir, root, mode }));
-    else results.push(await generateConfluencePlan({ spec, target, root }));
+    if (target.kind === "markdown") results.push(await generateMarkdown({ spec, walkthrough, target, manifestDir, root, mode, openApiDocuments: documents }));
+    else if (target.kind === "html") results.push(await generateHtml({ spec, walkthrough, target, manifestDir, root, mode, openApiDocuments: documents }));
+    else if (target.kind === "pdf") results.push(await generatePdf({ spec, walkthrough, target, manifestDir, root, mode, openApiDocuments: documents }));
+    else results.push(await generateConfluencePlan({ spec, target, root, openApiDocuments: documents }));
   }
   return { mode, targets: results };
 }
@@ -28,14 +30,14 @@ function targetList(spec) {
   return spec.targets ?? (spec.destination ? [spec.destination] : []);
 }
 
-async function generateMarkdown({ spec, walkthrough, target, manifestDir, root, mode }) {
+async function generateMarkdown({ spec, walkthrough, target, manifestDir, root, mode, openApiDocuments }) {
   const destination = resolveTarget(root, target.path);
   const assetsDir = path.join(path.dirname(destination), "assets", "autotour", walkthrough.id);
   const generated = [];
   for (const section of spec.sections) {
     generated.push({
       moduleId: section.moduleId,
-      content: [`${"#".repeat(section.headingLevel ?? 2)} ${escapeMarkdown(section.heading)}`, `<!-- autotour:module=${section.moduleId}:start -->`, ...await renderBlocks({ section, walkthrough, manifestDir, assetsDir, documentDir: path.dirname(destination), format: "markdown" }), `<!-- autotour:module=${section.moduleId}:end -->`].join("\n")
+      content: [`${"#".repeat(section.headingLevel ?? 2)} ${escapeMarkdown(section.heading)}`, `<!-- autotour:module=${section.moduleId}:start -->`, ...await renderBlocks({ section, walkthrough, manifestDir, assetsDir, documentDir: path.dirname(destination), format: "markdown", openApiDocuments }), `<!-- autotour:module=${section.moduleId}:end -->`].join("\n")
     });
   }
   const existing = mode === "adapt" && await exists(destination) ? await readFile(destination, "utf8") : undefined;
@@ -45,11 +47,11 @@ async function generateMarkdown({ spec, walkthrough, target, manifestDir, root, 
   return { kind: "markdown", path: destination, mode, assetsDir };
 }
 
-async function generateHtml({ spec, walkthrough, target, manifestDir, root, mode }) {
+async function generateHtml({ spec, walkthrough, target, manifestDir, root, mode, openApiDocuments }) {
   const destination = resolveTarget(root, target.path);
   const sections = [];
   for (const section of spec.sections) {
-    const blocks = await renderBlocks({ section, walkthrough, manifestDir, assetsDir: path.join(path.dirname(destination), "assets"), documentDir: path.dirname(destination), format: "html" });
+    const blocks = await renderBlocks({ section, walkthrough, manifestDir, assetsDir: path.join(path.dirname(destination), "assets"), documentDir: path.dirname(destination), format: "html", openApiDocuments });
     const level = section.headingLevel ?? 2;
     sections.push(`<section id="${section.moduleId}"><h${level}>${escapeHtml(section.heading)}</h${level}>${blocks.join("\n")}</section>`);
   }
@@ -60,20 +62,29 @@ async function generateHtml({ spec, walkthrough, target, manifestDir, root, mode
   return { kind: "html", path: destination, mode: target.mode ?? spec.generation?.htmlMode ?? "site" };
 }
 
-async function generateConfluencePlan({ spec, target, root }) {
+async function generateConfluencePlan({ spec, target, root, openApiDocuments }) {
   const destination = resolveTarget(root, `confluence-${target.pageId}.json`);
-  const plan = { kind: "confluence", siteUrl: target.siteUrl, pageId: target.pageId, sections: spec.sections.map(section => ({ moduleId: section.moduleId, heading: section.heading, blocks: section.blocks })) };
+  const plan = {
+    kind: "confluence",
+    siteUrl: target.siteUrl,
+    pageId: target.pageId,
+    sections: spec.sections.map(section => ({
+      moduleId: section.moduleId,
+      heading: section.heading,
+      blocks: section.blocks.map(block => block.kind === "openapi" ? { ...block, renderedMarkdown: renderOpenApiMarkdown(requireOperation(openApiDocuments, block)) } : block)
+    }))
+  };
   await mkdir(path.dirname(destination), { recursive: true });
   await writeFile(destination, `${JSON.stringify(plan, null, 2)}\n`, "utf8");
   return { kind: "confluence", path: destination, pageId: target.pageId, status: "plan-created" };
 }
 
-async function generatePdf({ spec, walkthrough, target, manifestDir, root, mode }) {
+async function generatePdf({ spec, walkthrough, target, manifestDir, root, mode, openApiDocuments }) {
   const destination = resolveTarget(root, target.path);
   const temporary = `${destination}.autotour.html`;
   const sections = [];
   for (const section of spec.sections) {
-    const blocks = await renderBlocks({ section, walkthrough, manifestDir, assetsDir: path.join(path.dirname(destination), "assets"), documentDir: path.dirname(destination), format: "html" });
+    const blocks = await renderBlocks({ section, walkthrough, manifestDir, assetsDir: path.join(path.dirname(destination), "assets"), documentDir: path.dirname(destination), format: "html", openApiDocuments });
     const level = section.headingLevel ?? 2;
     sections.push(`<section><h${level}>${escapeHtml(section.heading)}</h${level}>${blocks.join("\n")}</section>`);
   }
@@ -93,13 +104,30 @@ async function generatePdf({ spec, walkthrough, target, manifestDir, root, mode 
   return { kind: "pdf", path: destination, mode };
 }
 
-async function renderBlocks({ section, walkthrough, manifestDir, assetsDir, documentDir, format }) {
+async function loadOpenApiForGeneration(spec, specPath) {
+  if (!spec.sections.some(section => section.blocks.some(block => block.kind === "openapi"))) return undefined;
+  if (!specPath) throw new Error("OpenAPI documentation blocks require the specification path.");
+  return loadOpenApiDocuments(specPath, spec);
+}
+
+function requireOperation(openApiDocuments, block) {
+  const loaded = openApiDocuments?.get(block.document);
+  const operation = loaded ? operationFor(loaded, block.operation) : null;
+  if (!operation) throw new Error(`OpenAPI operation ${block.operation} is not available in ${block.document}.`);
+  return operation;
+}
+
+async function renderBlocks({ section, walkthrough, manifestDir, assetsDir, documentDir, format, openApiDocuments }) {
   const module = walkthrough.modules.find(candidate => candidate.id === section.moduleId);
   const output = [];
   for (const block of section.blocks) {
     if (block.kind === "text") output.push(format === "html" ? `<p>${escapeHtml(block.text)}</p>` : block.text);
     if (block.kind === "tour") output.push(format === "html" ? `<p><a href="${escapeHtml(block.url)}">${escapeHtml(block.label)}</a></p>` : `[${block.label}](${block.url})`);
     if (block.kind === "video") output.push(format === "html" ? `<p><a href="${escapeHtml(block.path)}">${escapeHtml(block.label)}</a></p>${block.caption ? `<p>${escapeHtml(block.caption)}</p>` : ""}` : `[${block.label}](${block.path})${block.caption ? `\n\n${block.caption}` : ""}`);
+    if (block.kind === "openapi") {
+      const operation = requireOperation(openApiDocuments, block);
+      output.push(format === "html" ? renderOpenApiHtml(operation) : renderOpenApiMarkdown(operation));
+    }
     if (block.kind !== "screenshot") continue;
     const assetPath = module.assets?.screenshots?.find(candidate => candidate.endsWith(`/${block.stepId}.png`)) ?? `modules/${module.id}/screenshots/${block.stepId}.png`;
     const source = safeResolve(manifestDir, assetPath);

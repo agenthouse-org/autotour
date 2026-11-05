@@ -14,6 +14,8 @@ Read the project configuration's optional `documentation` path, default `.autoto
 
 `sourceView` states which UI the screenshot describes. `target` controls a role/name highlight independently of the action. `timing` specifies before/after that action; use explicit assertions/waits to capture settled results. Captions and alt text serve different purposes. Read packaged `docs/documentation-spec.md` for the schema and examples.
 
+To document an API the journey calls, add an `openapi` block that points at a local OpenAPI 3.x or Swagger 2.0 file. Set `operation` to the same `METHOD /path` value recorded in `apiEndpoints` (Swagger 2 includes `basePath`). Keep the file next to the specification, list that endpoint on the section and journey module, and map the contract file in the dependency map. Do not fetch a remote spec, follow external `$ref` links, or copy example payloads into the published page. The block renders into the existing targets; it does not start Swagger UI or call the API.
+
 ## Capture and publish
 
 Run `autotour validate-docs <spec>` to check the schema and linked files. Use `readDocumentationSpec` and `prepareDocumentationCapture` before `captureJourney`. Preparation supplies screenshot annotation settings and viewport without changing the source journey or dependencies. Merge project-specific redaction options. Keep source credentials out of the specification.

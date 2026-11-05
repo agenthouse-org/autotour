@@ -47,7 +47,7 @@ Start from [documentation.json](../examples/documentation.json), its [journey](.
   "sections": [{
     "moduleId": "profile-settings",
     "heading": "Profile Settings",
-    "dependencies": { "views": ["ProfileSettings"] },
+    "dependencies": { "views": ["ProfileSettings"], "apiEndpoints": ["PUT /api/profile"] },
     "blocks": [
       { "kind": "text", "text": "Enter your new display name." },
       {
@@ -59,7 +59,8 @@ Start from [documentation.json](../examples/documentation.json), its [journey](.
         "alt": "Profile Settings with the display name field highlighted",
         "caption": "Your new display name is ready to save."
       },
-      { "kind": "text", "text": "Select **Save profile** to apply the change." }
+      { "kind": "text", "text": "Select **Save profile** to apply the change." },
+      { "kind": "openapi", "document": "profile.openapi.yaml", "operation": "PUT /api/profile" }
     ]
   }]
 }
@@ -70,6 +71,18 @@ Blocks appear in order. `stepId` selects an image; `sourceView` identifies the U
 Set `headingLevel` on a section to control its Markdown/HTML heading depth. `targets` and the legacy `destination` form may coexist; explicit `targets` take precedence. A Markdown target is also used by `sync-markdown --spec`, so `--markdown` is optional when the spec declares one.
 
 Dependencies must exist on the journey module and have source-file mappings. Validation rejects unknown views, missing/ambiguous steps, duplicate sections/screenshots, and unmapped declared dependencies. It verifies reference consistency, not the visual truth of a claimed view. Inspect captures. Map the specification and journey files to affected views too: layout/caption changes need regeneration. The sample map shows this.
+
+## OpenAPI and Swagger
+
+An `openapi` block renders one operation from a local OpenAPI 3.x or Swagger 2.0 document into the same Markdown, HTML, PDF, and Confluence outputs. It does not call the API, and it does not embed Swagger UI. The `operation` value uses the same `METHOD /path` form already stored in `apiEndpoints`. For Swagger 2, that path includes `basePath`.
+
+```json
+{ "kind": "openapi", "document": "profile.openapi.yaml", "operation": "PUT /api/profile" }
+```
+
+`document` is a JSON or YAML file relative to the specification. Absolute paths, remote URLs, and external `$ref` links are rejected. The operation must also be listed in the section's `apiEndpoints`, and that name must be recorded on the journey module and mapped to the specification file. A change to the contract then invalidates the same module as a change to the endpoint. AutoTour renders the summary, description, parameters, request-body properties, and responses. Example values stay in the contract file so sample tokens are not copied into published documentation.
+
+Place the contract beside the specification, for example `.autotour/profile.openapi.yaml`, and copy [profile.openapi.yaml](../examples/profile.openapi.yaml) as a starting point.
 
 ## Validate and capture
 
