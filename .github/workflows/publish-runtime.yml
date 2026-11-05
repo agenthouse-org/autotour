@@ -1,0 +1,38 @@
+name: Publish live tour packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Package to publish (runtime or compatibility)
+        required: true
+        type: choice
+        options: [runtime, compatibility]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  npm:
+    runs-on: ubuntu-latest
+    environment: npm
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: npm install --global npm@11.5.1
+      - run: npm test --prefix packages/autotour-runtime
+      - run: npm pack ./packages/autotour-runtime --dry-run --ignore-scripts
+      - run: npm pack ./packages/webtour-compat --dry-run --ignore-scripts
+      - name: Verify runtime dependency before compatibility publish
+        if: inputs.package == 'compatibility'
+        run: npm view @agenthouse-org/autotour-runtime@0.1.0 version
+      - name: Publish runtime
+        if: inputs.package == 'runtime'
+        run: npm publish ./packages/autotour-runtime --provenance --access public
+      - name: Publish compatibility bridge
+        if: inputs.package == 'compatibility'
+        run: npm publish ./packages/webtour-compat --provenance --access public

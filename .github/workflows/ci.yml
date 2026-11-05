@@ -24,3 +24,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run check
       - run: npm pack --dry-run --ignore-scripts
+
+      - run: npm test --prefix packages/autotour-runtime
+      - run: npm pack ./packages/autotour-runtime --dry-run --ignore-scripts
+      - run: npm pack ./packages/webtour-compat --dry-run --ignore-scripts

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "ST-16",
+  "title": "Support linked multilingual documentation",
+  "kind": "feature",
+  "stage": "discover",
+  "revision": 1,
+  "fields": {
+    "outcome": "Authors can maintain related documentation in multiple languages and readers can move between language versions.",
+    "parentWork": "autotour-core",
+    "scope": "Add linked language variants to documentation specifications and generated output, stable section identifiers independent of translated headings or numbering, locale-keyed journey targets reusable across language captures, and an optional report of UI strings that do not match the capture locale. Language fallback and matching rules remain design questions.",
+    "acceptance": "A language variant can link to its sibling document. Equivalent sections retain the same explicit anchor across translations. One journey can resolve target labels from locale-specific resources. A capture can report candidate untranslated UI strings for review without treating heuristics as authoritative translation failures.",
+    "verification": "Cover schema validation and generated language links, compare anchors across translated fixtures, execute one locale-keyed journey against at least two locale fixtures, and test untranslated-string report output and limitations.",
+    "risks": "String mismatch heuristics can report proper names or user data as untranslated and miss translated strings. Reports must be advisory and must not expose captured secrets.",
+    "source": "Consumer feedback supplied by the user on 2026-11-03; scope and acceptance remain discovery-stage proposals."
+  },
+  "criteria": [
+    {
+      "id": "language-siblings",
+      "expectation": "A specification can declare a sibling document per language and generated documents expose usable links to available variants."
+    },
+    {
+      "id": "stable-anchors",
+      "expectation": "Section anchors can be explicitly shared across language variants and do not depend on translated headings or chapter numbers."
+    },
+    {
+      "id": "locale-targets",
+      "expectation": "Journey targets can resolve accessible names from locale-keyed resources so the same journey definition works across configured languages."
+    },
+    {
+      "id": "untranslated-report",
+      "expectation": "Capture can optionally report candidate UI strings inconsistent with the selected locale, with findings clearly marked as heuristic."
+    }
+  ],
+  "evidence": [],
+  "history": []
+}

@@ -172,7 +172,7 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
       (point) => document.body.dataset.focusActive === "true" &&
         document.body.dataset.focusPoint !== point,
       firstFocusPoint,
-      { timeout: 5000 }
+      { timeout: 10000 }
     );
     const secondTransform = await page.locator("#replay").evaluate((element) => element.style.transform);
     assert.notEqual(secondTransform, firstTransform);

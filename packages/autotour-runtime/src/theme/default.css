@@ -1,0 +1,31 @@
+/* Generic MIT fallback theme — system colors only. Never use agenthouse COLORS.MD hexes.
+   Do not re-assign --ah-webtour-* here; that breaks inheritance into nested/slotted hosts.
+   Components read var(--ah-webtour-*, var(--ah-*, system)). */
+:host {
+  color: var(--ah-webtour-fg, var(--ah-fg, CanvasText));
+  font-family: var(--ah-webtour-font-sans, var(--ah-font-sans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif));
+  font-size: 14px;
+  line-height: 1.45;
+  box-sizing: border-box;
+}
+
+:host([theme="dark"]) {
+  color-scheme: dark;
+}
+
+:host([theme="light"]) {
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :host {
+    --ah-webtour-motion: 0ms;
+    --ah-webtour-motion-duration: 0ms;
+  }
+}

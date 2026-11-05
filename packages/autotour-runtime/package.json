@@ -1,0 +1,51 @@
+{
+  "name": "@agenthouse-org/autotour-runtime",
+  "version": "0.1.0",
+  "description": "Browser runtime for live AutoTour product tours",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.js",
+  "module": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./mcp": "./mcp/server.js",
+    "./theme/default.css": "./src/theme/default.css",
+    "./schema/tour.schema.json": "./schema/tour.schema.json",
+    "./schema/catalog.schema.json": "./schema/catalog.schema.json"
+  },
+  "bin": {
+    "ah-webtour-mcp": "./bin/ah-webtour-mcp.js"
+  },
+  "files": [
+    "src",
+    "schema",
+    "mcp",
+    "bin",
+    "demo",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "demo": "npx --yes serve . -p 4173"
+  },
+  "keywords": [
+    "product-tour",
+    "web-components",
+    "onboarding",
+    "mcp",
+    "agenthouse"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agenthouse-org/autotour.git",
+    "directory": "packages/autotour-runtime"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

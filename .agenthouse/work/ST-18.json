@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "ST-18",
+  "title": "Expand journey actions and locale-aware targets",
+  "kind": "feature",
+  "stage": "discover",
+  "revision": 1,
+  "fields": {
+    "outcome": "A single journey definition can express common browser interactions and work across localized interfaces.",
+    "parentWork": "autotour-core",
+    "scope": "Add first-class journey actions for right-click, file upload, drag and drop, scrolling a specified container, key presses, and hover. Define and verify regular-expression target matching consistently across schema validation and capture. Support locale-keyed accessible-name targets in coordination with the multilingual documentation slice.",
+    "acceptance": "The journey schema documents each action and its required inputs. Capture executes each action with clear failures for unsupported or malformed values. Regex targets have identical documented semantics in validation and runtime, including invalid-pattern handling. Locale target lookup is deterministic.",
+    "verification": "Add schema and browser fixture coverage for each action, valid and invalid regular expressions, target matching behavior, and localized target lookup.",
+    "risks": "File upload and drag/drop can trigger application side effects; execution must use explicitly supplied test fixtures and authorized environments.",
+    "dependencies": "Coordinate locale-keyed target shape with ST-16. No implementation dependency is assumed until both shapes are designed.",
+    "source": "Consumer feedback supplied by the user on 2026-11-03; scope and acceptance remain discovery-stage proposals."
+  },
+  "criteria": [
+    {
+      "id": "extended-actions",
+      "expectation": "Journeys support right-click, upload, drag and drop, container scrolling, key presses, and hover without bespoke capture hooks."
+    },
+    {
+      "id": "regex-targets",
+      "expectation": "Target regular-expression support is explicitly documented and runtime behavior matches validation behavior, including invalid expressions."
+    },
+    {
+      "id": "locale-targets",
+      "expectation": "A journey resolves accessible-name selectors from locale-keyed resources and reports missing locale entries clearly."
+    }
+  ],
+  "evidence": [],
+  "history": []
+}

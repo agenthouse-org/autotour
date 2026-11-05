@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>agenthouse-webtour demo</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #f4f4f5;
+      color: #18181b;
+    }
+    header, main, .log-wrap { padding: 16px 24px; }
+    .grid { display: grid; gap: 24px; grid-template-columns: 1fr 1fr; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    .panel {
+      border: 1px solid #d4d4d8;
+      border-radius: 8px;
+      padding: 16px;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-height: 360px;
+    }
+    .stage {
+      border: 1px dashed #a1a1aa;
+      border-radius: 8px;
+      padding: 24px 16px;
+      min-height: 88px;
+      background: #fafafa;
+    }
+    .stage-label {
+      font-size: 11px;
+      font-family: ui-monospace, monospace;
+      color: #71717a;
+      margin: 0 0 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    #consumer-theme {
+      background: #0b1220;
+      color: #e8eefc;
+      border-color: #314667;
+      --ah-webtour-bg: #0b1220;
+      --ah-webtour-surface: #152238;
+      --ah-webtour-fg: #e8eefc;
+      --ah-webtour-muted: #9bb0d0;
+      --ah-webtour-signal: #6ea8ff;
+      --ah-webtour-border: #314667;
+      --ah-webtour-radius-md: 16px;
+    }
+    #consumer-theme .stage {
+      background: #10192b;
+      border-color: #314667;
+    }
+    #consumer-theme .stage-label { color: #9bb0d0; }
+    #consumer-theme .target {
+      border-color: #314667;
+      background: #152238;
+      color: #e8eefc;
+    }
+    #event-log {
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      max-height: 220px;
+      overflow: auto;
+      border: 1px dashed #a1a1aa;
+      padding: 12px;
+      background: #fff;
+    }
+    .target {
+      display: inline-block;
+      margin: 0 8px 0 0;
+      padding: 8px 12px;
+      border: 1px solid #d4d4d8;
+      border-radius: 4px;
+      background: #fff;
+      font: inherit;
+      cursor: pointer;
+    }
+    .target[hidden] { display: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>agenthouse-webtour demo</h1>
+    <p>Generic MIT default vs consumer theme. No protected agenthouse palette is shipped here.</p>
+  </header>
+  <main class="grid">
+    <section class="panel" id="default-theme">
+      <h2>Generic MIT default</h2>
+      <div class="stage">
+        <p class="stage-label">Tour targets</p>
+        <button class="target" id="default-nav" type="button">Sidebar</button>
+        <button class="target" id="default-record" type="button" hidden>Loaded record</button>
+        <button class="target" id="default-action" type="button">Primary action</button>
+        <p class="stage-label">User-driven wait</p>
+        <button class="target" id="default-load" type="button">Load record</button>
+      </div>
+      <ah-webtour id="tour-default" product-id="demo-default" locale="en">
+        <ah-webtour-help slot="help"></ah-webtour-help>
+      </ah-webtour>
+    </section>
+    <section class="panel" id="consumer-theme">
+      <h2>Consumer theme</h2>
+      <div class="stage">
+        <p class="stage-label">Tour targets</p>
+        <button class="target" id="consumer-nav" type="button">Sidebar</button>
+        <button class="target" id="consumer-action" type="button">Primary action</button>
+      </div>
+      <ah-webtour id="tour-consumer" product-id="demo-consumer" locale="en" theme="dark" auto-offer="false">
+        <ah-webtour-help slot="help"></ah-webtour-help>
+      </ah-webtour>
+    </section>
+  </main>
+  <section class="log-wrap">
+    <h2>Event log</h2>
+    <div id="event-log"></div>
+  </section>
+  <script type="module">
+    import '/src/index.js';
+
+    const sampleTour = (suffix) => ({
+      id: `demo.workspace.${suffix}`,
+      version: '1.0.0',
+      feature: 'workspace',
+      autoOffer: true,
+      locales: {
+        en: {
+          title: 'Workspace tour',
+          description: 'A short walkthrough of the demo chrome.',
+          steps: {
+            nav: { title: 'Navigation', body: suffix === 'default' ? 'Open a record to continue. Next stays hidden until it appears.' : 'Use the sidebar to move between sections.' },
+            record: { title: 'Record', body: 'The tour continues on the loaded record.' },
+            action: { title: 'Primary action', body: 'This control starts the main workflow.' },
+          },
+        },
+      },
+      steps: suffix === 'default'
+        ? [
+            { id: 'nav', target: `#${suffix}-nav`, placement: 'bottom', advanceWhen: { selector: `#${suffix}-record`, timeout: 0 } },
+            { id: 'record', target: `#${suffix}-record`, placement: 'bottom' },
+            { id: 'action', target: `#${suffix}-action`, placement: 'bottom' },
+          ]
+        : [
+            { id: 'nav', target: `#${suffix}-nav`, placement: 'bottom' },
+            { id: 'action', target: `#${suffix}-action`, placement: 'bottom' },
+          ],
+    });
+
+    const log = document.getElementById('event-log');
+    function append(name, detail) {
+      log.textContent += `${name} ${JSON.stringify(detail)}\n`;
+    }
+
+    for (const [id, suffix] of [['tour-default', 'default'], ['tour-consumer', 'consumer']]) {
+      const host = document.getElementById(id);
+      host.register(sampleTour(suffix));
+      host.refreshHelp();
+      [
+        'ah-webtour-ready',
+        'ah-webtour-catalog-change',
+        'ah-webtour-offer',
+        'ah-webtour-start',
+        'ah-webtour-step',
+        'ah-webtour-complete',
+        'ah-webtour-end',
+        'ah-webtour-remind',
+        'ah-webtour-never',
+      ].forEach((type) => {
+        host.addEventListener(type, (event) => append(type, event.detail));
+      });
+    }
+    // One offer only — both hosts would otherwise stack at the same viewport corner.
+    document.getElementById('tour-default').maybeAutoOffer();
+    document.getElementById('tour-consumer').configure({ autoOffer: false });
+    document.getElementById('default-load').addEventListener('click', () => {
+      document.getElementById('default-record').hidden = false;
+    });
+  </script>
+</body>
+</html>

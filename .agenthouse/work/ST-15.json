@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "id": "ST-15",
+  "title": "Improve documentation planning and HTML output",
+  "kind": "feature",
+  "stage": "discover",
+  "revision": 1,
+  "fields": {
+    "outcome": "Documentation authors can agree the output structure and produce readable, branded HTML from one specification.",
+    "parentWork": "autotour-core",
+    "scope": "Cover planning questions for documentation output (image zoom, collapsible chapters, language approach, table-of-contents depth and parts, branding, navigation, intro or marketing content and motion-ad routing, and test accounts/roles), plus HTML rendering improvements: render Markdown text, declare document language, make single-file mode self-contained, nest and group the table of contents, link chapter references, support themes, and embed approved external content. Treat the supplied consumer feedback as draft requirements; exact schema shapes and defaults remain open.",
+    "acceptance": "A documentation author can capture the listed planning choices. Generated HTML renders Markdown prose and tables safely, uses the declared language, and offers nested/part-grouped navigation with links to sections. Single-file mode has no external image assets. Chapter references resolve to anchors. Themes and embeds are configurable and constrained to safe, documented inputs.",
+    "verification": "Add focused schema and generator coverage for Markdown rendering, language metadata, nested/grouped navigation, cross-reference links, self-contained image output, theme output, and embed validation. Review generated HTML for escaping and safe URL behavior.",
+    "risks": "Markdown and embed support can introduce HTML/script injection or unsafe external resource embedding. Define a restricted Markdown renderer, URL policy, iframe permissions, and theme surface during design.",
+    "source": "Consumer feedback supplied by the user on 2026-11-03; scope and acceptance remain discovery-stage proposals."
+  },
+  "criteria": [
+    {
+      "id": "planning-choices",
+      "expectation": "The planning workflow asks about image zoom, collapsible chapters, languages, table-of-contents depth and parts, branding, navigation, intro or motion content, and module roles/test accounts."
+    },
+    {
+      "id": "markdown-text",
+      "expectation": "Text blocks render supported Markdown formatting, lists, tables, and notes as HTML while escaping unsafe input."
+    },
+    {
+      "id": "document-language",
+      "expectation": "The specification declares a valid language and generated HTML uses it for the document language attribute."
+    },
+    {
+      "id": "self-contained-html",
+      "expectation": "Single-file HTML output embeds referenced images and does not require an assets directory."
+    },
+    {
+      "id": "hierarchical-navigation",
+      "expectation": "The table of contents follows section hierarchy and supports named groups or parts."
+    },
+    {
+      "id": "chapter-references",
+      "expectation": "Supported chapter references in prose become links to the referenced section."
+    },
+    {
+      "id": "theme-support",
+      "expectation": "A specification can select a documented theme or branding tokens that are applied to generated HTML."
+    },
+    {
+      "id": "external-embed",
+      "expectation": "A validated embed block can include approved external content with explicit safe frame attributes."
+    }
+  ],
+  "evidence": [],
+  "history": []
+}
