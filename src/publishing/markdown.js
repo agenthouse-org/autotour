@@ -12,6 +12,7 @@ import {
 import path from "node:path";
 import { validateWalkthroughDocument } from "../capture/index.js";
 import { validateDocumentationSpec } from "../documentation/spec.js";
+import { operationFor, renderOpenApiMarkdown } from "../documentation/openapi.js";
 
 const MARKER = /^[\t ]*<!--[\t ]*autotour:module=([a-z0-9]+(?:-[a-z0-9]+)*):(start|end)[\t ]*-->[\t ]*$/;
 
@@ -39,7 +40,8 @@ export async function syncMarkdownScreenshots({
   markdownFile,
   assetsDir,
   dryRun = false,
-  documentationSpec
+  documentationSpec,
+  openApiDocuments
 }) {
   const validation = await validateWalkthroughDocument(walkthrough);
   if (!validation.valid) {
@@ -55,7 +57,10 @@ export async function syncMarkdownScreenshots({
     );
   }
   if (documentationSpec) {
-    const specValidation = await validateDocumentationSpec(documentationSpec, { journey: walkthrough });
+    if (documentationSpec.sections.some(section => section.blocks.some(block => block.kind === "openapi")) && !openApiDocuments) {
+      throw new PublishingError("AUTOTOUR_INVALID_DOCUMENTATION", "OpenAPI blocks require the OpenAPI documents loaded with the specification.");
+    }
+    const specValidation = await validateDocumentationSpec(documentationSpec, { journey: walkthrough, openApiDocuments });
     if (!specValidation.valid) throw new PublishingError("AUTOTOUR_INVALID_DOCUMENTATION", JSON.stringify(specValidation.errors));
     if ((documentationSpec.targets?.find(target => target.kind === "confluence") ?? documentationSpec.destination)?.kind === "confluence") {
       throw new PublishingError("AUTOTOUR_INVALID_DOCUMENTATION", "Confluence specifications must be published through connected tools, not sync-markdown.");
@@ -93,6 +98,7 @@ export async function syncMarkdownScreenshots({
       for (const block of section.blocks) {
         if (block.kind === "text") blocks.push(block.text);
         else if (block.kind === "tour") blocks.push(`[${escapeAlt(block.label)}](<${block.url.replaceAll(">", "%3E").replaceAll("<", "%3C")}>)`);
+        else if (block.kind === "openapi") blocks.push(renderOpenApiMarkdown(requireOpenApiOperation(openApiDocuments, block)));
         else {
           const asset = assetPlan.find(item => item.moduleId === section.moduleId && item.stepId === block.stepId);
           blocks.push(asset.markdown, `*${block.caption}*`);
@@ -341,6 +347,20 @@ async function replaceFile(file, contents) {
   } finally {
     await rm(temporary, { force: true });
   }
+}
+
+function requireOpenApiOperation(openApiDocuments, block) {
+  const loaded = openApiDocuments?.get(block.document);
+  let operation;
+  try {
+    operation = loaded ? operationFor(loaded, block.operation) : null;
+  } catch (error) {
+    throw new PublishingError("AUTOTOUR_INVALID_DOCUMENTATION", `${block.operation}: ${error.message}`);
+  }
+  if (!operation) {
+    throw new PublishingError("AUTOTOUR_INVALID_DOCUMENTATION", `OpenAPI operation ${block.operation} is not available in ${block.document}.`);
+  }
+  return operation;
 }
 
 function isInside(root, candidate) {

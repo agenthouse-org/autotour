@@ -16,6 +16,8 @@ Read the project configuration's optional `documentation` path, default `.autoto
 
 Leave `status` unset, or set `ready`, once the chapter has a journey module, recorded dependencies, and a step for every screenshot. Use `status: "text"` for prose that has no module yet; that chapter cannot contain a screenshot. Use `status: "planned"` to name a screenshot before its module or capture exists. `moduleId` stays the chapter anchor in every case. Generate a review copy with `run-docs --draft` so a missing image becomes a placeholder. Do not treat a placeholder as a published image: `sync-markdown` still requires the captured file.
 
+To document an API the journey calls, add an `openapi` block that points at a local OpenAPI 3.x or Swagger 2.0 file. Set `operation` to the same `METHOD /path` value recorded in `apiEndpoints` (Swagger 2 includes `basePath`). Keep the file next to the specification, list that endpoint on the section and journey module, and map the contract file in the dependency map. Do not fetch a remote spec, follow external `$ref` links, or copy example payloads into the published page. The block renders into the existing targets; it does not start Swagger UI or call the API.
+
 ## Capture and publish
 
 Run `autotour validate-docs <spec>` to check the schema and linked files. Use `readDocumentationSpec` and `prepareDocumentationCapture` before `captureJourney`. Preparation supplies screenshot annotation settings and viewport without changing the source journey or dependencies. Merge project-specific redaction options. Keep source credentials out of the specification.

@@ -327,7 +327,8 @@ async function syncMarkdown(args) {
     markdownFile,
     assetsDir: options.assetsDir,
     dryRun: options.dryRun || options.check,
-    documentationSpec: documentation?.spec
+    documentationSpec: documentation?.spec,
+    openApiDocuments: documentation?.openApiDocuments
   });
   console.log(JSON.stringify(result, null, 2));
   return options.check && result.changed ? 2 : 0;

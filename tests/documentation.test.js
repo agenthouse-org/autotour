@@ -56,6 +56,7 @@ test("spec-driven Markdown selects screenshots and renders ordered text/captions
   assert.match(first.renderedMarkdown, /## Profile Settings/);
   assert.match(first.renderedMarkdown, /display name field highlighted/);
   assert.match(first.renderedMarkdown, /01-fill-display-name\.png/);
+  assert.match(first.renderedMarkdown, /PUT \/api\/profile/);
   assert.doesNotMatch(first.renderedMarkdown, /open-profile\.png|save-profile\.png/);
   assert.ok(first.renderedMarkdown.indexOf("Enter your new") < first.renderedMarkdown.indexOf("!["));
   assert.ok(first.renderedMarkdown.indexOf("ready to save") < first.renderedMarkdown.indexOf("take effect"));
@@ -89,6 +90,7 @@ test("validate-docs and sync-markdown --spec use linked files and check mode", a
     writeFile(specPath, JSON.stringify(spec)),
     writeFile(path.join(root, spec.journey), JSON.stringify(example.journey)),
     writeFile(path.join(root, spec.dependencyMap), JSON.stringify(example.dependencyMap)),
+    writeFile(path.join(root, "profile.openapi.yaml"), await readFile("examples/profile.openapi.yaml")),
     writeFile(fixture.options.walkthroughFile, JSON.stringify(fixture.options.walkthrough))
   ]);
   const originalLog = console.log;
@@ -157,6 +159,6 @@ async function publishingFixture() {
   await writeFile(markdownFile, original);
   return { markdownFile, original, options: {
     walkthrough, walkthroughFile: path.join(output, "walkthrough.json"), markdownFile,
-    assetsDir: path.join(root, "assets"), documentationSpec: example.spec
+    assetsDir: path.join(root, "assets"), documentationSpec: example.spec, openApiDocuments: example.openApiDocuments
   } };
 }
