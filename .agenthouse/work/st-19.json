@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "st-19",
+  "title": "Link manuals across languages",
+  "kind": "feature",
+  "stage": "discover",
+  "revision": 1,
+  "fields": {
+    "outcome": "A reader can move from a chapter in one language to the same chapter in another language, and the address stays the module id when the heading is translated.",
+    "parentWork": "autotour-core",
+    "scope": "Let a documentation specification name its language and point at the other language specification. Require that link to point back. Generate an HTML language switch to each language's own HTML file, and keep the current chapter hash. The section anchor remains the module id. Exclude a single-file toggle, locale-key step targets, and a report of untranslated UI strings.",
+    "acceptance": "Two specifications can name each other. Validation rejects a missing backlink, a repeated language, and an absolute path. German and English pages use id profile for different headings. The switch opens the other file at that same anchor. The page language matches the specification.",
+    "decisions": "One HTML file per language. The module id is the stable anchor, so a single-file toggle is not generated. The current language is rendered from language and languageLabel. Other languages use the translation label and the other specification's HTML target. Locale catalogs stay out until a product exposes them.",
+    "verification": "Run the documentation tests, including a browser check that follows the language switch from a German chapter to the same English anchor.",
+    "dependencies": "Uses the existing HTML generator and section module ids.",
+    "risks": "A viewer that blocks inline scripts still opens the other manual, but not at the current chapter. Step targets are still language-specific accessible names.",
+    "relatedRequirements": ["FR-I18N-01", "FR-I18N-02"]
+  },
+  "criteria": [
+    {
+      "id": "linked-specs",
+      "expectation": "Each language specification points at the other, and validation rejects a one-way link."
+    },
+    {
+      "id": "stable-anchor",
+      "expectation": "The HTML section id is the module id, so a translated heading does not change the chapter address."
+    },
+    {
+      "id": "language-switch",
+      "expectation": "The page links to the other language's HTML file and opens the current chapter there."
+    },
+    {
+      "id": "document-language",
+      "expectation": "The HTML lang attribute is the specification language."
+    }
+  ],
+  "evidence": [],
+  "history": []
+}

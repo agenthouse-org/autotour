@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import { validateDependencyMapDocument } from "../invalidation/index.js";
+import { checkTranslationLinks } from "./languages.js";
 
 export const documentationSchemaPath = fileURLToPath(new URL("../../schemas/documentation.schema.json", import.meta.url));
 let validator;
@@ -20,6 +21,14 @@ export async function validateDocumentationSpec(spec, { journey, dependencyMap }
   }
   const errors = [];
   const fail = (message) => errors.push({ message });
+  if (spec.translations?.length) {
+    if (!spec.language) fail("A language switch needs the specification language.");
+    if (new Set(spec.translations.map(item => item.language)).size !== spec.translations.length) fail("Translation languages must be unique.");
+    for (const item of spec.translations) {
+      if (item.language === spec.language) fail(`Translation ${item.language} repeats the current language.`);
+      if (path.isAbsolute(item.spec) || /^[a-z][a-z0-9+.-]*:/i.test(item.spec)) fail(`Translation ${item.language} must use a relative specification path.`);
+    }
+  }
   if (journey && journey.id !== spec.walkthroughId) fail("walkthroughId does not match the journey.");
   if (journey && (!Array.isArray(journey.modules) || new Set(journey.modules.map(m => m.id)).size !== journey.modules.length)) {
     fail("Journey modules must have unique IDs.");
@@ -77,6 +86,7 @@ export async function readDocumentationSpec(file) {
   ]);
   const result = await validateDocumentationSpec(spec, { journey, dependencyMap });
   if (!result.valid) throw new Error(`Documentation references are invalid: ${JSON.stringify(result.errors)}`);
+  await checkTranslationLinks(spec, specPath);
   return { spec, journey, dependencyMap, specPath };
 }
 
