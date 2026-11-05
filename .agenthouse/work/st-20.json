@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "st-20",
+  "title": "Print the PDF from the built HTML page",
+  "kind": "feature",
+  "stage": "discover",
+  "revision": 1,
+  "fields": {
+    "outcome": "A reviewer receives a PDF of the same HTML page a reader opens, with a cover, chapter bookmarks, page numbers, and figures kept with their captions.",
+    "parentWork": "autotour-core",
+    "scope": "Print the PDF from the HTML document used for the HTML target, including its headings, screenshot figures, and video stills. Add a cover, a contents list with the chapter start page, a PDF bookmark per heading, and a running footer. Use Seite n von m when the walkthrough language is German and Page n of m otherwise. Keep each figure with its caption. An optional video still is shown in both the HTML and the PDF. Exclude version archives and derived artefacts.",
+    "acceptance": "The HTML page and the PDF contain the same section id, caption, and motion still. The PDF has an outline, a cover contents entry with the chapter page, and a localized page footer. A German walkthrough uses Seite n von m.",
+    "decisions": "One HTML builder feeds the page and the PDF. The PDF adds print-only cover, footer, and bookmarks. Page numbers in the contents list come from a second print pass. Other languages use the English page label.",
+    "verification": "Generate HTML and PDF for one chapter and check the page in a browser and the PDF text, outline, and footer. Repeat the footer check in German.",
+    "dependencies": "Uses the existing HTML generator and Playwright PDF printing.",
+    "risks": "The contents page number depends on text extracted from the PDF. A heading that is repeated later in the chapter can point at the later page. A viewer that strips PDF outlines still has the cover list.",
+    "relatedRequirements": ["FR-PDF-01", "FR-PDF-02"]
+  },
+  "criteria": [
+    {
+      "id": "same-page",
+      "expectation": "The PDF is printed from the HTML page, including the section id, figure caption, and video still."
+    },
+    {
+      "id": "cover-and-bookmarks",
+      "expectation": "The PDF has a cover contents list with the chapter start page and an outline bookmark per heading."
+    },
+    {
+      "id": "page-numbers",
+      "expectation": "The footer uses Page n of m, and Seite n von m when the walkthrough language is German."
+    },
+    {
+      "id": "figure-caption",
+      "expectation": "A screenshot figure keeps its caption with the image in the printed document."
+    }
+  ],
+  "evidence": [],
+  "history": []
+}

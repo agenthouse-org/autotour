@@ -29,7 +29,7 @@ npx autotour run-docs .autotour/documentation.json \
   --target markdown,html --mode adapt
 ```
 
-Markdown and HTML are written locally. Confluence produces a section patch plan; applying it still requires an authenticated connected publisher and explicit authorization.
+Markdown and HTML are written locally. A PDF target is printed from that same HTML page, with the same headings, figures, and captions. It adds a cover, a contents list with the page each chapter starts on, a bookmark per heading, and a running footer. The footer says “Seite n von m” when the walkthrough language is German and “Page n of m” otherwise. A video block may set `still` to an image path; the HTML and the PDF show that still with the video link. Figures stay with their captions. Confluence produces a section patch plan; applying it still requires an authenticated connected publisher and explicit authorization.
 
 When `--walkthrough` is omitted, `run-docs` prepares and captures the definition automatically. Screenshot blocks use annotated screenshot capture; replay/video blocks use DOM capture. Because the capture engine keeps recording modes separate, definitions mixing both modes require separate capture runs for now.
 
