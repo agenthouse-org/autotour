@@ -1,5 +1,6 @@
 import { copyFile, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
+import { readerChrome } from "./reader.js";
 import { validateDocumentationSpec } from "./spec.js";
 
 export async function generateDocumentation({ spec, specPath, walkthrough, walkthroughFile, targets, outputRoot, mode = "create" }) {
@@ -54,7 +55,8 @@ async function generateHtml({ spec, walkthrough, target, manifestDir, root, mode
     sections.push(`<section id="${section.moduleId}"><h${level}>${escapeHtml(section.heading)}</h${level}>${blocks.join("\n")}</section>`);
   }
   const title = escapeHtml(spec.title ?? walkthrough.title ?? walkthrough.id);
-  const html = `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${title}</title></head><body><header><h1>${title}</h1><nav><ol>${spec.sections.map(section => `<li><a href="#${section.moduleId}">${escapeHtml(section.heading)}</a></li>`).join("")}</ol></nav></header><main>${sections.join("\n")}</main></body></html>\n`;
+  const reader = readerChrome(spec.sections);
+  const html = `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${title}</title><style>${reader.style}</style></head><body><header><h1>${title}</h1>${reader.header}</header><main>${sections.join("\n")}</main>${reader.script}</body></html>\n`;
   await mkdir(path.dirname(destination), { recursive: true });
   await writeFile(destination, html, "utf8");
   return { kind: "html", path: destination, mode: target.mode ?? spec.generation?.htmlMode ?? "site" };

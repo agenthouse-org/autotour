@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "id": "st-18",
+  "title": "Nested contents and offline chapter search",
+  "kind": "feature",
+  "stage": "discover",
+  "revision": 1,
+  "fields": {
+    "outcome": "A reader of a long HTML manual can see chapters nested by heading depth and can search headings, prose, captions, and alt text from the page itself, then open the matching chapter.",
+    "parentWork": "autotour-core",
+    "scope": "Render the HTML contents list from headingLevel, nesting a section under the nearest earlier section with a smaller level. Add a search box whose index is embedded in the file and covers headings, text, captions, and alt text. Group results under the top-level section, show a highlighted snippet and the heading path, and move through results with the keyboard to the section anchor. Exclude topics, cross-references, breadcrumbs, previous and next links, collapsible chapters, branding, language switching, and PDF bookmarks.",
+    "acceptance": "A level 2 chapter is listed inside the preceding level 1 part. Search for words that appear only in a caption shows that chapter, grouped under its part, with the match highlighted, and does not request another file. Arrow keys and Enter open the section. A heading containing markup stays text.",
+    "decisions": "Use the existing headingLevel for parts instead of a new part field. One result per matching section. Keep the search script and index inline so a single HTML file can search with no network request. English search label matches the current HTML language.",
+    "verification": "Run the documentation generator tests and a browser check that nests the contents list, searches a caption, and opens the result from the keyboard.",
+    "dependencies": "Uses the existing HTML generator and section headingLevel.",
+    "risks": "A viewer that blocks inline scripts still shows the contents links, but the search box does not run. Search does not group by topic.",
+    "relatedRequirements": ["FR-HTML-04", "FR-HTML-10", "NFR-01"]
+  },
+  "criteria": [
+    {
+      "id": "nested-contents",
+      "expectation": "The HTML contents list nests each section under the nearest earlier section with a smaller headingLevel."
+    },
+    {
+      "id": "offline-search",
+      "expectation": "Search matches headings, prose, captions, and alt text from an index in the file and does not request another file."
+    },
+    {
+      "id": "grouped-result",
+      "expectation": "A result shows the heading path, a highlighted snippet, and the top-level section, and links to the section anchor."
+    },
+    {
+      "id": "keyboard",
+      "expectation": "Arrow keys move through the results and Enter opens the selected section."
+    },
+    {
+      "id": "safe-index",
+      "expectation": "A heading that contains markup is escaped in the contents list and cannot break out of the search index."
+    }
+  ],
+  "evidence": [],
+  "history": []
+}

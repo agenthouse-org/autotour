@@ -12,7 +12,7 @@
 
 Read the project configuration's optional `documentation` path, default `.autotour/documentation.json`. Start from packaged `examples/documentation.json` and its linked files, with the user's actual brief and application evidence. Ask only about missing choices. Record headings, ordered text/screenshot/tour blocks, audience, viewport, and destination. One section corresponds to one module. Use stable step IDs for screenshots and exact recorded view/dependency names; map those names to reviewed source-file globs. Do not invent source ownership to satisfy validation.
 
-`sourceView` states which UI the screenshot describes. `target` controls a role/name highlight independently of the action. `timing` specifies before/after that action; use explicit assertions/waits to capture settled results. Captions and alt text serve different purposes. Read packaged `docs/documentation-spec.md` for the schema and examples.
+`sourceView` states which UI the screenshot describes. `target` controls a role/name highlight independently of the action. `timing` specifies before/after that action; use explicit assertions/waits to capture settled results. Captions and alt text serve different purposes. Set `headingLevel` so the HTML contents list can group chapters under a broader part. The generated HTML page searches headings, prose, captions, and alt text from an index in the file and links a result to its section. Read packaged `docs/documentation-spec.md` for the schema and examples.
 
 ## Capture and publish
 
