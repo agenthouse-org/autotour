@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "ST-17",
+  "title": "Allow planned and text-only documentation sections",
+  "kind": "feature",
+  "stage": "discover",
+  "revision": 1,
+  "fields": {
+    "outcome": "Authors can plan and preview documentation before every chapter has been captured.",
+    "parentWork": "autotour-core",
+    "scope": "Allow planned sections that do not yet have a journey module, text-only sections without screenshots, and a draft renderer that shows clear placeholders for missing captures. Add explicit module requirements and test-data/fixture declarations where appropriate, while keeping capture validation distinct from draft rendering.",
+    "acceptance": "A valid draft spec can include planned chapters, prose-only sections, and screenshot placeholders before capture. Full capture validation still reports missing required modules or screenshots. A module can declare prerequisites and needed fixtures in a documented, validated shape.",
+    "verification": "Add spec validation cases for planned and text-only sections, generate a draft containing placeholders, confirm normal capture still enforces its required inputs, and validate module requirements and fixture declarations.",
+    "risks": "Draft permissiveness must not accidentally weaken production capture validation; distinguish draft and capture modes explicitly.",
+    "source": "Consumer feedback supplied by the user on 2026-11-03; scope and acceptance remain discovery-stage proposals."
+  },
+  "criteria": [
+    {
+      "id": "planned-sections",
+      "expectation": "A spec can include planned sections without a journey module and can render them in draft output."
+    },
+    {
+      "id": "prose-only-sections",
+      "expectation": "A documentation section can contain text blocks without any screenshot blocks."
+    },
+    {
+      "id": "draft-preview",
+      "expectation": "Draft rendering produces readable documentation and explicit placeholders for screenshots not yet captured."
+    },
+    {
+      "id": "module-requirements",
+      "expectation": "Modules can declare prerequisite modules and required test data or fixtures, and validation checks those declarations."
+    }
+  ],
+  "evidence": [],
+  "history": []
+}

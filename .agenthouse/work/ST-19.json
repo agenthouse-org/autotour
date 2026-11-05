@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "id": "ST-19",
+  "title": "Add safe capture sessions and controls",
+  "kind": "feature",
+  "stage": "discover",
+  "revision": 1,
+  "fields": {
+    "outcome": "Documentation captures can switch user sessions safely and prevent sensitive values or unintended admin changes from appearing in capture output.",
+    "parentWork": "autotour-core",
+    "scope": "Support per-module session selection (such as signed-out, end-user, and administrator), a built-in sign-out action, secret guards, value masking that preserves useful empty-secret-field visuals, and a read-only mode that blocks non-GET requests for designated captures. Define safe storage and reporting of session credentials.",
+    "acceptance": "Modules can select named session setup without storing credentials in committed specs. Sign-out is available as a supported action. Secret guards stop or redact configured secrets. Value masking hides populated sensitive values while preserving intended empty-field visuals. Read-only mode blocks non-GET requests and reports blocked attempts.",
+    "verification": "Use isolated browser fixtures to cover session switching and sign-out, secret appearance in outputs, value masking behavior on populated and empty fields, and blocked non-GET requests under read-only mode.",
+    "risks": "A browser-level read-only guard may not cover side effects caused by GET endpoints or external systems. Document its boundary and retain isolated test accounts and environments.",
+    "source": "Consumer feedback supplied by the user on 2026-11-03; scope and acceptance remain discovery-stage proposals."
+  },
+  "criteria": [
+    {
+      "id": "module-sessions",
+      "expectation": "Each module can select an explicitly configured signed-out, user, or administrator session without embedding credentials in tracked files."
+    },
+    {
+      "id": "sign-out",
+      "expectation": "The journey supports a built-in sign-out operation that clears the selected authenticated session as configured."
+    },
+    {
+      "id": "secret-guards",
+      "expectation": "Configured secret guards prevent protected values from being emitted into screenshots, reports, or generated documentation."
+    },
+    {
+      "id": "value-masking",
+      "expectation": "Sensitive populated values can be masked while empty secret fields remain visible when useful for instructions."
+    },
+    {
+      "id": "read-only-capture",
+      "expectation": "Read-only mode blocks non-GET requests during designated captures and records blocked attempts."
+    }
+  ],
+  "evidence": [],
+  "history": []
+}

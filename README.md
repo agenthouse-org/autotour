@@ -82,6 +82,8 @@ console.log(result.screenshotPaths);
 
 The same `captureJourney` call can create DOM replays or videos by replacing `recordScreenshots` with `recordDom` or `recordVideo`. See the [complete capture guide](docs/guide.md#capture-an-existing-journey) and [sample journeys](examples/).
 
+For live, in-app guided tours, use the separate browser runtime; see [live tours and migration](docs/live-tours.md). Capture journeys and live tour definitions use different formats.
+
 ## Choose an output
 
 | Output | Best for | Entry point |

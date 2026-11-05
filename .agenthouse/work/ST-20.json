@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "ST-20",
+  "title": "Capture selected documentation modules independently",
+  "kind": "feature",
+  "stage": "discover",
+  "revision": 1,
+  "fields": {
+    "outcome": "Authors can capture a selected set of documentation modules without requiring prior output or rerunning unrelated modules.",
+    "parentWork": "autotour-core",
+    "scope": "Make module filtering an independent capture operation that can start from a clean output location and execute only selected modules. Define how prerequisites, fixtures, and existing assets affect the selected run.",
+    "acceptance": "A caller can select modules for capture with no previous output present. Unselected modules are not executed. Selected module outputs are written predictably and can be assembled without invalidating unrelated existing output.",
+    "verification": "Use a multi-module fixture to capture a subset into an empty destination, assert only selected actions execute, and verify subsequent assembly preserves unselected module artifacts.",
+    "risks": "Modules with declared prerequisites may need prerequisite state without recapturing prerequisite screenshots; coordinate semantics with ST-17.",
+    "dependencies": "Coordinate prerequisite module behavior with ST-17.",
+    "source": "Consumer feedback supplied by the user on 2026-11-03; scope and acceptance remain discovery-stage proposals."
+  },
+  "criteria": [
+    {
+      "id": "standalone-filter",
+      "expectation": "A selected-module capture succeeds without requiring prior capture output."
+    },
+    {
+      "id": "selected-execution",
+      "expectation": "Only requested modules execute unless an explicitly declared prerequisite is required for their state."
+    },
+    {
+      "id": "independent-assembly",
+      "expectation": "Selected outputs can be assembled while preserving unaffected module output."
+    }
+  ],
+  "evidence": [],
+  "history": []
+}

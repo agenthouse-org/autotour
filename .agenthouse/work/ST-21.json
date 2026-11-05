@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "ST-21",
+  "title": "Detect plugin and package version drift",
+  "kind": "feature",
+  "stage": "discover",
+  "revision": 1,
+  "fields": {
+    "outcome": "Maintainers can detect mismatched AutoTour versions before users install an incompatible plugin and runtime combination.",
+    "parentWork": "autotour-core",
+    "scope": "Align marketplace metadata with the intended plugin release and add an autotour doctor check comparing the project npm package version with the installed plugin skill version. Establish the authoritative version source and distinguish actionable mismatch from development checkout states.",
+    "acceptance": "Marketplace metadata reports the intended release version. Doctor identifies when the project package is older than the installed skill, reports both versions and a useful next step, and handles missing or unparsable metadata without misleading success.",
+    "verification": "Add package/marketplace version consistency coverage and doctor cases for older, equal, newer, and unavailable version metadata; run package validation and frozen evaluation.",
+    "risks": "Multiple package and plugin version sources can drift again unless the release process validates them together.",
+    "source": "Consumer feedback supplied by the user on 2026-11-03; scope and acceptance remain discovery-stage proposals."
+  },
+  "criteria": [
+    {
+      "id": "marketplace-version",
+      "expectation": "Marketplace version metadata is generated or checked against the intended plugin release version."
+    },
+    {
+      "id": "doctor-version-check",
+      "expectation": "autotour doctor warns when the project package is older than the installed plugin skill and reports the compared versions."
+    },
+    {
+      "id": "version-edge-cases",
+      "expectation": "Doctor handles equal, newer, and missing/unparseable version information with clear non-misleading results."
+    }
+  ],
+  "evidence": [],
+  "history": []
+}

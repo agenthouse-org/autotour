@@ -1,0 +1,41 @@
+{
+  "name": "@agenthouse-org/webtour",
+  "version": "0.2.0",
+  "description": "Compatibility bridge to @agenthouse-org/autotour-runtime",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./index.js",
+    "./mcp": "./mcp.js",
+    "./theme/default.css": "./theme/default.css",
+    "./schema/tour.schema.json": "./schema/tour.schema.json",
+    "./schema/catalog.schema.json": "./schema/catalog.schema.json"
+  },
+  "bin": {
+    "ah-webtour-mcp": "./bin/ah-webtour-mcp.js"
+  },
+  "files": [
+    "index.js",
+    "mcp.js",
+    "bin",
+    "theme",
+    "schema",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@agenthouse-org/autotour-runtime": "0.1.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agenthouse-org/autotour.git",
+    "directory": "packages/webtour-compat"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

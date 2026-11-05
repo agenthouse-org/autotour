@@ -19,6 +19,7 @@ license: MIT
 - [Maintenance](#maintenance)
 - [Connected publishing](#connected-publishing)
 - [Source of truth](#source-of-truth)
+- [Choose capture or live tours](#choose-capture-or-live-tours)
 
 ## Onboarding routes
 
@@ -85,3 +86,8 @@ Read [references/connections.md](references/connections.md) for Confluence secti
 For every capture, apply [reliable tour authoring](../../docs/reliable-tours.md): establish explicit setup and deterministic fixtures, use stable scoped targets, wait for meaningful result stability, separate instruction/narration from technical description, and add deliberate reading pauses. Scroll the actual container. Prefer `recordDom.inlineEvents: false` with local preview for directory delivery. Use the configured language and check capture reports and replay checkpoints. Keep incidental outputs in the approved working folder (propose `.autotour/output/`); verify the agreed Git policy without silently changing ignore files, preserving source definitions and approved baselines. Do not automatically dismiss unknown dialogs or assume overlay ownership from appearance.
 
 Treat the walkthrough manifest as the source of truth. Generated media is replaceable output. A code change should invalidate only modules whose recorded dependencies overlap the changed components.
+
+
+## Choose capture or live tours
+
+Ask whether the audience needs captured documentation, guidance inside their own live application, or both. For captured screenshots, replays or videos use `autotour` and the existing capture workflow. For live in-app guidance install `@agenthouse-org/autotour-runtime`, follow `docs/live-tours.md` and the runtime README, and verify the tour in the target application. For both, install both packages and author each format separately; capture journeys do not automatically become live tours. For an existing webtour consumer follow the migration table and preserve its preferences and existing events. The runtime package and compatibility bridge must be published before registry installation.
