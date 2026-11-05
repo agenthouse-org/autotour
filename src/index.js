@@ -32,5 +32,6 @@ export {
   documentationSchemaPath, validateDocumentationSpec, readDocumentationSpec, prepareDocumentationCapture
 } from "./documentation/spec.js";
 export { generateDocumentation } from "./documentation/generate.js";
+export { recaptureDocumentationModules } from "./documentation/recapture.js";
 export { createTourReview, openTourReview, reviewView, tourReport, applyReviewAction } from "./review/workflow.js";
 export { startTourReview } from "./review/server.js";

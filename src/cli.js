@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { initializeProject, validateWalkthrough, configureStorage, readStorageConfiguration } from "./project.js";
 import { readDocumentationSpec, prepareDocumentationCapture } from "./documentation/spec.js";
 import { generateDocumentation } from "./documentation/generate.js";
+import { recaptureDocumentationModules } from "./documentation/recapture.js";
 import { captureJourney } from "./capture/index.js";
 import { validateWalkthroughDocument } from "./capture/manifest.js";
 import { startPreview } from "./preview.js";
@@ -35,7 +36,7 @@ Usage:
   autotour validate <walkthrough.json>
   autotour approve <walkthrough.json> [--module <id>]
   autotour validate-docs <documentation.json>
-  autotour run-docs <documentation.json> [--walkthrough <walkthrough.json>] [--target markdown,html,pdf,confluence] [--output-dir <directory>] [--capture-dir <directory>] [--mode create|adapt]
+  autotour run-docs <documentation.json> [--walkthrough <walkthrough.json>] [--module <id>]... [--target markdown,html,pdf,confluence] [--output-dir <directory>] [--capture-dir <directory>] [--mode create|adapt]
   autotour invalidate <walkthrough.json> --map <dependency-map.json> (--changed-file <path>... | --base <ref> [--head <ref>]) [--output <plan.json>] [--check]
   autotour regenerate <journey.json> --plan <invalidation-plan.json> --output-dir <directory> [--spec <documentation.json>]
   autotour sync-markdown <walkthrough.json> [--markdown <file>] --assets-dir <directory> [--spec <documentation.json>] [--dry-run | --check]
@@ -50,7 +51,7 @@ Commands:
   configure-storage  Save user-approved folders and Git policy (no artifacts generated)
   validate  Validate a walkthrough manifest
   validate-docs  Validate documentation layout and journey/dependency references
-  run-docs  Generate selected documentation targets from a validated definition
+  run-docs  Generate documentation targets, or recapture named modules
   invalidate  Identify modules affected by repository changes
   regenerate  Replace only modules marked for regeneration
   sync-markdown  Refresh managed walkthrough screenshots in Markdown
@@ -228,7 +229,20 @@ export async function run(args) {
       }
       let walkthrough;
       let walkthroughFile = options.walkthroughFile;
-      if (walkthroughFile) {
+      if (options.moduleIds.length && walkthroughFile) {
+        throw new Error("run-docs --module recaptures the existing capture. Omit --walkthrough.");
+      }
+      if (options.moduleIds.length) {
+        const recaptured = await recaptureDocumentationModules({
+          spec: documentation.spec,
+          journey: documentation.journey,
+          dependencyMap: documentation.dependencyMap,
+          outputDir: captureDir,
+          moduleIds: options.moduleIds
+        });
+        walkthrough = recaptured.walkthrough;
+        walkthroughFile = recaptured.walkthroughPath;
+      } else if (walkthroughFile) {
         walkthrough = await readJsonDocument(walkthroughFile);
       } else {
         const prepared = await prepareDocumentationCapture(documentation);
@@ -354,9 +368,11 @@ function parseRunDocsArgs(args) {
   let captureDir;
   let targets;
   let mode = "create";
+  const moduleIds = [];
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
     if (argument === "--walkthrough") walkthroughFile = path.resolve(requireOptionValue(args, ++index, argument));
+    else if (argument === "--module") moduleIds.push(requireOptionValue(args, ++index, argument));
     else if (argument === "--output-dir") outputDir = path.resolve(requireOptionValue(args, ++index, argument));
     else if (argument === "--capture-dir") captureDir = path.resolve(requireOptionValue(args, ++index, argument));
     else if (argument === "--target") targets = requireOptionValue(args, ++index, argument).split(",").filter(Boolean);
@@ -367,7 +383,7 @@ function parseRunDocsArgs(args) {
   }
   if (!specFile) throw new Error("run-docs requires a documentation specification file");
   if (!['create', 'adapt'].includes(mode)) throw new Error("run-docs --mode must be create or adapt");
-  return { specFile, walkthroughFile, outputDir, captureDir, targets, mode };
+  return { specFile, walkthroughFile, outputDir, captureDir, targets, mode, moduleIds };
 }
 
 async function regenerate(args) {
