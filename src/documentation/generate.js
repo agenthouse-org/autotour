@@ -1,5 +1,6 @@
 import { copyFile, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
+import { languageSwitchMarkup } from "./languages.js";
 import { validateDocumentationSpec } from "./spec.js";
 
 export async function generateDocumentation({ spec, specPath, walkthrough, walkthroughFile, targets, outputRoot, mode = "create" }) {
@@ -17,7 +18,7 @@ export async function generateDocumentation({ spec, specPath, walkthrough, walkt
   const results = [];
   for (const target of selected) {
     if (target.kind === "markdown") results.push(await generateMarkdown({ spec, walkthrough, target, manifestDir, root, mode }));
-    else if (target.kind === "html") results.push(await generateHtml({ spec, walkthrough, target, manifestDir, root, mode }));
+    else if (target.kind === "html") results.push(await generateHtml({ spec, specPath, walkthrough, target, manifestDir, root, mode }));
     else if (target.kind === "pdf") results.push(await generatePdf({ spec, walkthrough, target, manifestDir, root, mode }));
     else results.push(await generateConfluencePlan({ spec, target, root }));
   }
@@ -45,7 +46,7 @@ async function generateMarkdown({ spec, walkthrough, target, manifestDir, root, 
   return { kind: "markdown", path: destination, mode, assetsDir };
 }
 
-async function generateHtml({ spec, walkthrough, target, manifestDir, root, mode }) {
+async function generateHtml({ spec, specPath, walkthrough, target, manifestDir, root, mode }) {
   const destination = resolveTarget(root, target.path);
   const sections = [];
   for (const section of spec.sections) {
@@ -54,7 +55,9 @@ async function generateHtml({ spec, walkthrough, target, manifestDir, root, mode
     sections.push(`<section id="${section.moduleId}"><h${level}>${escapeHtml(section.heading)}</h${level}>${blocks.join("\n")}</section>`);
   }
   const title = escapeHtml(spec.title ?? walkthrough.title ?? walkthrough.id);
-  const html = `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${title}</title></head><body><header><h1>${title}</h1><nav><ol>${spec.sections.map(section => `<li><a href="#${section.moduleId}">${escapeHtml(section.heading)}</a></li>`).join("")}</ol></nav></header><main>${sections.join("\n")}</main></body></html>\n`;
+  const language = escapeHtml(spec.language || walkthrough.language || "en");
+  const switcher = await languageSwitchMarkup({ spec, specPath, outputRoot: root, currentHtmlPath: destination });
+  const html = `<!doctype html>\n<html lang="${language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${title}</title>${switcher.style}</head><body><header><h1>${title}</h1>${switcher.markup}<nav><ol>${spec.sections.map(section => `<li><a href="#${section.moduleId}">${escapeHtml(section.heading)}</a></li>`).join("")}</ol></nav></header><main>${sections.join("\n")}</main>${switcher.script}</body></html>\n`;
   await mkdir(path.dirname(destination), { recursive: true });
   await writeFile(destination, html, "utf8");
   return { kind: "html", path: destination, mode: target.mode ?? spec.generation?.htmlMode ?? "site" };
