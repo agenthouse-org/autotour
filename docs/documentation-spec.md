@@ -124,6 +124,14 @@ Retain the specification for selective **screenshot** regeneration:
 npx autotour regenerate .autotour/journey.json --spec .autotour/documentation.json --plan .autotour/output/plan.json --output-dir .autotour/output/product
 ```
 
+Name modules when the manual should be recaptured without a changed-file plan:
+
+```sh
+npx autotour run-docs .autotour/documentation.json --module profile-settings
+```
+
+Repeat `--module` for each module to recapture. Earlier modules still run when a later named module needs their browser state, and their images and manifest entries stay. Modules that do not need to run stay unrun. If a named module fails, previously published images of the other modules stay in place and the manual is not written again.
+
 See [CI examples](ci.md). This specification does not record a remote publication's approved source revision.
 
 ## Confluence and tours

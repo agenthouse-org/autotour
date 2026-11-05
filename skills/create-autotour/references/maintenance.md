@@ -19,6 +19,8 @@ Add `--check` for a CI gate that returns status 2 for either regeneration or rev
 
 Apply a certain plan with `autotour regenerate <journey.json> --plan <plan.json> --output-dir <existing-output>`. Screenshot, DOM, and raw video modes are inferred from the existing manifest. Let AutoTour execute reusable prerequisites for browser state while preserving their checked output. Treat status `2` as a review gate and retain existing output when capture or assembly fails.
 
+For a documentation manual, name the modules instead of building a plan: `autotour run-docs <documentation.json> --module <id>`. Repeat `--module` for each module. Modules that do not need to run stay unrun. Their images and manifest entries remain. A failed module leaves previously published sibling images in place. `invalidate` and `regenerate --spec` remain the changed-file path.
+
 ## Markdown synchronization
 
 Use standalone matching `<!-- autotour:module=<id>:start -->` and `<!-- autotour:module=<id>:end -->` comments. Run `autotour sync-markdown` only when the walkthrough and selected modules explicitly set `publish` to `true`. Use `--check` in CI to detect stale documentation without writing or `--dry-run` to inspect proposed changes. Never edit outside managed regions or bypass marker and source-path validation.
