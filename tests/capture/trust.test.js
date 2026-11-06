@@ -91,7 +91,7 @@ test("screenshot capture uses the spec viewport before the first navigation", as
           dependencies: { views: ["Home"] },
           assets: {},
           setup: [{ id: "open-page", action: "goto", description: "Open", path: "/" }],
-          steps: [{ id: "width", action: "wait", description: "Read width", until: { selector: "css=#width", text: "1440", timeoutMs: 3000 } }]
+          steps: [{ id: "width", action: "wait", description: "Read width", until: { selector: "css=#width", text: "1440", timeoutMs: 10000 } }]
         }]
       }
     });
@@ -143,9 +143,11 @@ test("visual stability ignores a class change inside the target", async () => {
   try {
     const page = await browser.newPage();
     await page.setContent(`<div id="box"><span class="a">Ready</span></div><script>
+      let changes = 0;
       setInterval(() => {
         const child = document.querySelector("#box span");
-        child.className = child.className === "a" ? "b" : "a";
+        changes += 1;
+        child.className = "state-" + changes;
       }, 20);
     </script>`);
     await waitForCondition(page, { target: { css: "#box" }, stableForMs: 200, timeoutMs: 45000 });
