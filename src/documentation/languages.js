@@ -2,9 +2,6 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { validateDocumentationSpec } from "./spec.js";
 
-const switchStyle = "<style>nav.autotour-languages ul{display:flex;gap:.75rem;list-style:none;margin:.5rem 0;padding:0}nav.autotour-languages a[aria-current=page]{font-weight:700}</style>";
-const switchScript = `<script>document.querySelectorAll("a[data-autotour-language]").forEach(link=>{link.addEventListener("click",event=>{if(!location.hash)return;event.preventDefault();const url=new URL(link.getAttribute("href"),location.href);url.hash=location.hash;location.assign(url.href);});});</script>`;
-
 export async function checkTranslationLinks(spec, specPath) {
   if (!spec.translations?.length) return;
   const current = path.resolve(specPath);
@@ -19,8 +16,9 @@ export async function checkTranslationLinks(spec, specPath) {
   }
 }
 
-export async function languageSwitchMarkup({ spec, specPath, outputRoot, currentHtmlPath }) {
-  if (!spec.translations?.length) return { style: "", markup: "", script: "" };
+/** Links to every language of this manual, the current one first. Empty without translations. */
+export async function languageLinks({ spec, specPath, outputRoot, currentHtmlPath }) {
+  if (!spec.translations?.length) return [];
   if (!specPath) throw new Error("A language switch needs the documentation specification path.");
   await checkTranslationLinks(spec, specPath);
   const links = [{
@@ -43,12 +41,7 @@ export async function languageSwitchMarkup({ spec, specPath, outputRoot, current
       current: false
     });
   }
-  const items = links.map(link => `<li><a href="${escapeHtml(link.href)}" lang="${escapeHtml(link.language)}" hreflang="${escapeHtml(link.language)}"${link.current ? ' aria-current="page"' : " data-autotour-language"}>${escapeHtml(link.label)}</a></li>`).join("");
-  return {
-    style: switchStyle,
-    markup: `<nav class="autotour-languages" aria-label="Languages"><ul>${items}</ul></nav>`,
-    script: switchScript
-  };
+  return links;
 }
 
 async function readTranslationSpec(item, otherPath) {
@@ -71,8 +64,4 @@ function resolveOutput(root, targetPath) {
 
 function portable(value) {
   return value.split(path.sep).join("/");
-}
-
-function escapeHtml(value) {
-  return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 }

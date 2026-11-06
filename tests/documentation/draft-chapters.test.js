@@ -39,7 +39,7 @@ test("a text chapter can exist before its journey module, and a planned screensh
   withShot.sections[0].blocks.push(screenshot("welcome", "Guide", "Welcome", "Start here."));
   const proseOnly = await validateDocumentationSpec(withShot, { journey, dependencyMap });
   assert.equal(proseOnly.valid, false);
-  assert.match(proseOnly.errors.map(error => error.message).join("\n"), /reader-guide: a text chapter can only contain prose/);
+  assert.match(proseOnly.errors.map(error => error.message).join("\n"), /reader-guide: a text chapter can only contain prose and embedded pages/);
 
   const planned = structuredClone(text);
   planned.sections.push({

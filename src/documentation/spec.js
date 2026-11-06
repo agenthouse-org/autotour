@@ -85,8 +85,8 @@ export async function validateDocumentationSpec(spec, { journey, dependencyMap, 
         fail("Documentation blocks cannot contain managed-region markers.");
       }
       if (block.alt && /[\r\n]/.test(block.alt)) fail("Screenshot alt text must be a single line.");
-      if (status === "text" && block.kind !== "text") {
-        fail(`${section.moduleId}: a text chapter can only contain prose.`);
+      if (status === "text" && !["text", "embed"].includes(block.kind)) {
+        fail(`${section.moduleId}: a text chapter can only contain prose and embedded pages.`);
         continue;
       }
       if (block.kind === "openapi") {
