@@ -25,6 +25,12 @@
       "if": { "properties": { "confirmed": { "const": true } }, "required": ["confirmed"] },
       "then": { "required": ["documentationOutput", "artifacts", "documentation", "gitignore"], "properties": { "documentationOutput": {}, "artifacts": {}, "documentation": {}, "gitignore": {} } }
     },
+    "presentation": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "navigation": { "enum": ["sidebar", "topbar", "minimal"] }
+      }
+    },
     "auth": {
       "type": "object",
       "additionalProperties": false,

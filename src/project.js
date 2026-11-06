@@ -81,6 +81,34 @@ export async function configureStorage(directory, choices) {
     note: choices.gitignore === "keep" ? "Git ignore files were not changed. Local files inside the repository may still appear in Git." : "Existing ignore rules and tracked files were preserved." };
 }
 
+/** Save presentation defaults for every manual in the project, as chosen by the user. */
+export async function configurePresentation(directory, choices) {
+  const root = path.resolve(directory);
+  const configPath = await projectConfigPath(root);
+  let config;
+  try { config = JSON.parse(await readFile(configPath, "utf8")); }
+  catch (error) {
+    if (error.code === "ENOENT") throw new Error("No AutoTour project configuration found. Run autotour init first.");
+    throw error;
+  }
+  const navigation = choices.navigation;
+  if (!["sidebar", "topbar", "minimal"].includes(navigation)) throw new Error("navigation must be sidebar, topbar, or minimal");
+  config.presentation = { ...(config.presentation ?? {}), navigation };
+  await writeFile(configPath, JSON.stringify(config, null, 2) + "\n", "utf8");
+  return { configPath, presentation: config.presentation };
+}
+
+/** Presentation defaults from the project configuration; empty when none were saved. */
+export async function readPresentationSettings(directory = process.cwd()) {
+  try {
+    const config = JSON.parse(await readFile(await projectConfigPath(path.resolve(directory)), "utf8"));
+    return config.presentation ?? {};
+  } catch (error) {
+    if (error.code === "ENOENT") return {};
+    throw error;
+  }
+}
+
 async function projectConfigPath(root) {
   const nested = path.join(root, ".autotour", "autotour.json");
   try { await readFile(nested); return nested; }

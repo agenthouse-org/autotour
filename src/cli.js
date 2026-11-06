@@ -1,9 +1,10 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { initializeProject, validateWalkthrough, configureStorage, readStorageConfiguration } from "./project.js";
+import { initializeProject, validateWalkthrough, configureStorage, readStorageConfiguration, configurePresentation, readPresentationSettings } from "./project.js";
 import { readDocumentationSpec, prepareDocumentationCapture } from "./documentation/spec.js";
-import { generateDocumentation } from "./documentation/generate.js";
+import { documentationWarnings, generateDocumentation } from "./documentation/generate.js";
+import { generateManual, isManualDocument, manualWarnings, readManual } from "./documentation/manual/manual.js";
 import { recaptureDocumentationModules } from "./documentation/recapture.js";
 import { captureJourney } from "./capture/index.js";
 import { validateWalkthroughDocument } from "./capture/manifest.js";
@@ -33,11 +34,13 @@ const help = `AutoTour ${packageJson.version}
 
 Usage:
   autotour init [directory] [--force]
+  autotour configure-presentation [directory] --navigation sidebar|topbar|minimal
   autotour configure-storage [directory] --output <folder> --documentation-output <folder> --artifacts local|versioned --documentation local|versioned --gitignore modify|keep
   autotour validate <walkthrough.json>
   autotour approve <walkthrough.json> [--module <id>]
   autotour validate-docs <documentation.json>
-  autotour run-docs <documentation.json> [--walkthrough <walkthrough.json>] [--module <id>]... [--target markdown,html,pdf,confluence] [--output-dir <directory>] [--capture-dir <directory>] [--mode create|adapt] [--draft]
+  autotour run-docs <documentation.json> [--walkthrough <walkthrough.json>] [--module <id>]... [--target markdown,html,pdf,larecipe,confluence] [--output-dir <directory>] [--capture-dir <directory>] [--mode create|adapt] [--draft]
+  autotour run-docs <manual.json> [--language <tag>]... [--target html,pdf,markdown,larecipe] [--draft]
   autotour invalidate <walkthrough.json> --map <dependency-map.json> (--changed-file <path>... | --base <ref> [--head <ref>]) [--output <plan.json>] [--check]
   autotour regenerate <journey.json> --plan <invalidation-plan.json> --output-dir <directory> [--spec <documentation.json>]
   autotour sync-markdown <walkthrough.json> [--markdown <file>] --assets-dir <directory> [--spec <documentation.json>] [--dry-run | --check]
@@ -50,6 +53,7 @@ Usage:
 Commands:
   init      Create .autotour/autotour.json in a project
   configure-storage  Save user-approved folders and Git policy (no artifacts generated)
+  configure-presentation  Save the navigation flavour the user chose for HTML manuals
   validate  Validate a walkthrough manifest
   validate-docs  Validate documentation layout and journey/dependency references
   run-docs  Generate documentation targets, or recapture named modules
@@ -148,6 +152,21 @@ export async function run(args) {
     }
   }
 
+  if (command === "configure-presentation") {
+    try {
+      const choices = {};
+      let directory;
+      for (let index = 0; index < rest.length; index++) {
+        const argument = rest[index];
+        if (argument === "--navigation") choices.navigation = requireOptionValue(rest, ++index, argument);
+        else if (!argument.startsWith("-") && !directory) directory = argument;
+        else throw new Error(`Unknown configure-presentation argument: ${argument}`);
+      }
+      console.log(JSON.stringify(await configurePresentation(directory ?? process.cwd(), choices), null, 2));
+      return 0;
+    } catch (error) { console.error(error.message); return 1; }
+  }
+
   if (command === "configure-storage") {
     try {
       const choices = {};
@@ -203,8 +222,15 @@ export async function run(args) {
   if (command === "validate-docs") {
     try {
       if (rest.length !== 1) throw new Error("validate-docs requires one documentation specification file");
-      await readDocumentationSpec(rest[0]);
+      if (isManualDocument(await readJsonDocument(rest[0]))) {
+        const loaded = await readManual(rest[0], { draft: true });
+        console.log(`${rest[0]} is a valid manual with ${loaded.languages.length} language(s) and ${loaded.languages[0].items.filter(item => item.kind === "section").length} section(s).`);
+        for (const warning of manualWarnings(loaded, await readPresentationSettings())) console.error(`Warning: ${warning}`);
+        return 0;
+      }
+      const documentation = await readDocumentationSpec(rest[0]);
       console.log(`${rest[0]} is valid, including journey and dependency references.`);
+      for (const warning of documentationWarnings(documentation.spec, await readPresentationSettings())) console.error(`Warning: ${warning}`);
       return 0;
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
@@ -223,6 +249,15 @@ export async function run(args) {
       const captureRelative = path.relative(storage.output, path.resolve(captureDir));
       if (captureRelative === ".." || captureRelative.startsWith(`..${path.sep}`) || path.isAbsolute(captureRelative)) {
         throw new Error("--capture-dir is outside the approved artifact folder. Ask the user and update configure-storage first.");
+      }
+      const presentation = await readPresentationSettings();
+      if (isManualDocument(await readJsonDocument(options.specFile))) {
+        if (options.moduleIds.length || options.walkthroughFile) throw new Error("A manual combines captured specifications. Capture each specification with run-docs, then build the manual.");
+        if (options.mode !== "create") throw new Error("A manual is always generated in create mode.");
+        const result = await generateManual({ manualFile: options.specFile, outputRoot: storage.documentationOutput, targets: options.targets, languages: options.languages, draft: options.draft, presentation });
+        for (const warning of result.warnings ?? []) console.error(`Warning: ${warning}`);
+        console.log(JSON.stringify(result, null, 2));
+        return 0;
       }
       const documentation = await readDocumentationSpec(options.specFile);
       for (const target of documentation.spec.targets ?? [documentation.spec.destination].filter(Boolean)) {
@@ -270,8 +305,10 @@ export async function run(args) {
         targets: options.targets,
         outputRoot: storage.documentationOutput,
         mode: options.mode,
-        draft: options.draft
+        draft: options.draft,
+        presentation
       });
+      for (const warning of result.warnings ?? []) console.error(`Warning: ${warning}`);
       console.log(JSON.stringify(result, null, 2));
       return 0;
     } catch (error) {
@@ -375,6 +412,7 @@ function parseRunDocsArgs(args) {
   let mode = "create";
   let draft = false;
   const moduleIds = [];
+  const languages = [];
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
     if (argument === "--walkthrough") walkthroughFile = path.resolve(requireOptionValue(args, ++index, argument));
@@ -384,13 +422,14 @@ function parseRunDocsArgs(args) {
     else if (argument === "--target") targets = requireOptionValue(args, ++index, argument).split(",").filter(Boolean);
     else if (argument === "--mode") mode = requireOptionValue(args, ++index, argument);
     else if (argument === "--draft") draft = true;
+    else if (argument === "--language") languages.push(requireOptionValue(args, ++index, argument));
     else if (argument.startsWith("-")) throw new Error(`Unknown run-docs option: ${argument}`);
     else if (!specFile) specFile = path.resolve(argument);
     else throw new Error(`Unexpected run-docs argument: ${argument}`);
   }
   if (!specFile) throw new Error("run-docs requires a documentation specification file");
   if (!['create', 'adapt'].includes(mode)) throw new Error("run-docs --mode must be create or adapt");
-  return { specFile, walkthroughFile, outputDir, captureDir, targets, mode, draft, moduleIds };
+  return { specFile, walkthroughFile, outputDir, captureDir, targets, mode, draft, moduleIds, languages };
 }
 
 async function regenerate(args) {
