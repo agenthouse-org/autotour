@@ -22,16 +22,31 @@ export const clientScript = String.raw`(() => {
     if (!heading.id && !leads) heading.id = "autotour-h-" + (index + 1);
   });
   const anchorOf = (heading) => heading.id || heading.parentElement.id;
+  const closing = main.querySelector(".autotour-ai-content");
+  const textOf = (root) => {
+    // Separate block elements (paragraphs, table cells) by a space; keep inline text together.
+    const parts = [];
+    const blocks = /^(P|LI|TD|TH|TR|DIV|DT|DD|H[1-6]|PRE|BLOCKQUOTE|ASIDE|SECTION|FIGURE|FIGCAPTION|BR|TABLE|UL|OL)$/;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      if (node.nodeType === Node.TEXT_NODE) parts.push(node.nodeValue);
+      else if (blocks.test(node.tagName)) parts.push(" ");
+    }
+    return parts.join("").replace(/\s+/g, " ").trim();
+  };
   const index = headings.map((heading, position) => {
     const range = document.createRange();
     range.setStartAfter(heading);
     const next = headings[position + 1];
-    if (next) range.setEndBefore(next); else range.setEnd(main, main.childNodes.length);
+    if (next) range.setEndBefore(next);
+    else if (closing) range.setEndBefore(closing);
+    else range.setEnd(main, main.childNodes.length);
     const fragment = range.cloneContents();
     fragment.querySelectorAll("script, style, iframe, .autotour-ai").forEach(node => node.remove());
     const alts = [...fragment.querySelectorAll("img[alt]")].map(img => img.getAttribute("alt"));
-    const title = heading.textContent.replace(/\s+/g, " ").trim();
-    const body = [fragment.textContent, ...alts].join(" ").replace(/\s+/g, " ").trim();
+    const title = textOf(heading);
+    const body = [textOf(fragment), ...alts].join(" ").replace(/\s+/g, " ").trim();
     return { anchor: anchorOf(heading), title, body, foldedTitle: fold(title).text, folded: fold(body) };
   });
   const input = document.getElementById("autotour-search-input");
