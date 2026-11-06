@@ -1,15 +1,22 @@
-import { access, copyFile, mkdir, readFile, writeFile, rm } from "node:fs/promises";
+import { copyFile, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
-import { renderMarkdown } from "./markdown.js";
-import { readerChrome } from "./reader.js";
-import { languageSwitchMarkup } from "./languages.js";
+import { languageLinks } from "./languages.js";
 import { pageForText, pdfPageTexts } from "./pdf-text.js";
 import { validateDocumentationSpec } from "./spec.js";
-import { loadOpenApiDocuments, operationFor, renderOpenApiHtml, renderOpenApiMarkdown } from "./openapi.js";
+import { loadOpenApiDocuments, renderOpenApiMarkdown } from "./openapi.js";
+import { escapeMarkdown, fileExists, mimeType, portable, renderBlocks, requireOperation, safeResolve } from "./blocks.js";
+import { resolveLabels } from "./manual/labels.js";
+import { aiLabel, sectionAiItems, sectionOrigin, aiDisclosureWarnings } from "./manual/ai.js";
+import { buildReaderModel } from "./manual/model.js";
+import { pageFooterTemplate, renderManualPage } from "./manual/html.js";
+import { createImageEncoder } from "./manual/images.js";
+import { generateLaRecipe } from "./larecipe.js";
 
-const placeholderStyle = "figure.autotour-placeholder{border:1px dashed #666;padding:1rem;margin:1rem 0;background:#f6f6f6}";
-
-export async function generateDocumentation({ spec, specPath, walkthrough, walkthroughFile, targets, outputRoot, mode = "create", draft = false, openApiDocuments }) {
+/**
+ * Generate every selected target of one documentation specification.
+ * `presentation` holds project-level defaults (for example `{ navigation: "sidebar" }`).
+ */
+export async function generateDocumentation({ spec, specPath, walkthrough, walkthroughFile, targets, outputRoot, mode = "create", draft = false, openApiDocuments, presentation = {} }) {
   const documents = openApiDocuments ?? await loadOpenApiForGeneration(spec, specPath);
   const validation = await validateDocumentationSpec(spec, { journey: walkthrough, openApiDocuments: documents });
   if (!validation.valid) throw new Error(`Cannot generate documentation: ${JSON.stringify(validation.errors)}`);
@@ -17,61 +24,166 @@ export async function generateDocumentation({ spec, specPath, walkthrough, walkt
   if (!selected.length) throw new Error("No documentation targets were selected.");
   const manifestFile = walkthroughFile ? path.resolve(walkthroughFile) : (specPath ? path.resolve(specPath) : process.cwd());
   const manifestDir = path.dirname(manifestFile);
+  const specDir = specPath ? path.dirname(path.resolve(specPath)) : manifestDir;
   const root = path.resolve(outputRoot ?? ".autotour/output/documentation");
   // Preflight every destination before copying assets or writing any target.
   for (const target of selected) {
     if (target.path) resolveTarget(root, target.path);
   }
+  const language = documentLanguage(spec, walkthrough);
+  const context = {
+    spec,
+    specPath,
+    walkthrough,
+    root,
+    mode,
+    draft,
+    language,
+    labels: resolveLabels(language, spec.labels),
+    source: { walkthrough, manifestDir, specDir, openApiDocuments: documents },
+    presentation
+  };
+  const warnings = documentationWarnings(spec, presentation, selected);
   const results = [];
   for (const target of selected) {
-    if (target.kind === "markdown") results.push(await generateMarkdown({ spec, walkthrough, target, manifestDir, root, mode, draft, openApiDocuments: documents }));
-    else if (target.kind === "html") results.push(await generateHtml({ spec, specPath, walkthrough, target, manifestDir, root, mode, draft, openApiDocuments: documents }));
-    else if (target.kind === "pdf") results.push(await generatePdf({ spec, walkthrough, target, manifestDir, root, mode, draft, openApiDocuments: documents }));
+    if (target.kind === "markdown") results.push(await generateMarkdown({ ...context, target }));
+    else if (target.kind === "html") results.push(await generateHtml({ ...context, target }));
+    else if (target.kind === "pdf") results.push(await generatePdf({ ...context, target }));
+    else if (target.kind === "larecipe") results.push(await generateLaRecipe({ ...context, target, items: specItems(spec, context.source), title: documentTitle(spec, walkthrough), numbering: spec.numbering ?? false, aiPlacement: spec.aiDisclosure?.placement ?? "none" }));
     else results.push(await generateConfluencePlan({ spec, target, root, openApiDocuments: documents }));
   }
-  return { mode, targets: results };
+  return { mode, targets: results, ...(warnings.length ? { warnings } : {}) };
+}
+
+/** Warnings that do not stop generation but need the author's attention. */
+export function documentationWarnings(spec, presentation = {}, targets = targetList(spec)) {
+  const warnings = aiDisclosureWarnings({ sections: spec.sections, aiDisclosure: spec.aiDisclosure, where: spec.walkthroughId });
+  if (targets.some(target => target.kind === "html") && !spec.navigation && !presentation.navigation) {
+    warnings.push(`${spec.walkthroughId}: no navigation flavour was chosen, so the HTML uses "sidebar". Ask the author (sidebar, topbar, minimal) and save it with autotour configure-presentation --navigation <flavour>.`);
+  }
+  return warnings;
 }
 
 function targetList(spec) {
   return spec.targets ?? (spec.destination ? [spec.destination] : []);
 }
 
-async function generateMarkdown({ spec, walkthrough, target, manifestDir, root, mode, draft, openApiDocuments }) {
+function specItems(spec, source) {
+  return spec.sections.map(section => ({ kind: "section", anchor: section.moduleId, section, source }));
+}
+
+function documentTitle(spec, walkthrough) {
+  return spec.title ?? walkthrough?.title ?? walkthrough?.id ?? spec.walkthroughId;
+}
+
+async function generateMarkdown({ spec, walkthrough, target, root, mode, draft, labels, source }) {
   const destination = resolveTarget(root, target.path);
   const assetsDir = path.join(path.dirname(destination), "assets", "autotour", walkthrough.id);
+  const placement = spec.aiDisclosure?.placement ?? "none";
   const generated = [];
+  const aiSections = [];
   for (const section of spec.sections) {
+    const origin = sectionOrigin(section);
+    if (origin) aiSections.push(section);
+    const badge = origin && placement === "chapter" ? ` *(${aiLabel(origin, labels)})*` : "";
     generated.push({
       moduleId: section.moduleId,
-      content: [`${"#".repeat(section.headingLevel ?? 2)} ${escapeMarkdown(section.heading)}`, `<!-- autotour:module=${section.moduleId}:start -->`, ...await renderBlocks({ section, walkthrough, manifestDir, assetsDir, documentDir: path.dirname(destination), format: "markdown", draft, openApiDocuments }), `<!-- autotour:module=${section.moduleId}:end -->`].join("\n")
+      content: [`${"#".repeat(section.headingLevel ?? 2)} ${escapeMarkdown(section.heading)}${badge}`, `<!-- autotour:module=${section.moduleId}:start -->`, ...await renderBlocks({ section, walkthrough, manifestDir: source.manifestDir, specDir: source.specDir, assetsDir, documentDir: path.dirname(destination), format: "markdown", draft, openApiDocuments: source.openApiDocuments, labels, aiPlacement: placement }), `<!-- autotour:module=${section.moduleId}:end -->`].join("\n")
     });
   }
+  let note = "";
+  if (aiSections.length && placement === "document") {
+    note = `*${labels.aiNote}*`;
+    const lines = aiSections.map(section => `- [${escapeMarkdown(section.heading)}](#${section.moduleId}): ${sectionAiItems(section, labels).map(item => `${item.kind} (${item.label})`).join(", ")}`);
+    generated.push({
+      moduleId: "autotour-ai-content",
+      content: [`## ${escapeMarkdown(labels.aiSection)}`, "<!-- autotour:module=autotour-ai-content:start -->", labels.aiSectionIntro, "", ...lines, "<!-- autotour:module=autotour-ai-content:end -->"].join("\n")
+    });
+  } else if (aiSections.length && placement !== "none") {
+    note = `*${labels.aiNote}*`;
+  }
   const existing = mode === "adapt" && await exists(destination) ? await readFile(destination, "utf8") : undefined;
-  const body = existing ? adaptMarkdown(existing, generated) : [`# ${escapeMarkdown(spec.title ?? walkthrough.title ?? walkthrough.id)}`, "", ...generated.map(item => item.content)].join("\n\n");
+  const body = existing
+    ? adaptMarkdown(existing, generated)
+    : [`# ${escapeMarkdown(documentTitle(spec, walkthrough))}`, ...(note ? [note] : []), "", ...generated.map(item => item.content)].join("\n\n");
   await mkdir(path.dirname(destination), { recursive: true });
   await writeFile(destination, `${body.trim()}\n`, "utf8");
   return { kind: "markdown", path: destination, mode, assetsDir };
 }
 
-async function generateHtml({ spec, specPath, walkthrough, target, manifestDir, root, mode, draft, openApiDocuments }) {
+async function generateHtml({ spec, specPath, walkthrough, target, root, draft, language, labels, source, presentation }) {
   const destination = resolveTarget(root, target.path);
   const htmlMode = target.mode ?? spec.generation?.htmlMode ?? "site";
-  const reader = await readerContent({
-    spec,
-    walkthrough,
-    manifestDir,
-    documentDir: path.dirname(destination),
-    assetsDir: path.join(path.dirname(destination), "assets"),
+  const page = await buildPage({
+    title: documentTitle(spec, walkthrough),
+    language,
+    labels,
+    items: specItems(spec, source),
+    settings: { ...presentation, ...pickSettings(spec) },
+    destination,
     embedImages: htmlMode === "single-file",
     draft,
-    openApiDocuments
+    brandingDir: source.specDir,
+    languages: await languageLinks({ spec, specPath, outputRoot: root, currentHtmlPath: destination })
   });
-  const chrome = readerChrome(spec.sections);
-  const switcher = await languageSwitchMarkup({ spec, specPath, outputRoot: root, currentHtmlPath: destination });
-  const html = documentationDocument(reader, { print: false, chrome, switcher });
   await mkdir(path.dirname(destination), { recursive: true });
-  await writeFile(destination, html, "utf8");
+  await writeFile(destination, page, "utf8");
   return { kind: "html", path: destination, mode: htmlMode };
+}
+
+/** Settings a specification or manual can declare for its reader output. */
+export function pickSettings(document) {
+  const settings = {};
+  for (const key of ["navigation", "numbering", "aiDisclosure", "branding", "images"]) {
+    if (document[key] !== undefined) settings[key] = document[key];
+  }
+  return settings;
+}
+
+/**
+ * Render one HTML (or print) page for a list of part and section items.
+ * @param {object} options
+ */
+export async function buildPage({ title, language, labels, items, settings, destination, embedImages, draft, brandingDir, languages = [], print = false, tocPages, model: prepared }) {
+  const documentDir = path.dirname(destination);
+  const assetsDir = path.join(documentDir, "assets");
+  const encoder = embedImages ? createImageEncoder(settings.images) : createImageEncoder();
+  try {
+    const model = prepared ?? await buildReaderModel({
+      items,
+      labels,
+      numbering: settings.numbering ?? false,
+      aiPlacement: settings.aiDisclosure?.placement ?? "none",
+      documentDir,
+      assetsDir,
+      embedImages,
+      encodeImage: encoder.encode,
+      draft
+    });
+    const branding = await brandingFor(settings.branding, { baseDir: brandingDir, assetsDir, documentDir, embedImages });
+    const page = renderManualPage({ ...model, title, language, labels, navigation: settings.navigation ?? "sidebar", branding, draft, languages }, { print, tocPages });
+    return page;
+  } finally {
+    await encoder.close();
+  }
+}
+
+async function brandingFor(branding, { baseDir, assetsDir, documentDir, embedImages }) {
+  if (!branding) return undefined;
+  const result = { colors: branding.colors, fontFamily: branding.fontFamily, logoAlt: branding.logoAlt };
+  if (branding.logo) {
+    const source = safeResolve(baseDir, branding.logo);
+    if (!await fileExists(source)) throw new Error(`Branding logo was not found (${branding.logo}).`);
+    if (embedImages) {
+      result.logoUrl = `data:${mimeType(source)};base64,${(await readFile(source)).toString("base64")}`;
+    } else {
+      const destination = path.join(assetsDir, "branding", path.basename(source));
+      await mkdir(path.dirname(destination), { recursive: true });
+      await copyFile(source, destination);
+      result.logoUrl = portable(path.relative(documentDir, destination));
+    }
+  }
+  return result;
 }
 
 async function generateConfluencePlan({ spec, target, root, openApiDocuments }) {
@@ -91,14 +203,38 @@ async function generateConfluencePlan({ spec, target, root, openApiDocuments }) 
   return { kind: "confluence", path: destination, pageId: target.pageId, status: "plan-created" };
 }
 
-async function generatePdf({ spec, walkthrough, target, manifestDir, root, mode, draft, openApiDocuments }) {
+async function generatePdf({ spec, walkthrough, target, root, mode, draft, language, labels, source, presentation }) {
   const destination = resolveTarget(root, target.path);
+  const pdf = await printPdf({
+    title: documentTitle(spec, walkthrough),
+    language,
+    labels,
+    items: specItems(spec, source),
+    settings: { ...presentation, ...pickSettings(spec) },
+    destination,
+    draft,
+    brandingDir: source.specDir
+  });
+  await writeFile(destination, pdf);
+  return { kind: "pdf", path: destination, mode };
+}
+
+/** Print a PDF from the print rendering of the same model; a second pass adds page numbers to the contents. */
+export async function printPdf({ title, language, labels, items, settings, destination, draft, brandingDir }) {
   const temporary = `${destination}.autotour.html`;
   const documentDir = path.dirname(temporary);
   const assetsDir = path.join(documentDir, "assets");
   await mkdir(documentDir, { recursive: true });
-  const reader = await readerContent({ spec, walkthrough, manifestDir, documentDir, assetsDir, draft, openApiDocuments });
-  const language = reader.language;
+  const model = await buildReaderModel({
+    items,
+    labels,
+    numbering: settings.numbering ?? false,
+    aiPlacement: settings.aiDisclosure?.placement ?? "none",
+    documentDir,
+    assetsDir,
+    draft
+  });
+  const sections = model.entries.filter(entry => entry.kind === "section");
   const { chromium } = await import("playwright");
   const browser = await chromium.launch({ headless: true });
   try {
@@ -106,53 +242,20 @@ async function generatePdf({ spec, walkthrough, target, manifestDir, root, mode,
     let tocPages = {};
     let pdf;
     for (let pass = 0; pass < 2; pass += 1) {
-      await writeFile(temporary, documentationDocument(reader, { print: true, tocPages }), "utf8");
+      const html = await buildPage({ title, language, labels, items, settings, destination: temporary, embedImages: false, draft, brandingDir, print: true, tocPages, model });
+      await writeFile(temporary, html, "utf8");
       await page.goto(fileUrl(temporary), { waitUntil: "load" });
-      pdf = await page.pdf(pdfOptions(reader.title, language));
-      tocPages = Object.fromEntries(reader.sections.map(section => [section.moduleId, pageForText(pdfPageTexts(pdf), section.heading, reader.title)]).filter(([, pageNumber]) => pageNumber > 0));
+      pdf = await page.pdf(pdfOptions(title, labels));
+      tocPages = Object.fromEntries(sections.map(section => [section.anchor, pageForText(pdfPageTexts(pdf), section.heading, title)]).filter(([, pageNumber]) => pageNumber > 0));
     }
-    await writeFile(destination, pdf);
+    return pdf;
   } finally {
     await browser.close();
     await rm(temporary, { force: true });
   }
-  return { kind: "pdf", path: destination, mode };
 }
 
-async function readerContent({ spec, walkthrough, manifestDir, documentDir, assetsDir, embedImages = false, draft = false, openApiDocuments }) {
-  const sections = [];
-  for (const section of spec.sections) {
-    const blocks = await renderBlocks({ section, walkthrough, manifestDir, assetsDir, documentDir, format: "html", embedImages, draft, openApiDocuments });
-    const level = section.headingLevel ?? 2;
-    sections.push({
-      moduleId: section.moduleId,
-      heading: section.heading,
-      level,
-      html: `<section id="${section.moduleId}"><h${level}>${escapeHtml(section.heading)}</h${level}>${blocks.join("\n")}</section>`
-    });
-  }
-  return {
-    title: spec.title ?? walkthrough.title ?? walkthrough.id,
-    language: documentLanguage(spec, walkthrough),
-    sections
-  };
-}
-
-function documentationDocument(reader, { print, tocPages = {}, chrome, switcher }) {
-  const title = escapeHtml(reader.title);
-  const nav = `<nav aria-label="Contents"><ol>${reader.sections.map(section => `<li><a href="#${section.moduleId}">${escapeHtml(section.heading)}</a></li>`).join("")}</ol></nav>`;
-  const cover = print ? `<section class="autotour-cover"><h1>${title}</h1><nav aria-label="Contents"><ol>${reader.sections.map(section => `<li><a href="#${section.moduleId}">${escapeHtml(section.heading)}</a>${tocPages[section.moduleId] ? ` <span class="autotour-toc-page">${tocPages[section.moduleId]}</span>` : ""}</li>`).join("")}</ol></nav></section>` : "";
-  const style = print
-    ? `<style>@page{size:A4}body{font:12pt/1.5 system-ui}img{max-width:100%}figure{break-inside:avoid}figcaption{break-before:avoid;font-style:italic;margin-top:.4rem}h1,h2,h3{break-after:avoid}.autotour-cover{break-after:page;min-height:70vh}header h1,header nav{display:none}${placeholderStyle}</style>`
-    : `<style>${manualStyle}${chrome?.style ?? ""}${placeholderStyle}</style>${switcher?.style ?? ""}`;
-  return `<!doctype html>\n<html lang="${escapeHtml(reader.language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${title}</title>${style}</head><body>${cover}<header><h1>${title}</h1>${print ? nav : `${switcher?.markup ?? ""}${chrome?.header ?? nav}`}</header><main>${reader.sections.map(section => section.html).join("\n")}</main>${print ? "" : `${chrome?.script ?? ""}${switcher?.script ?? ""}`}</body></html>\n`;
-}
-
-function pdfOptions(title, language) {
-  const german = String(language).toLowerCase().startsWith("de");
-  const footer = german
-    ? "Seite <span class=\"pageNumber\"></span> von <span class=\"totalPages\"></span>"
-    : "Page <span class=\"pageNumber\"></span> of <span class=\"totalPages\"></span>";
+function pdfOptions(title, labels) {
   return {
     format: "A4",
     printBackground: true,
@@ -161,7 +264,7 @@ function pdfOptions(title, language) {
     tagged: true,
     displayHeaderFooter: true,
     headerTemplate: `<div style="font-size:9px;width:100%;padding:0 12mm;color:#444">${escapeHtml(title)}</div>`,
-    footerTemplate: `<div style="font-size:10px;width:100%;text-align:center;color:#333">${footer}</div>`,
+    footerTemplate: `<div style="font-size:10px;width:100%;text-align:center;color:#333">${pageFooterTemplate(labels)}</div>`,
     margin: { top: "18mm", bottom: "20mm", left: "16mm", right: "16mm" }
   };
 }
@@ -170,97 +273,13 @@ function fileUrl(file) {
   return `file://${file.replaceAll("\\", "/")}`;
 }
 
-async function renderVideo({ block, section, manifestDir, assetsDir, documentDir, format }) {
-  const caption = block.caption ? (format === "html" ? `<figcaption>${escapeHtml(block.caption)}</figcaption>` : block.caption) : "";
-  const link = format === "html" ? `<a href="${escapeHtml(block.path)}">${escapeHtml(block.label)}</a>` : `[${block.label}](${block.path})`;
-  if (!block.still) return format === "html" ? `<p>${link}</p>${block.caption ? `<p>${escapeHtml(block.caption)}</p>` : ""}` : `${link}${block.caption ? `\n\n${block.caption}` : ""}`;
-  if (format !== "html") return `${link}${block.caption ? `\n\n${block.caption}` : ""}`;
-  let source;
-  try {
-    source = safeResolve(manifestDir, block.still);
-  } catch (error) {
-    throw new Error(`${section.moduleId}: motion still for ${block.label} is not a safe file (${block.still}).`);
-  }
-  const destination = path.join(assetsDir, "stills", path.basename(source));
-  await mkdir(path.dirname(destination), { recursive: true });
-  try {
-    await copyFile(source, destination);
-  } catch (error) {
-    if (error?.code === "ENOENT") throw new Error(`${section.moduleId}: motion still for ${block.label} was not found (${block.still}).`);
-    throw error;
-  }
-  const relative = portable(path.relative(documentDir, destination));
-  return `<figure class="autotour-still"><img src="${escapeHtml(relative)}" alt="${escapeHtml(block.label)}">${caption}<p>${link}</p></figure>`;
-}
-
 async function loadOpenApiForGeneration(spec, specPath) {
   if (!spec.sections.some(section => section.blocks.some(block => block.kind === "openapi"))) return undefined;
   if (!specPath) throw new Error("OpenAPI documentation blocks require the specification path.");
   return loadOpenApiDocuments(specPath, spec);
 }
 
-function requireOperation(openApiDocuments, block) {
-  const loaded = openApiDocuments?.get(block.document);
-  const operation = loaded ? operationFor(loaded, block.operation) : null;
-  if (!operation) throw new Error(`OpenAPI operation ${block.operation} is not available in ${block.document}.`);
-  return operation;
-}
-
-async function renderBlocks({ section, walkthrough, manifestDir, assetsDir, documentDir, format, embedImages = false, draft = false, openApiDocuments }) {
-  const status = section.status ?? "ready";
-  const module = walkthrough.modules.find(candidate => candidate.id === section.moduleId);
-  const output = [];
-  for (const block of section.blocks) {
-    if (block.kind === "text") output.push(format === "html" ? renderMarkdown(block.text) : block.text);
-    if (block.kind === "tour") output.push(format === "html" ? `<p><a href="${escapeHtml(block.url)}">${escapeHtml(block.label)}</a></p>` : `[${block.label}](${block.url})`);
-    if (block.kind === "video") output.push(await renderVideo({ block, section, manifestDir, assetsDir, documentDir, format }));
-    if (block.kind === "openapi") {
-      const operation = requireOperation(openApiDocuments, block);
-      output.push(format === "html" ? renderOpenApiHtml(operation) : renderOpenApiMarkdown(operation));
-    }
-    if (block.kind !== "screenshot") continue;
-    const assetPath = module
-      ? module.assets?.screenshots?.find(candidate => candidate.endsWith(`/${block.stepId}.png`)) ?? `modules/${module.id}/screenshots/${block.stepId}.png`
-      : undefined;
-    const source = assetPath ? safeResolve(manifestDir, assetPath) : undefined;
-    if (source && await fileExists(source)) {
-      const destination = path.join(assetsDir, module.id, path.basename(source));
-      const relative = embedImages
-        ? `data:${mimeType(source)};base64,${(await readFile(source)).toString("base64")}`
-        : portable(path.relative(documentDir, destination));
-      if (!embedImages) {
-        await mkdir(path.dirname(destination), { recursive: true });
-        await copyFile(source, destination);
-      }
-      output.push(format === "html" ? `<figure><img src="${escapeHtml(relative)}" alt="${escapeHtml(block.alt)}"><figcaption>${escapeHtml(block.caption)}</figcaption></figure>` : `![${escapeMarkdown(block.alt)}](${relative})\n\n${block.caption}`);
-      continue;
-    }
-    if (draft || status === "planned") {
-      output.push(screenshotPlaceholder(block, format));
-      continue;
-    }
-    const where = assetPath ? ` (${assetPath})` : "";
-    throw new Error(`${section.moduleId}: screenshot for step ${block.stepId} has not been captured${where}. Capture it, or run with --draft to show a placeholder.`);
-  }
-  return output;
-}
-
-function screenshotPlaceholder(block, format) {
-  if (format === "html") {
-    return `<figure class="autotour-placeholder"><p>Screenshot not captured yet.</p><p>Step: ${escapeHtml(block.stepId)}</p><p>${escapeHtml(block.alt)}</p><figcaption>${escapeHtml(block.caption)}</figcaption></figure>`;
-  }
-  return [
-    "> Screenshot not captured yet.",
-    ">",
-    `> Step: ${escapeMarkdown(block.stepId)}`,
-    ">",
-    `> ${escapeMarkdown(block.alt)}`,
-    ">",
-    `> ${escapeMarkdown(block.caption)}`
-  ].join("\n");
-}
-
-function resolveTarget(root, target) {
+export function resolveTarget(root, target) {
   const destination = path.resolve(root, target);
   const relative = path.relative(root, destination);
   if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
@@ -276,26 +295,9 @@ function adaptMarkdown(existing, generated) {
   }
   return result;
 }
-function safeResolve(root, relative) {
-  const resolved = path.resolve(root, relative);
-  if (path.relative(root, resolved).startsWith("..")) throw new Error(`Documentation asset escapes its capture directory: ${relative}`);
-  return resolved;
-}
 async function exists(file) { try { await readFile(file); return true; } catch { return false; } }
-async function fileExists(file) { try { await access(file); return true; } catch { return false; } }
-function portable(value) { return value.split(path.sep).join("/"); }
-function documentLanguage(spec, walkthrough) {
-  const value = spec.language ?? walkthrough.language ?? "en";
+export function documentLanguage(spec, walkthrough) {
+  const value = spec.language ?? walkthrough?.language ?? "en";
   return /^[a-zA-Z]{2,8}(-[a-zA-Z0-9]{1,8})*$/.test(value) ? value : "en";
 }
-function mimeType(file) {
-  const extension = path.extname(file).toLowerCase();
-  if (extension === ".jpg" || extension === ".jpeg") return "image/jpeg";
-  if (extension === ".gif") return "image/gif";
-  if (extension === ".webp") return "image/webp";
-  if (extension === ".svg") return "image/svg+xml";
-  return "image/png";
-}
-const manualStyle = "body{margin:0 auto;max-width:52rem;padding:1.5rem;font:1rem/1.5 system-ui,sans-serif}img{max-width:100%;height:auto}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:.4rem .6rem;text-align:left}aside.autotour-note,blockquote{border-left:.25rem solid #888;margin:1rem 0;padding:.25rem 1rem}figure{break-inside:avoid;margin:1.5rem 0}pre{overflow:auto}";
 function escapeHtml(value) { return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;"); }
-function escapeMarkdown(value) { return String(value).replace(/[\\[\]]/g, "\\$&"); }
