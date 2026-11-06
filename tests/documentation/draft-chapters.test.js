@@ -196,7 +196,8 @@ test("sync-markdown still refuses a planned chapter whose screenshot was not cap
     walkthroughFile: path.join(output, "walkthrough.json"),
     markdownFile,
     assetsDir: path.join(root, "assets"),
-    documentationSpec: spec
+    documentationSpec: spec,
+    openApiDocuments: example.openApiDocuments
   }), /No captured screenshot for profile-settings\/fill-display-name/);
   assert.equal(await readFile(markdownFile, "utf8"), original);
   assert.doesNotMatch(original, /Screenshot not captured yet/);
