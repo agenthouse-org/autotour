@@ -15,7 +15,7 @@
       { "id": "fill-display-name", "action": "fill", "selector": "role=textbox[name=\"Display name\"]", "value": "Documentation Name", "description": "Enter your display name." },
       { "id": "save-profile", "action": "click", "selector": "role=button[name=\"Save profile\"]", "description": "Save your profile." }
     ],
-    "dependencies": { "views": ["ProfileSettings"] },
+    "dependencies": { "views": ["ProfileSettings"], "apiEndpoints": ["PUT /api/profile"] },
     "assets": {}
   }]
 }

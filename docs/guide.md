@@ -20,6 +20,8 @@ npx autotour init
 npx autotour doctor
 ```
 
+`doctor` checks Node.js and Playwright. When this command is a newer CLI than the project's installed `autotour` package, it prints a warning and still exits 0. Capture is unchanged.
+
 For an unreleased checkout, follow [INSTALL.md](../INSTALL.md). Keep test credentials in environment variables and captures in ignored `.autotour/output/` paths.
 
 ## Capture an existing journey
@@ -71,7 +73,7 @@ Connected publishing updates only the agreed page sections or issue fields, chec
 
 ## Detect changes and refresh
 
-Define layout, screenshot selection, captions, and UI dependencies in [`.autotour/documentation.json`](documentation-spec.md). Validate with `autotour validate-docs`; use `sync-markdown --spec` to render the agreed layout inside managed sections.
+Define layout, screenshot selection, captions, and UI dependencies in [`.autotour/documentation.json`](documentation-spec.md). Validate with `autotour validate-docs`; use `sync-markdown --spec` to render the agreed layout inside managed sections. Recapture named modules of an existing manual with `autotour run-docs .autotour/documentation.json --module <id>`. Modules that do not need to run stay unrun, and a failed module leaves the other published images in place. An `openapi` block can render one operation from a local OpenAPI or Swagger file beside those screenshots, using the same `METHOD /path` name as the module's API dependency.
 
 ```sh
 npx autotour invalidate .autotour/walkthrough.json --map .autotour/dependency-map.json --base origin/main --head HEAD --check --output .autotour/output/plan.json

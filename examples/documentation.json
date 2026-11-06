@@ -10,7 +10,7 @@
   "sections": [{
     "moduleId": "profile-settings",
     "heading": "Profile Settings",
-    "dependencies": { "views": ["ProfileSettings"] },
+    "dependencies": { "views": ["ProfileSettings"], "apiEndpoints": ["PUT /api/profile"] },
     "blocks": [
       { "kind": "text", "text": "Enter your new display name, then select **Save profile**." },
       {
@@ -23,7 +23,8 @@
         "alt": "Profile Settings with the display name field highlighted",
         "caption": "Your new display name is ready to save."
       },
-      { "kind": "text", "text": "Changes take effect after saving." }
+      { "kind": "text", "text": "Changes take effect after saving." },
+      { "kind": "openapi", "document": "profile.openapi.yaml", "operation": "PUT /api/profile" }
     ]
   }]
 }

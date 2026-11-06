@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "ST-28",
+  "title": "Recapture named manual modules without wiping the others",
+  "kind": "feature",
+  "stage": "discover",
+  "revision": 1,
+  "fields": {
+    "outcome": "An author can recapture named modules of a documentation manual. Modules that do not need to run stay unrun, and their images and manifest entries remain. A failed module leaves previously published sibling images in place.",
+    "parentWork": "autotour-core",
+    "scope": "Add a named-module path on the existing documentation capture command. Recapture uses the current selective capture and transactional output swap. Modules after the named set are not run. Earlier modules still run when a later named module needs their browser state, and their images and manifest entries are not replaced. A capture failure restores the previous output and does not republish the manual. Exclude hover, drag, and click position, extra module dependency declarations, hooks, sessions, read-only posture, annotation retry, dialog dismissal, init-script documentation, busy-page waits, reset or seed, the accessibility-tree probe, version archives, derived artefacts, and reader chrome.",
+    "acceptance": "Given a manual with home, settings, and billing screenshots, recapturing home replaces only that image and leaves settings and billing unrun, with the same image bytes and manifest entries. Recapturing settings still runs home for browser state without replacing its image, and does not run billing. If settings fails, the previously published home and billing images and the previous manifest remain.",
+    "decisions": "The gap is real: run-docs captured every module into the live directory, so a later failure could replace earlier images before the manifest was saved. invalidate and regenerate already preserve walkthrough output, but they select modules from a changed-file plan rather than names. The author-facing addition is repeatable run-docs --module. It builds a certain plan for those names and reuses regenerateWalkthrough. No second command.",
+    "verification": "Test named recapture against a page double: unrun modules keep image bytes and manifest entries, a prerequisite runs without replacing its image, and a failed module leaves previously published sibling images in place. Run the package test suite.",
+    "dependencies": "Uses documentation preparation, captureJourney module selection, and transactional regeneration. Does not depend on the unmerged HTML, capture-trust, draft, search, language, or PDF slices.",
+    "risks": "A named module that is not the first still replays earlier modules so the browser can reach it. Their files stay. Naming a module that is absent from the previous capture fails before writing.",
+    "relatedRequirements": ["FR-CAP-03", "NFR-08"]
+  },
+  "criteria": [
+    {
+      "id": "named-modules",
+      "expectation": "An author can name the documentation modules to recapture with run-docs --module."
+    },
+    {
+      "id": "unrun-modules",
+      "expectation": "Modules that do not need to run stay unrun, and their images and manifest entries remain."
+    },
+    {
+      "id": "prerequisite-images",
+      "expectation": "An earlier module that runs only to reach a named module keeps its previous image and manifest entry."
+    },
+    {
+      "id": "failed-module",
+      "expectation": "A failed module leaves previously published sibling images in place and does not replace the previous manifest."
+    }
+  ],
+  "evidence": [],
+  "history": []
+}

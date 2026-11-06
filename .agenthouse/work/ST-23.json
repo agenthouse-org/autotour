@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "id": "ST-23",
+  "title": "Keep capture failures specific and screenshots at the spec viewport",
+  "kind": "feature",
+  "stage": "discover",
+  "revision": 1,
+  "fields": {
+    "outcome": "A documentation author can capture a manual at the declared viewport, understand which step and target failed, and keep a screenshot of that failure without the run stopping only because a caption cannot fit.",
+    "parentWork": "autotour-core",
+    "scope": "Open screenshot sessions at recordScreenshots.viewport before setup. Report a wait that matches nothing by target, and report count, text, or ongoing change separately. Compare visual stability by text, visibility, and bounding box, with an opt-in content comparison. Save a failure screenshot and include the module, step, cause, and target in the error. Name the module and step when a selector is rejected. Continue a screenshot when the caption would cover the target by omitting the in-image caption. Raise timeoutMs and stableForMs to the same 120000 ms ceiling in the walkthrough schema, documentation validation, and capture. Exclude navigation, search, sessions, read-only mode, and click position.",
+    "acceptance": "A page opened for screenshots uses the spec viewport on the first navigation. A missing target says that nothing matched and names the selector. A child class toggle does not reset visual stability. A failed wait leaves modules/<id>/failure.png and names the module, step, and target. An unsupported selector names the module and step. A caption that cannot be placed is omitted and the screenshot is still written. A 45000 ms wait is accepted and a 120001 ms wait is rejected by both validation and capture.",
+    "decisions": "Use 120000 ms as the shared wait ceiling. Leave scroll, pause, and DOM step delay at 30000 ms. Default stability ignores innerHTML. Keep placeCaption strict and omit the caption in the screenshot step.",
+    "verification": "Run the capture, annotation, authoring, and documentation tests, including a browser check for viewport, failure screenshot, visual stability, and caption fallback.",
+    "dependencies": "Uses the existing screenshot session, waitForCondition, and annotation placement.",
+    "risks": "A two-minute wait can hide a hang that 30 seconds used to reveal. Visual stability can accept a page whose markup is still changing if the visible text and box are still.",
+    "relatedRequirements": ["FR-CAP-04", "FR-CAP-05", "FR-CAP-06", "FR-CAP-07", "FR-CAP-11", "FR-JOURNEY-03", "FR-JOURNEY-04"]
+  },
+  "criteria": [
+    {
+      "id": "spec-viewport",
+      "expectation": "Screenshot capture uses recordScreenshots.viewport before the first setup navigation."
+    },
+    {
+      "id": "missing-target",
+      "expectation": "A wait that matches nothing reports that no element matched and names the target."
+    },
+    {
+      "id": "visual-stability",
+      "expectation": "Default stability settles when text and the bounding box are unchanged while a class inside the target toggles. Content stability still waits for innerHTML."
+    },
+    {
+      "id": "failure-evidence",
+      "expectation": "A failed step names the module, step, cause, and target, and writes a failure screenshot before the browser closes."
+    },
+    {
+      "id": "selector-context",
+      "expectation": "An unsupported selector error names the module and the step."
+    },
+    {
+      "id": "caption-fallback",
+      "expectation": "A caption that cannot be placed without covering the target is omitted and the screenshot is still produced."
+    },
+    {
+      "id": "shared-wait-limit",
+      "expectation": "timeoutMs and stableForMs accept values through 120000 ms in the schema, documentation validation, and capture, and reject larger values in all three."
+    }
+  ],
+  "evidence": [],
+  "history": []
+}

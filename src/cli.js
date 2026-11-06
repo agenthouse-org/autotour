@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { initializeProject, validateWalkthrough, configureStorage, readStorageConfiguration } from "./project.js";
 import { readDocumentationSpec, prepareDocumentationCapture } from "./documentation/spec.js";
 import { generateDocumentation } from "./documentation/generate.js";
+import { recaptureDocumentationModules } from "./documentation/recapture.js";
 import { captureJourney } from "./capture/index.js";
 import { validateWalkthroughDocument } from "./capture/manifest.js";
 import { startPreview } from "./preview.js";
@@ -23,6 +24,7 @@ import {
 import {
   syncMarkdownScreenshots
 } from "./publishing/index.js";
+import { packageVersionCheck, readProjectAutotourVersion } from "./doctor.js";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const packageJson = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8"));
@@ -35,7 +37,7 @@ Usage:
   autotour validate <walkthrough.json>
   autotour approve <walkthrough.json> [--module <id>]
   autotour validate-docs <documentation.json>
-  autotour run-docs <documentation.json> [--walkthrough <walkthrough.json>] [--target markdown,html,pdf,confluence] [--output-dir <directory>] [--capture-dir <directory>] [--mode create|adapt]
+  autotour run-docs <documentation.json> [--walkthrough <walkthrough.json>] [--module <id>]... [--target markdown,html,pdf,confluence] [--output-dir <directory>] [--capture-dir <directory>] [--mode create|adapt] [--draft]
   autotour invalidate <walkthrough.json> --map <dependency-map.json> (--changed-file <path>... | --base <ref> [--head <ref>]) [--output <plan.json>] [--check]
   autotour regenerate <journey.json> --plan <invalidation-plan.json> --output-dir <directory> [--spec <documentation.json>]
   autotour sync-markdown <walkthrough.json> [--markdown <file>] --assets-dir <directory> [--spec <documentation.json>] [--dry-run | --check]
@@ -50,11 +52,11 @@ Commands:
   configure-storage  Save user-approved folders and Git policy (no artifacts generated)
   validate  Validate a walkthrough manifest
   validate-docs  Validate documentation layout and journey/dependency references
-  run-docs  Generate selected documentation targets from a validated definition
+  run-docs  Generate documentation targets, or recapture named modules
   invalidate  Identify modules affected by repository changes
   regenerate  Replace only modules marked for regeneration
   sync-markdown  Refresh managed walkthrough screenshots in Markdown
-  doctor    Check the local Node.js and Playwright installation
+  doctor    Check Node.js, Playwright, and whether the project package is older than this CLI
 `;
 
 function parseInitArgs(args) {
@@ -64,19 +66,21 @@ function parseInitArgs(args) {
   };
 }
 
-async function doctor() {
+export async function runDoctor({ cwd = process.cwd(), cliVersion = packageJson.version, log = console.log } = {}) {
   const major = Number.parseInt(process.versions.node.split(".")[0], 10);
-  const checks = [{ name: "Node.js >= 20", ok: major >= 20, detail: process.version }];
+  const checks = [{ name: "Node.js >= 20", ok: major >= 20, advisory: false, detail: process.version }];
 
   try {
     const playwright = await import("playwright");
-    checks.push({ name: "Playwright", ok: Boolean(playwright.chromium), detail: "installed" });
+    checks.push({ name: "Playwright", ok: Boolean(playwright.chromium), advisory: false, detail: "installed" });
   } catch (error) {
-    checks.push({ name: "Playwright", ok: false, detail: error.message });
+    checks.push({ name: "Playwright", ok: false, advisory: false, detail: error.message });
   }
+  checks.push(packageVersionCheck({ cliVersion, project: await readProjectAutotourVersion(cwd) }));
 
   for (const check of checks) {
-    console.log(`${check.ok ? "ok" : "not ok"} - ${check.name} (${check.detail})`);
+    const label = check.advisory ? "warn" : check.ok ? "ok" : "not ok";
+    log(`${label} - ${check.name} (${check.detail})`);
   }
   return checks.every((check) => check.ok) ? 0 : 1;
 }
@@ -96,7 +100,7 @@ export async function run(args) {
     console.log(packageJson.version);
     return 0;
   }
-  if (command === "doctor") return doctor();
+  if (command === "doctor") return runDoctor();
   if (command === "plan-tour") {
     try {
       if (!rest[0] || rest[1] !== "--brief" || !rest[2] || (rest.length !== 3 && !(rest.length === 5 && rest[3] === "--mode"))) throw new Error("Usage: autotour plan-tour <journey.json> --brief <brief.json> [--mode screenshots|dom|video]");
@@ -228,7 +232,20 @@ export async function run(args) {
       }
       let walkthrough;
       let walkthroughFile = options.walkthroughFile;
-      if (walkthroughFile) {
+      if (options.moduleIds.length && walkthroughFile) {
+        throw new Error("run-docs --module recaptures the existing capture. Omit --walkthrough.");
+      }
+      if (options.moduleIds.length) {
+        const recaptured = await recaptureDocumentationModules({
+          spec: documentation.spec,
+          journey: documentation.journey,
+          dependencyMap: documentation.dependencyMap,
+          outputDir: captureDir,
+          moduleIds: options.moduleIds
+        });
+        walkthrough = recaptured.walkthrough;
+        walkthroughFile = recaptured.walkthroughPath;
+      } else if (walkthroughFile) {
         walkthrough = await readJsonDocument(walkthroughFile);
       } else {
         const prepared = await prepareDocumentationCapture(documentation);
@@ -252,7 +269,8 @@ export async function run(args) {
         walkthroughFile,
         targets: options.targets,
         outputRoot: storage.documentationOutput,
-        mode: options.mode
+        mode: options.mode,
+        draft: options.draft
       });
       console.log(JSON.stringify(result, null, 2));
       return 0;
@@ -309,7 +327,8 @@ async function syncMarkdown(args) {
     markdownFile,
     assetsDir: options.assetsDir,
     dryRun: options.dryRun || options.check,
-    documentationSpec: documentation?.spec
+    documentationSpec: documentation?.spec,
+    openApiDocuments: documentation?.openApiDocuments
   });
   console.log(JSON.stringify(result, null, 2));
   return options.check && result.changed ? 2 : 0;
@@ -354,20 +373,24 @@ function parseRunDocsArgs(args) {
   let captureDir;
   let targets;
   let mode = "create";
+  let draft = false;
+  const moduleIds = [];
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
     if (argument === "--walkthrough") walkthroughFile = path.resolve(requireOptionValue(args, ++index, argument));
+    else if (argument === "--module") moduleIds.push(requireOptionValue(args, ++index, argument));
     else if (argument === "--output-dir") outputDir = path.resolve(requireOptionValue(args, ++index, argument));
     else if (argument === "--capture-dir") captureDir = path.resolve(requireOptionValue(args, ++index, argument));
     else if (argument === "--target") targets = requireOptionValue(args, ++index, argument).split(",").filter(Boolean);
     else if (argument === "--mode") mode = requireOptionValue(args, ++index, argument);
+    else if (argument === "--draft") draft = true;
     else if (argument.startsWith("-")) throw new Error(`Unknown run-docs option: ${argument}`);
     else if (!specFile) specFile = path.resolve(argument);
     else throw new Error(`Unexpected run-docs argument: ${argument}`);
   }
   if (!specFile) throw new Error("run-docs requires a documentation specification file");
   if (!['create', 'adapt'].includes(mode)) throw new Error("run-docs --mode must be create or adapt");
-  return { specFile, walkthroughFile, outputDir, captureDir, targets, mode };
+  return { specFile, walkthroughFile, outputDir, captureDir, targets, mode, draft, moduleIds };
 }
 
 async function regenerate(args) {

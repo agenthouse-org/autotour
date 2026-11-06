@@ -67,6 +67,7 @@ export async function regenerateWalkthrough(options) {
       journey,
       outputDir: stagingDir,
       env,
+      ...(options.page ? { page: options.page } : {}),
       moduleIds: selection.regenerate,
       previousWalkthrough,
       previousCaptureSteps,

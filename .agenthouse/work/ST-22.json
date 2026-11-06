@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "ST-22",
+  "title": "Publish a manual page with real prose, language, and embedded images",
+  "kind": "feature",
+  "stage": "discover",
+  "revision": 1,
+  "fields": {
+    "outcome": "A documentation author can generate an HTML manual whose prose is formatted, whose language is the one declared in the spec, and whose single-file mode embeds screenshots so a strict viewer can open the page.",
+    "parentWork": "autotour-core",
+    "scope": "Render documentation text blocks as a safe Markdown subset in HTML. Use the spec language, then the walkthrough language, for the HTML lang attribute. Make html mode single-file embed screenshot bytes as data URLs, and keep site mode as linked files. Warn from autotour doctor when the project package is older than the running CLI, without failing that check. Align the Claude marketplace plugin version with package.json and reject drift in the package check. Ask the manual-planning questions from the Agile Office feedback in the create-autotour skill. Exclude reader navigation, search, topics, branding themes, PDF-from-HTML, capture changes, and extra artefact formats.",
+    "acceptance": "A spec with Markdown prose, language de, and one screenshot produces HTML whose lang is de, whose headings, emphasis, lists, tables, and notes are elements, and whose single-file image is a data URL. Site mode still writes a linked image file. Doctor prints a warning and still exits 0 when a project package is older than the CLI. The marketplace version matches package.json.",
+    "decisions": "Keep a neutral default presentation. Branding, navigation, and search stay in later stories. Treat the doctor mismatch as a warning so it does not block capture. Prefer the installed node_modules/autotour version over the declared range. Escape Markdown text and allow only http, https, mailto, and relative links.",
+    "verification": "Unit-test Markdown rendering, site versus single-file image output, language selection, the doctor version warning, and the package metadata check.",
+    "dependencies": "Builds on the HTML target and generateDocumentation. Does not change capture or the walkthrough schema.",
+    "risks": "A small Markdown subset can miss an author convention. Embedding large screenshots grows the single file. The warning only appears when doctor is the newer CLI.",
+    "relatedRequirements": ["FR-HTML-01", "FR-HTML-02", "FR-HTML-03", "FR-HTML-13", "FR-PLAN-01", "FR-PKG-01", "FR-PKG-02"]
+  },
+  "criteria": [
+    {
+      "id": "formatted-prose",
+      "expectation": "HTML text blocks show headings, emphasis, lists, tables, and notes as formatted elements, and show author HTML as text."
+    },
+    {
+      "id": "declared-language",
+      "expectation": "The HTML lang attribute is the documentation spec language, or the walkthrough language when the spec omits it."
+    },
+    {
+      "id": "embedded-images",
+      "expectation": "single-file HTML embeds each screenshot as a data URL and does not require a sibling asset file. site HTML links a copied image file."
+    },
+    {
+      "id": "package-identity",
+      "expectation": "The Claude marketplace plugin version matches package.json, and the package check fails when it drifts."
+    },
+    {
+      "id": "version-warning",
+      "expectation": "Doctor warns when the project autotour package is older than the running CLI and still exits 0. Equal versions produce no warning."
+    },
+    {
+      "id": "planning-questions",
+      "expectation": "The create-autotour skill asks the unanswered manual questions about images, navigation, language, contents, branding, intro, test accounts, and the viewer content security policy."
+    }
+  ],
+  "evidence": [],
+  "history": []
+}

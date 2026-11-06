@@ -89,6 +89,7 @@ export async function annotateStep(input) {
 
   await applyRedaction(page, redaction);
   let targetBox;
+  let captionWarning;
 
   try {
     const locator = await locateByRoleName(page, target, { stepId });
@@ -130,7 +131,15 @@ export async function annotateStep(input) {
     }
 
     const calloutBox = placeCallout(targetBox, resolvedViewport);
-    const captionBox = captionInImage ? placeCaption(targetBox, resolvedViewport, caption, { placement: captionPlacement }) : null;
+    let captionBox = null;
+    if (captionInImage) {
+      try {
+        captionBox = placeCaption(targetBox, resolvedViewport, caption, { placement: captionPlacement });
+      } catch (error) {
+        if (!/without covering the target/.test(error?.message ?? "")) throw error;
+        captionWarning = `Caption omitted from the image for ${moduleId}/${stepId} because it would cover the target.`;
+      }
+    }
     await injectAnnotationOverlays(page, {
       targetBox,
       calloutBox,
@@ -185,7 +194,8 @@ export async function annotateStep(input) {
     width: resolvedViewport.width,
     height: resolvedViewport.height,
     targetBox: roundRect(targetBox),
-    callout
+    callout,
+    ...(captionWarning ? { captionWarning } : {})
   };
 }
 

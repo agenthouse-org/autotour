@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "id": "ST-24",
+  "title": "Draft text-only and planned chapters before capture",
+  "kind": "feature",
+  "stage": "discover",
+  "revision": 1,
+  "fields": {
+    "outcome": "A documentation author can keep a prose chapter and a planned screenshot chapter in the specification before the journey module or the image exists, and can generate a review copy that shows a placeholder for each missing screenshot.",
+    "parentWork": "autotour-core",
+    "scope": "Add section status ready, text, and planned. A text chapter is prose only and does not require a journey module. A planned chapter may name a screenshot before its module or step exists, and generation shows a placeholder when that image is missing. run-docs --draft and generateDocumentation draft:true use the same placeholder for a missing image on a ready chapter. A captured file is rendered as usual. sync-markdown still requires the real image. Exclude reader navigation, search, language linking, PDF-from-HTML, and version archives.",
+    "acceptance": "A text chapter validates against a journey that does not contain its module, and is rejected when it contains a screenshot. A planned screenshot validates without that module or step. Preparation does not throw for those chapters and still annotates a planned step that does exist. Markdown and HTML generation include the prose and a visible placeholder without requiring the missing PNG. A ready chapter with a missing file fails with the module, step, and path, and succeeds with a placeholder when draft is set. sync-markdown still rejects the unpublished image.",
+    "decisions": "moduleId remains the chapter anchor. Dependencies stay required for ready chapters and are optional for text and planned chapters. Placeholders are a blockquote in Markdown and a figure.autotour-placeholder in HTML, and they include the alt text, caption, and step id. Draft mode does not skip validation.",
+    "verification": "Run the documentation specification, generator, publishing, and draft-chapter tests.",
+    "dependencies": "Uses the existing documentation schema, validator, generator, and sync-markdown.",
+    "risks": "A planned chapter can name dependencies that are not checked until it becomes ready. A draft HTML file can be mistaken for a finished manual if it is published by hand.",
+    "relatedRequirements": ["FR-SPEC-01", "FR-SPEC-02"]
+  },
+  "criteria": [
+    {
+      "id": "text-chapter",
+      "expectation": "A text chapter validates without a journey module and is rejected when it contains anything other than prose."
+    },
+    {
+      "id": "planned-chapter",
+      "expectation": "A planned chapter may name a screenshot before its module or step exists, and preparation skips that missing target."
+    },
+    {
+      "id": "visible-placeholder",
+      "expectation": "Markdown and HTML show the missing screenshot as a placeholder with its alt text, caption, and step id, and use the captured file when it exists."
+    },
+    {
+      "id": "draft-flag",
+      "expectation": "A ready chapter with a missing screenshot fails unless draft generation is requested, and draft mode still rejects an unknown ready module."
+    },
+    {
+      "id": "publish-stays-strict",
+      "expectation": "sync-markdown rejects a planned chapter whose screenshot file was not captured and does not write a placeholder."
+    }
+  ],
+  "evidence": [],
+  "history": []
+}

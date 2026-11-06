@@ -29,11 +29,11 @@ Targets support exact accessible roles/names, exact text, `css=` (including data
 }
 ```
 
-`wait.until` uses the same condition contract as `expect`: selector/target, state, exact `count`, `minimumCount`, exact `text`, `stableForMs`, and `timeoutMs`. Stability compares DOM content, text, visibility, and bounding boxes at 50 ms intervals. Scope it to the meaningful result region: clocks, live feeds, and background polling should not prevent a capture. `networkIdle: true` is opt-in and can time out on continuously polling applications. Wait for a known loader with `state: "hidden"` or `"detached"`.
+`wait.until` uses the same condition contract as `expect`: selector/target, state, exact `count`, `minimumCount`, exact `text`, `stableForMs`, and `timeoutMs`. `timeoutMs` and `stableForMs` accept an integer up to 120000. Scroll duration, pauses, and the DOM step delay stay at 30000. Default stability compares text, visibility, and bounding boxes, so a class or highlight inside the target does not reset the wait. Set `"stability": "content"` to compare `innerHTML` as well. A wait that matches nothing names the target. Scope the condition to the meaningful result region: clocks, live feeds, and background polling should not prevent a capture. `networkIdle: true` is opt-in and can time out on continuously polling applications. Wait for a known loader with `state: "hidden"` or `"detached"`.
 
 Put a `selector` on a scroll step to scroll that container. Without one, scrolling targets the window. Check a meaningful result after scrolling; executing a scroll command alone does not prove new content became visible.
 
-Screenshot annotations share these targets. They wait for fonts (bounded), finish finite animations, measure after scrolling, require stable geometry, and check the rendered highlight against the target. Movement during capture or a coordinate-space mismatch fails instead of silently returning a misplaced annotation. Captions avoid the target, but avoiding every surrounding control still needs visual review.
+Screenshot annotations share these targets. They wait for fonts (bounded), finish finite animations, measure after scrolling, require stable geometry, and check the rendered highlight against the target. Movement during capture or a coordinate-space mismatch fails instead of silently returning a misplaced annotation. Captions avoid the target. When a caption cannot fit without covering the target, the screenshot is kept and the in-image caption is omitted. Screenshot capture opens the browser at `recordScreenshots.viewport` before setup steps. A failed step leaves `modules/<module-id>/failure.png` beside the error, which names the module, step, cause, and target.
 
 ## Fixtures and lifecycle hooks
 
