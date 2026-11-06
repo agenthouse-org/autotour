@@ -76,9 +76,9 @@ test("the PDF is printed from the HTML page", { timeout: 30000 }, async () => {
     await page.goto(`file://${path.join(root, "site/index.html").replaceAll("\\", "/")}`);
     await page.locator("nav[aria-label='Contents'] a[href='#profile']").click();
     assert.equal(new URL(page.url()).hash, "#profile");
-    const figure = page.locator("figure", { has: page.getByRole("img", { name: "Profile form" }) });
+    const figure = page.locator("figure", { has: page.getByRole("button", { name: "Enlarge image: Profile form" }) });
     assert.equal(await figure.locator("figcaption").innerText(), "Save the form.");
-    await page.getByRole("img", { name: "Watch the tour" }).waitFor();
+    await page.getByRole("button", { name: "Enlarge image: Watch the tour" }).waitFor();
   } finally {
     await browser.close();
   }

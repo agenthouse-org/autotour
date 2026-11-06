@@ -130,6 +130,20 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
     await page.getByRole("tab", { name: "Sign in" }).click();
     await page.locator("body[data-current-module='sign-in']").waitFor();
 
+    // Record every click focus from page load: on slow runners autoplay can pass
+    // several clicks before the assertions below reach the focus checks.
+    await page.addInitScript(() => {
+      window.__focusLog = [];
+      document.addEventListener("DOMContentLoaded", () => {
+        new MutationObserver(() => {
+          const point = document.body.dataset.focusPoint;
+          const last = window.__focusLog.at(-1);
+          if (document.body.dataset.focusActive === "true" && point && point !== last?.point) {
+            window.__focusLog.push({ point, transform: document.getElementById("replay")?.style.transform ?? "" });
+          }
+        }).observe(document.body, { attributes: true, attributeFilter: ["data-focus-point", "data-focus-active"] });
+      });
+    });
     await page.goto(`${replayServer.baseUrl}/modules/sign-in/dom/index.html`);
     await page.locator("body[data-autoplay='started']").waitFor();
     assert.equal(await page.locator("body").getAttribute("data-frame-mode"), "window");
@@ -164,19 +178,12 @@ test("DOM capture produces secret-safe offline autoplay players per module", { t
     assert.match(signInEventsText, /AutoTour/);
     assert.match(signInEventsText, /data:image\/(?:svg\+xml|png);/);
 
-    await page.locator("body[data-focus-active='true']").waitFor({ timeout: 5000 });
-    const firstFocusPoint = await page.locator("body").getAttribute("data-focus-point");
-    const firstTransform = await page.locator("#replay").evaluate((element) => element.style.transform);
-    assert.match(firstTransform, /translate\(.+\) scale\(1\.25\)/);
-    await page.waitForFunction(
-      (point) => document.body.dataset.focusActive === "true" &&
-        document.body.dataset.focusPoint !== point,
-      firstFocusPoint,
-      { timeout: 10000 }
-    );
-    const secondTransform = await page.locator("#replay").evaluate((element) => element.style.transform);
-    assert.notEqual(secondTransform, firstTransform);
-    assert.equal(await page.locator("body").getAttribute("data-focus-active"), "true");
+    await page.waitForFunction(() => window.__focusLog.length >= 2, null, { timeout: 15000 });
+    const [firstFocus, secondFocus] = await page.evaluate(() => window.__focusLog.slice(0, 2));
+    assert.match(firstFocus.transform, /translate\(.+\) scale\(1\.25\)/);
+    assert.match(secondFocus.transform, /translate\(.+\) scale\(1\.25\)/);
+    assert.notEqual(secondFocus.point, firstFocus.point);
+    assert.notEqual(secondFocus.transform, firstFocus.transform);
     const cursorBackground = await page.locator(".replayer-mouse").evaluate(
       (element) => getComputedStyle(element).backgroundImage
     );

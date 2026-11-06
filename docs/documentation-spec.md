@@ -92,6 +92,84 @@ An `openapi` block renders one operation from a local OpenAPI 3.x or Swagger 2.0
 
 Place the contract beside the specification, for example `.autotour/profile.openapi.yaml`, and copy [profile.openapi.yaml](../examples/profile.openapi.yaml) as a starting point.
 
+## Reader output
+
+HTML manuals are one page with search, a contents list that marks the section being read, an image dialog, a back-to-top button and print styles. They make no network requests. Choose how the page is laid out:
+
+| `navigation` | Layout |
+| --- | --- |
+| `sidebar` (default) | Contents and search stay on the left. On narrow screens they open from a menu button. |
+| `topbar` | A slim bar stays at the top, with search and a contents menu. |
+| `minimal` | Search and contents sit at the top. Nothing is sticky. |
+
+Save the project's choice once with `autotour configure-presentation --navigation sidebar`; a specification or manual may override it. Search finds sections (h1 to h3) that contain every typed word. Case, accents and `ß`/`ss` do not matter, and the hits are marked.
+
+Other settings on a specification or manual:
+
+- `numbering: true` numbers chapters ("3", "3.1") and turns "Chapter 3" or "Section 3.1" in prose into links. Manuals number by default.
+- `labels` overrides reader words for the language, for example `{ "backToTop": "↑ Top" }`. English and German are built in.
+- `branding` sets `colors` (`accent`, `text`, `background`, `muted`, `surface`, `border`), `fontFamily`, `logo` and `logoAlt`.
+- `images: { "format": "webp", "quality": 80 }` re-encodes screenshots in single-file HTML when WebP is smaller.
+- `run-docs --draft` shows a draft banner.
+
+### AI hints
+
+Mark authored blocks with `origin`: `human`, `ai-generated` or `ai-modified`. Screenshots and OpenAPI blocks count as `human` unless marked otherwise. `aiDisclosure.placement` decides what readers see:
+
+| Placement | Reader sees |
+| --- | --- |
+| `document` | A short note near the start and a closing section that lists AI content by chapter |
+| `chapter` | A small label at each chapter heading with AI content |
+| `item` | A small label under each AI block, figure or animation |
+| `none` | Nothing (the author decided) |
+
+`validate-docs` and `run-docs` warn when content is marked as AI but no placement is set, and when a placement is set but text, video or embed blocks have no `origin`.
+
+### Embedded animations
+
+```json
+{ "kind": "embed", "path": "motion/intro.html", "still": "motion/intro.png", "label": "Product animation", "readyMessage": { "type": "autotour:ready" } }
+```
+
+The page travels inside the HTML (`iframe srcdoc`). The still image shows until the page posts the `readyMessage`, and it stays where frames are blocked, in print, in PDF and in Markdown.
+
+### Manuals with several applications
+
+When one product is made of several applications, write one specification per application and capture each with `run-docs`. Then combine them in a manual file ([schema](../schemas/manual.schema.json)):
+
+```json
+{
+  "schemaVersion": 1,
+  "id": "product-manual",
+  "organisation": "by-use-case",
+  "languages": [{
+    "language": "en", "label": "English", "title": "User manual",
+    "specs": {
+      "modeller": { "spec": "modeller/documentation.en.json", "walkthrough": "output/modeller/walkthrough.json" },
+      "runtime": { "spec": "runtime/documentation.en.json", "walkthrough": "output/runtime/walkthrough.json" }
+    },
+    "parts": { "use-case": "Part A – One process end to end" },
+    "targets": [{ "kind": "html", "path": "en/manual.html", "mode": "single-file" }, { "kind": "pdf", "path": "en/manual.pdf" }]
+  }],
+  "contents": [
+    { "part": "use-case" },
+    { "spec": "modeller", "section": "model-process" },
+    { "spec": "runtime", "section": "run-process" },
+    { "spec": "modeller", "section": "glossary" }
+  ]
+}
+```
+
+`contents` orders parts and sections across specifications; `{ "spec": "modeller" }` takes all of its sections. Every language names the same specifications and part labels, and their HTML targets link to each other at the same section. Build with `autotour run-docs manual.json [--language en] [--target html] [--draft]`. Sections that the manual leaves out are reported as a warning.
+
+### LaRecipe
+
+```json
+{ "kind": "larecipe", "path": "resources/docs", "version": "1.0", "assetsPath": "public/docs-assets", "assetsUrl": "/docs-assets" }
+```
+
+The target writes `resources/docs/1.0/<chapter>.md` per chapter (deeper sections stay on their chapter's page), an `index.md` sidebar with one group per part, and images under `public/docs-assets/1.0/`. Links use LaRecipe's `{{route}}` and `{{version}}` placeholders. Set `docs.landing` in `config/larecipe.php` to the first page that `run-docs` reports as `landing`. LaRecipe provides search and navigation.
+
 ## Validate and capture
 
 ```sh

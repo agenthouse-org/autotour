@@ -1,20 +1,45 @@
 {
   "schemaVersion": 1,
-  "frameworkVersion": "1.6.0",
+  "frameworkVersion": "1.12.2",
   "configDigest": "3da085690bf3a694b3f621c04ccbd85e8e3ecbb60b958ff2cd5ffcb5ab6f71db",
   "sources": [
     {
       "id": "project-policy",
-      "revision": "1",
-      "digest": "ef0bc5fbba7f7ceb9ec2a17b1aa5717422b066630035467e9c096a57c4069677"
+      "revision": "2",
+      "digest": "a549ca7c19d612a44b2f6b42866a701c0e95505943dfe09530e005b6a96282f1"
     }
   ],
   "rules": [],
-  "provenance": {},
+  "provenance": {
+    "authorUnavailableDuringReview": {
+      "source": "project-policy",
+      "revision": "2",
+      "file": ".agenthouse/policy.json"
+    }
+  },
   "requiredChecks": [],
   "owner": "project-owner",
   "authorities": {
     "project-owner": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEApanB+AA7Op9tkloXQS0Y38q+WVlLlL7A3vMeLLhjHiU=\n-----END PUBLIC KEY-----\n"
   },
-  "digest": "bcab04bfc726b0cdb82e15436b28897895dc68e6c454afd4b5a1ea5bfb6687b1"
+  "authorUnavailableDuringReview": {
+    "appliesWhen": {
+      "declaredAbsence": true
+    },
+    "sop": {
+      "id": "single-maintainer-wait",
+      "description": "AutoTour has one maintainer, who is both author and reviewer of record. If that maintainer is unavailable, open MRs wait for them; nobody takes over authorship, no agent approves, merges or pushes to the branch, and agents report the MR as blocked on the maintainer."
+    },
+    "triggeredBy": [
+      "project-owner"
+    ],
+    "mrTraceability": {
+      "required": [
+        "date",
+        "reason"
+      ]
+    }
+  },
+  "openDecisions": [],
+  "digest": "0d5a9508490ac5c355c42c0a62be4980b291e17ef0019c9578eefa959d74a5cd"
 }

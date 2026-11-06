@@ -1,10 +1,28 @@
 {
   "schemaVersion": 1,
   "id": "project-policy",
-  "revision": "1",
+  "revision": "2",
   "owner": "project-owner",
   "authorities": {
     "project-owner": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEApanB+AA7Op9tkloXQS0Y38q+WVlLlL7A3vMeLLhjHiU=\n-----END PUBLIC KEY-----\n"
+  },
+  "authorUnavailableDuringReview": {
+    "appliesWhen": {
+      "declaredAbsence": true
+    },
+    "sop": {
+      "id": "single-maintainer-wait",
+      "description": "AutoTour has one maintainer, who is both author and reviewer of record. If that maintainer is unavailable, open MRs wait for them; nobody takes over authorship, no agent approves, merges or pushes to the branch, and agents report the MR as blocked on the maintainer."
+    },
+    "triggeredBy": [
+      "project-owner"
+    ],
+    "mrTraceability": {
+      "required": [
+        "date",
+        "reason"
+      ]
+    }
   },
   "rules": []
 }
