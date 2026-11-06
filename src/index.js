@@ -37,3 +37,14 @@ export { generateLaRecipe } from "./documentation/larecipe.js";
 export { recaptureDocumentationModules } from "./documentation/recapture.js";
 export { createTourReview, openTourReview, reviewView, tourReport, applyReviewAction } from "./review/workflow.js";
 export { startTourReview } from "./review/server.js";
+export {
+  approveReleaseNotes,
+  buildReleaseNotes,
+  createReleaseNotes,
+  ReleaseNotesError,
+  releaseNotesSchemaPath,
+  renderReleaseNotes,
+  renderReleaseNotesHtml,
+  renderReleaseNotesMarkdown,
+  validateReleaseNotesDocument
+} from "./release-notes/index.js";

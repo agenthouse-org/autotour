@@ -160,13 +160,13 @@ function normalizeRepositoryPath(value) {
   return normalized;
 }
 
-function validateGitRef(value, label) {
+export function validateGitRef(value, label) {
   if (typeof value !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._/@{}~^:+-]*$/.test(value)) {
     throw new TypeError(`${label} must be a safe Git revision`);
   }
 }
 
-function parseGitNameStatus(output) {
+export function parseGitNameStatus(output) {
   const tokens = output.split("\0");
   const files = [];
   for (let index = 0; index < tokens.length;) {

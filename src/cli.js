@@ -25,6 +25,12 @@ import {
 import {
   syncMarkdownScreenshots
 } from "./publishing/index.js";
+import {
+  approveReleaseNotes,
+  createReleaseNotes,
+  ReleaseNotesError,
+  renderReleaseNotes
+} from "./release-notes/index.js";
 import { packageVersionCheck, readProjectAutotourVersion } from "./doctor.js";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -43,6 +49,9 @@ Usage:
   autotour run-docs <manual.json> [--language <tag>]... [--target html,pdf,markdown,larecipe] [--draft]
   autotour invalidate <walkthrough.json> --map <dependency-map.json> (--changed-file <path>... | --base <ref> [--head <ref>]) [--output <plan.json>] [--check]
   autotour regenerate <journey.json> --plan <invalidation-plan.json> --output-dir <directory> [--spec <documentation.json>]
+  autotour release-notes <walkthrough.json> --map <dependency-map.json> --base <ref> [--head <ref>] --output <directory> [--assets-dir <directory>] [--baseline-dir <directory>] [--work-dir <directory>] [--check]
+  autotour release-notes render <directory>
+  autotour release-notes approve <directory> --by <name> [--accept-review]
   autotour sync-markdown <walkthrough.json> [--markdown <file>] --assets-dir <directory> [--spec <documentation.json>] [--dry-run | --check]
   autotour doctor
   autotour preview <output-directory> [--port <number>]
@@ -59,6 +68,7 @@ Commands:
   run-docs  Generate documentation targets, or recapture named modules
   invalidate  Identify modules affected by repository changes
   regenerate  Replace only modules marked for regeneration
+  release-notes  Draft, re-render, or approve release notes for a commit range (no browser)
   sync-markdown  Refresh managed walkthrough screenshots in Markdown
   doctor    Check Node.js, Playwright, and whether the project package is older than this CLI
 `;
@@ -335,6 +345,15 @@ export async function run(args) {
     }
   }
 
+  if (command === "release-notes") {
+    try {
+      return await releaseNotes(rest);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      return error instanceof ReleaseNotesError && error.code === "AUTOTOUR_REVIEW_REQUIRED" ? 2 : 1;
+    }
+  }
+
   if (command === "sync-markdown") {
     try {
       return await syncMarkdown(rest);
@@ -554,6 +573,88 @@ function parseInvalidateArgs(args) {
     head,
     check
   };
+}
+
+async function releaseNotes(args) {
+  const [first, ...rest] = args;
+  if (first === "render" || first === "approve") {
+    let directory;
+    let by;
+    let acceptReview = false;
+    for (let index = 0; index < rest.length; index += 1) {
+      const argument = rest[index];
+      if (argument === "--by" && first === "approve") by = requireOptionValue(rest, ++index, argument);
+      else if (argument === "--accept-review" && first === "approve") acceptReview = true;
+      else if (argument.startsWith("-")) throw new Error(`Unknown release-notes ${first} option: ${argument}`);
+      else if (!directory) directory = argument;
+      else throw new Error(`Unexpected release-notes ${first} argument: ${argument}`);
+    }
+    if (!directory) throw new Error(`release-notes ${first} requires the release-notes directory`);
+    const notes = first === "render"
+      ? await renderReleaseNotes(directory)
+      : await approveReleaseNotes(directory, { by, acceptReview });
+    console.log(JSON.stringify({ outputDir: path.resolve(directory), status: notes.status, approval: notes.approval ?? null }, null, 2));
+    return 0;
+  }
+
+  const options = parseReleaseNotesArgs(args);
+  const walkthroughValidation = await validateWalkthrough(options.walkthroughFile);
+  if (!walkthroughValidation.valid) {
+    throw new Error(`Walkthrough is invalid: ${JSON.stringify(walkthroughValidation.errors)}`);
+  }
+  const [walkthrough, dependencyMap] = await Promise.all([
+    readJsonDocument(options.walkthroughFile),
+    readJsonDocument(options.mapFile)
+  ]);
+  const mapValidation = await validateDependencyMapDocument(dependencyMap);
+  if (!mapValidation.valid) {
+    throw new Error(`Dependency map is invalid: ${JSON.stringify(mapValidation.errors)}`);
+  }
+  const { outputDir, notes } = await createReleaseNotes({
+    cwd: process.cwd(),
+    walkthrough,
+    dependencyMap,
+    base: options.base,
+    head: options.head,
+    outputDir: options.outputDir,
+    assetsDir: options.assetsDir,
+    baselineDir: options.baselineDir,
+    workDir: options.workDir
+  });
+  console.log(JSON.stringify({
+    outputDir,
+    status: notes.status,
+    reviewRequired: notes.reviewRequired,
+    commits: notes.commits.length,
+    changedModules: notes.modules.filter(module => module.status === "regenerate").map(module => module.id),
+    reviewModules: notes.modules.filter(module => module.status === "review").map(module => module.id),
+    noVisibleChange: notes.noVisibleChange.length
+  }, null, 2));
+  return options.check && notes.reviewRequired ? 2 : 0;
+}
+
+function parseReleaseNotesArgs(args) {
+  const options = { head: "HEAD", check: false };
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
+    if (argument === "--map") options.mapFile = path.resolve(requireOptionValue(args, ++index, argument));
+    else if (argument === "--base") options.base = requireOptionValue(args, ++index, argument);
+    else if (argument === "--head") options.head = requireOptionValue(args, ++index, argument);
+    else if (argument === "--output") options.outputDir = path.resolve(requireOptionValue(args, ++index, argument));
+    else if (argument === "--assets-dir") options.assetsDir = path.resolve(requireOptionValue(args, ++index, argument));
+    else if (argument === "--baseline-dir") options.baselineDir = path.resolve(requireOptionValue(args, ++index, argument));
+    else if (argument === "--work-dir") options.workDir = path.resolve(requireOptionValue(args, ++index, argument));
+    else if (argument === "--check") options.check = true;
+    else if (argument.startsWith("-")) throw new Error(`Unknown release-notes option: ${argument}`);
+    else if (!options.walkthroughFile) options.walkthroughFile = path.resolve(argument);
+    else throw new Error(`Unexpected release-notes argument: ${argument}`);
+  }
+  if (!options.walkthroughFile || !options.mapFile || !options.base || !options.outputDir) {
+    throw new Error("release-notes requires a walkthrough file, --map, --base, and --output");
+  }
+  options.assetsDir ??= path.dirname(options.walkthroughFile);
+  options.workDir ??= path.resolve(".agenthouse", "work");
+  return options;
 }
 
 function requireOptionValue(args, index, option) {

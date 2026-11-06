@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "id": "ST-29",
+  "title": "Create reviewed release notes from a commit range",
+  "kind": "feature",
+  "stage": "discover",
+  "revision": 1,
+  "fields": {
+    "outcome": "A developer, PO or PM can create reviewed release notes for a commit range. Each user-visible change is linked to the walkthrough modules it affects, with before/after visuals, through a new autotour release-notes command and a create-release-notes skill.",
+    "parentWork": "autotour-core",
+    "scope": "In: release-notes command taking --base <ref> [--head <ref>] that reuses the invalidate change-to-module mapping; work-item linking; schema-validated JSON draft rendered to Markdown and HTML; before/after images from existing baselines; a create-release-notes skill that writes developer, PO and PM sections; human approval before notes leave draft. Out: browser capture of any kind, publishing (Confluence, GitHub Releases, npm), version bump or tagging, capturing the old commit for before images, translation.",
+    "sizeRisk": "oversized",
+    "notes": "Kept as one story at the user's request on 2026-11-06; proposed split was (1) deterministic CLI draft, (2) before/after visuals, (3) skill and persona sections.",
+    "externalIssue": "https://github.com/agenthouse-org/autotour/issues/14",
+    "decisions": "Kept as one story at the owner's request (sizeRisk oversized). The CLI stays deterministic and the create-release-notes skill writes audience prose. Module status uses the invalidate plan over base...head; per-commit modules use the same rules on each commit's own files. Before images come from --baseline-dir, otherwise from Git at the base commit; no browser capture (the earlier --capture idea was dropped). Audience entries carry refs that must resolve to commits, modules or work items in the draft, which enforces that the skill adds no changes. Because any unmapped file puts unaffected modules into review under invalidate rules, approval with review modules needs --accept-review rather than being impossible. Approval stores a content digest; any later content change returns the notes to draft on render. Work items link by ticket-like id in the message or a Work-Item: trailer.",
+    "changes": "schemas/release-notes.schema.json, src/release-notes/ (build, collect, render, approve), autotour release-notes CLI with render and approve subcommands, public exports, skills/create-release-notes/SKILL.md, README section, tests/release-notes/release-notes.test.js.",
+    "verification": "tests/release-notes/release-notes.test.js has one test per criterion, using temporary Git repositories; evaluator st-29-release-notes maps them."
+  },
+  "criteria": [
+    {
+      "id": "range-mapping",
+      "expectation": "Given --base v0.6.0 --head HEAD, every commit in the range is listed with the modules it affects, using the same rules as invalidate."
+    },
+    {
+      "id": "unmapped-commits",
+      "expectation": "Commits that map to no module appear under \"No user-visible change detected\" and are never dropped."
+    },
+    {
+      "id": "work-item-link",
+      "expectation": "A commit that links to a work item (ST-xx) shows that item's title and outcome."
+    },
+    {
+      "id": "schema-render",
+      "expectation": "The output is checked against release-notes.schema.json, and the Markdown and HTML are generated from it."
+    },
+    {
+      "id": "before-after",
+      "expectation": "An affected module with an earlier baseline shows a before/after pair; one without a baseline is labelled \"no previous capture\"."
+    },
+    {
+      "id": "persona-sections",
+      "expectation": "The skill writes developer, PO and PM sections from the structured draft and adds no changes that are not in it."
+    },
+    {
+      "id": "review-gate",
+      "expectation": "Notes stay marked as draft until a person approves them; --check exits non-zero while any module needs review, and approval then requires an explicit --accept-review that is recorded with the approval."
+    },
+    {
+      "id": "no-side-effects",
+      "expectation": "The command runs no browser and never writes outside --output."
+    }
+  ],
+  "evidence": [],
+  "history": []
+}
