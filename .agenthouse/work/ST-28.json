@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "st-21",
+  "id": "ST-28",
   "title": "Recapture named manual modules without wiping the others",
   "kind": "feature",
   "stage": "discover",

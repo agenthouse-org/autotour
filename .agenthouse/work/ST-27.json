@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "st-20",
+  "id": "ST-27",
   "title": "Print the PDF from the built HTML page",
   "kind": "feature",
   "stage": "discover",

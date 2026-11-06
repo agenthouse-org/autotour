@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "st-16",
+  "id": "ST-23",
   "title": "Keep capture failures specific and screenshots at the spec viewport",
   "kind": "feature",
   "stage": "discover",
