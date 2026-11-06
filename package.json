@@ -34,7 +34,8 @@
     ".": "./src/index.js",
     "./schema": "./schemas/walkthrough.schema.json",
     "./dependency-map-schema": "./schemas/dependency-map.schema.json",
-    "./documentation-schema": "./schemas/documentation.schema.json"
+    "./documentation-schema": "./schemas/documentation.schema.json",
+    "./release-notes-schema": "./schemas/release-notes.schema.json"
   },
   "files": [
     "bin",

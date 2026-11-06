@@ -105,6 +105,27 @@
         "selective-regeneration",
         "automation-interface"
       ]
+    },
+    {
+      "id": "st-29-release-notes",
+      "kind": "command",
+      "executable": "node",
+      "args": [
+        "--test",
+        "--test-force-exit",
+        "tests/release-notes/release-notes.test.js"
+      ],
+      "result": "exit-code",
+      "criteria": [
+        "range-mapping",
+        "unmapped-commits",
+        "work-item-link",
+        "schema-render",
+        "before-after",
+        "persona-sections",
+        "review-gate",
+        "no-side-effects"
+      ]
     }
   ],
   "profiles": {
@@ -132,6 +153,10 @@
         },
         {
           "evaluator": "st-10-screenshot-capture",
+          "required": true
+        },
+        {
+          "evaluator": "st-29-release-notes",
           "required": true
         }
       ]

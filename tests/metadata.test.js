@@ -51,6 +51,14 @@ test("the portable package contains a valid skill", async () => {
   references.forEach((reference, index) => assertHeadingIndex(reference, files[index + 1]));
 });
 
+test("the package contains a valid create-release-notes skill", async () => {
+  const file = "skills/create-release-notes/SKILL.md";
+  const skill = await readFile(file, "utf8");
+  assert.match(skill, /^---\r?\nname: create-release-notes/m);
+  assert.match(skill, /description:/);
+  assertHeadingIndex(skill.replace(/^---[\s\S]*?---\r?\n/, ""), file);
+});
+
 test("the example dependency map is schema-valid", async () => {
   const { validateDependencyMapDocument } = await import("../src/invalidation/index.js");
   const dependencyMap = await readJson("examples/dependency-map.json");

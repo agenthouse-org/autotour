@@ -113,6 +113,22 @@ autotour regenerate .autotour/journey.json \
 
 Use `--check` in CI to fail when tracked modules are stale. See the [CI examples](docs/ci.md) and [reliable tours guide](docs/reliable-tours.md).
 
+### Release notes
+
+The same mapping drafts release notes for a commit range. Each commit is listed with the modules it affects and any work item it names, and the notes show before/after screenshots of the changed modules:
+
+```sh
+autotour release-notes .autotour/output/walkthrough.json \
+  --map .autotour/dependency-map.json \
+  --base v0.6.0 --head HEAD \
+  --output .autotour/output/release-notes/0.7.0
+
+autotour release-notes render .autotour/output/release-notes/0.7.0
+autotour release-notes approve .autotour/output/release-notes/0.7.0 --by "Release Owner"
+```
+
+The command starts no browser and writes only to `--output`. The notes stay a draft until a person approves them, and `--check` exits with status 2 while any module needs review. The [`create-release-notes`](skills/create-release-notes/SKILL.md) skill writes the sections for developers, product owners, and product managers. It can only refer to commits, modules, and work items that are in the draft.
+
 The same endpoint names can document the contract those modules call. An `openapi` block in the documentation specification points at a local OpenAPI 3 or Swagger 2 file and renders that operation into Markdown, HTML, or PDF. AutoTour does not call the API or embed Swagger UI. See the [documentation specification](docs/documentation-spec.md#openapi-and-swagger).
 
 ## Documentation
@@ -130,6 +146,7 @@ The same endpoint names can document the contract those modules call. An `openap
 - `schemas/` — versioned project, journey, walkthrough, and documentation contracts
 - `examples/` — publish-safe sample manifests
 - `skills/create-autotour/` — agent workflow and authoring guidance
+- `skills/create-release-notes/` — agent workflow for reviewed release notes
 - `docs/` — detailed usage, CI, and publishing guidance
 
 ## Security

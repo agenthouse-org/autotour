@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "frameworkVersion": "1.12.2",
-  "configDigest": "3da085690bf3a694b3f621c04ccbd85e8e3ecbb60b958ff2cd5ffcb5ab6f71db",
+  "configDigest": "43dfd320682e133bac93fb506cabd1f9480c52ce425ee3b5577f5815ac005149",
   "sources": [
     {
       "id": "project-policy",
@@ -41,5 +41,5 @@
     }
   },
   "openDecisions": [],
-  "digest": "0d5a9508490ac5c355c42c0a62be4980b291e17ef0019c9578eefa959d74a5cd"
+  "digest": "4633b19eeb9244f08bf786dde1fc4d1fcaa7bf1fac8c31c68f0b661f0dfc4ef2"
 }
