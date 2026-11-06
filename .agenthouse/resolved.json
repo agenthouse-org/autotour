@@ -5,26 +5,41 @@
   "sources": [
     {
       "id": "project-policy",
-      "revision": "1",
-      "digest": "ef0bc5fbba7f7ceb9ec2a17b1aa5717422b066630035467e9c096a57c4069677"
+      "revision": "2",
+      "digest": "a549ca7c19d612a44b2f6b42866a701c0e95505943dfe09530e005b6a96282f1"
     }
   ],
   "rules": [],
-  "provenance": {},
+  "provenance": {
+    "authorUnavailableDuringReview": {
+      "source": "project-policy",
+      "revision": "2",
+      "file": ".agenthouse/policy.json"
+    }
+  },
   "requiredChecks": [],
   "owner": "project-owner",
   "authorities": {
     "project-owner": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEApanB+AA7Op9tkloXQS0Y38q+WVlLlL7A3vMeLLhjHiU=\n-----END PUBLIC KEY-----\n"
   },
-  "openDecisions": [
-    {
-      "id": "review.author-unavailable-during-review",
-      "status": "open",
-      "owner": "project-owner",
-      "reason": "Local governance does not define what to do when an MR author is unavailable during review.",
-      "recordAt": "policy.authorUnavailableDuringReview",
-      "action": "The project owner must record the applicability, SOP, authorized trigger roles, and required MR traceability. See docs/author-unavailable-during-review.md for consumer-selectable reference SOPs."
+  "authorUnavailableDuringReview": {
+    "appliesWhen": {
+      "declaredAbsence": true
+    },
+    "sop": {
+      "id": "single-maintainer-wait",
+      "description": "AutoTour has one maintainer, who is both author and reviewer of record. If that maintainer is unavailable, open MRs wait for them; nobody takes over authorship, no agent approves, merges or pushes to the branch, and agents report the MR as blocked on the maintainer."
+    },
+    "triggeredBy": [
+      "project-owner"
+    ],
+    "mrTraceability": {
+      "required": [
+        "date",
+        "reason"
+      ]
     }
-  ],
-  "digest": "c9eea5e760fff40200fcd0209425dcf8b83e2cd76a1c344be25de699b28b7781"
+  },
+  "openDecisions": [],
+  "digest": "0d5a9508490ac5c355c42c0a62be4980b291e17ef0019c9578eefa959d74a5cd"
 }
