@@ -288,6 +288,7 @@ export async function run(args) {
           outputDir: captureDir,
           moduleIds: options.moduleIds
         });
+        for (const warning of recaptured.warnings ?? []) console.error(`Warning: ${warning}`);
         walkthrough = recaptured.walkthrough;
         walkthroughFile = recaptured.walkthroughPath;
       } else if (walkthroughFile) {
@@ -304,6 +305,7 @@ export async function run(args) {
           outputDir: captureDir,
           ...(hasVideo ? { recordDom: { viewport: documentation.spec.viewport } } : { recordScreenshots: { viewport: documentation.spec.viewport } })
         });
+        for (const warning of capture.warnings ?? []) console.error(`Warning: ${warning}`);
         walkthrough = capture.walkthrough;
         walkthroughFile = path.join(captureDir, "walkthrough.json");
       }

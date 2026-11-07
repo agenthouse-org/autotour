@@ -25,6 +25,7 @@
     "title": { "type": "string", "minLength": 1 },
     "navigation": { "$ref": "#/$defs/navigation" },
     "numbering": { "type": "boolean" },
+    "captionInImage": { "type": "boolean", "description": "Default for screenshot blocks: draw the caption inside the image. A block's own captionInImage wins; when neither is set, the capture setting decides (on by default)." },
     "aiDisclosure": { "$ref": "#/$defs/aiDisclosure" },
     "labels": { "$ref": "#/$defs/labels" },
     "branding": { "$ref": "#/$defs/branding" },
@@ -125,7 +126,7 @@
                   "caption": { "type": "string", "minLength": 1 },
                   "timing": { "enum": ["before", "after"] },
                   "origin": { "$ref": "#/$defs/origin" },
-                  "captionInImage": { "type": "boolean", "default": true },
+                  "captionInImage": { "type": "boolean", "description": "Draw the caption inside the image. Overrides the specification's captionInImage." },
                   "captionPlacement": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] },
                   "callout": { "type": "integer", "minimum": 1 },
                   "target": {

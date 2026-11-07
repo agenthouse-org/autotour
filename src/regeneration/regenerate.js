@@ -99,7 +99,8 @@ export async function regenerateWalkthrough(options) {
       regenerate: selection.regenerate,
       reusable: selection.reusable,
       executed: captured.executedModuleIds,
-      walkthrough: captured.walkthrough
+      walkthrough: captured.walkthrough,
+      warnings: captured.warnings
     });
   } catch (error) {
     if (originalMoved) {
@@ -210,7 +211,7 @@ function resolveCaptureMode(outputs, overrides) {
   };
 }
 
-function buildResult({ status, outputDir, mode, regenerate, reusable, executed = [], walkthrough }) {
+function buildResult({ status, outputDir, mode, regenerate, reusable, executed = [], walkthrough, warnings = [] }) {
   return {
     status,
     walkthroughId: walkthrough.id,
@@ -221,7 +222,8 @@ function buildResult({ status, outputDir, mode, regenerate, reusable, executed =
     outputDir,
     walkthroughPath: path.join(outputDir, "walkthrough.json"),
     captureStepsPath: path.join(outputDir, "capture-steps.json"),
-    ...(mode === "dom" ? { domIndexPath: path.join(outputDir, "index.html") } : {})
+    ...(mode === "dom" ? { domIndexPath: path.join(outputDir, "index.html") } : {}),
+    ...(warnings.length ? { warnings: [...warnings] } : {})
   };
 }
 

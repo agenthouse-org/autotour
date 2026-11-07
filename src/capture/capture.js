@@ -2,7 +2,7 @@ import { mkdir, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { ensureIgnoreRules } from "../project.js";
 import { CaptureError } from "./errors.js";
-import { executeStep } from "./execute.js";
+import { describeTarget, executeStep, resolveTarget } from "./execute.js";
 import { createProfileJourney } from "./journey.js";
 import {
   buildCaptureSteps,
@@ -182,6 +182,9 @@ export async function captureJourney(options = {}) {
   const domEventPaths = {};
   /** @type {Record<string, string[]>} */
   const screenshotPaths = {};
+  /** @type {string[]} */
+  const warnings = [];
+  const warn = (message) => { if (!warnings.includes(message)) warnings.push(message); };
   let captureError;
 
   try {
@@ -210,6 +213,11 @@ export async function captureJourney(options = {}) {
           await handle.restartRecording?.();
         }
         for (const step of module.steps) {
+          if (await isAbsentOptionalStep(page, step)) {
+            warn(`Optional step ${module.id}/${step.id} was skipped because its target ${describeTarget(step.target)} is not on the page; no screenshot was taken.`);
+            capturedSteps.push({ ...step, observedRequests: [] });
+            continue;
+          }
           const startRecorded = recordDom && shouldCapture ? await addDomStepEvent(page, step, "start", secrets) : true;
           const before = observer.snapshot();
           const screenshotBefore = step.annotation?.timing === "before" ||
@@ -223,7 +231,8 @@ export async function captureJourney(options = {}) {
                 step,
                 outputDir,
                 options: screenshotOptions,
-                secrets
+                secrets,
+                warn
               });
             }
             await options.hooks?.beforeStep?.({ page, module, step, fixtures: options.fixtures });
@@ -252,7 +261,9 @@ export async function captureJourney(options = {}) {
                 step,
                 outputDir,
                 options: screenshotOptions,
-                secrets
+                secrets,
+                afterAction: true,
+                warn
               });
             }
             if (preparedScreenshot) {
@@ -376,6 +387,7 @@ export async function captureJourney(options = {}) {
       screenshotPaths,
       regeneratedModuleIds: [...selection.selectedIds],
       executedModuleIds: selection.modulesToExecute.map((module) => module.id),
+      warnings: redactValue(warnings, secrets),
       ...(domIndexPath ? { domIndexPath } : {}),
       ...paths
     };
@@ -402,6 +414,17 @@ export async function captureJourney(options = {}) {
     await removeScreenshotTemporaryDirectory(outputDir);
     if (closeError) throw closeError;
   }
+}
+
+async function isAbsentOptionalStep(page, step) {
+  if (!step.optional || !step.target) return false;
+  let locator;
+  try {
+    locator = resolveTarget(page, step.target);
+  } catch {
+    return false;
+  }
+  return typeof locator.count === "function" && await locator.count() === 0;
 }
 
 function uniquePreserve(values) {
