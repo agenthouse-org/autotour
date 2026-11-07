@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "id": "ST-31",
+  "title": "Capture handles optional steps, vanished targets, captions and waits without false failures",
+  "kind": "bug",
+  "stage": "discover",
+  "revision": 1,
+  "fields": {
+    "outcome": "A documentation author can capture a manual without writing custom steps for optional clicks, after-screenshots, text conditions, navigation or asserts. Capture no longer fails on these cases; when it has to change what a screenshot shows, it says so in a warning.",
+    "parentWork": "autotour-core",
+    "scope": "In: the eight capture fixes of phase 3 in docs/plans/0.7.0.md (optional steps, after-screenshots, captions, text conditions, navigation retry, assert fallback, hidden waits with stableForMs, target-matching docs), capture warnings in the captureJourney/regenerate results and in run-docs output, a specification-level captionInImage. Out: the backlog items (within scope, name patterns, hover, new windows, scrollTo, network idle exceptions, read-only checks, hide, screenshot expectations), an exact flag on targets, changing the annotation parser's text= handling.",
+    "sizeRisk": "normal",
+    "notes": "Source: autotour-feedback.md items 5, 20–25 and 27 (Agile Office and Agile Objects manuals, 2026-11-04/06). Phase 3 of the agreed 0.7.0 plan.",
+    "decisions": "Optional steps whose target is absent are skipped entirely (no screenshot, no step hooks) and reported; a documentation block for such a step is then reported as not captured. After-screenshots fall back to expect.target only when the highlight came from the step target, never over an explicit annotation.target. Text without a target is a whitespace-insensitive contains-match on the page's visible text; with a target it stays an exact textContent match. Hidden/detached with stableForMs means continuously absent for that long. captionInImage resolves block > specification > recordScreenshots > on.",
+    "relatedWork": [
+      "ST-29"
+    ],
+    "verification": "tests/capture/capture-fixes.test.js has one test per criterion (target-matching docs are reviewed in docs/reliable-tours.md). Red run on develop 25fdf43+0327d93 before the fix: .agenthouse/evidence/ST-31/red.tap (8 of 8 failed). Green run and npm run check: see the pull request."
+  },
+  "criteria": [
+    {
+      "id": "optional-absent",
+      "expectation": "An optional step whose target is absent is skipped: no screenshot, no failure, and a warning naming the module and step."
+    },
+    {
+      "id": "after-target-gone",
+      "expectation": "An after-action screenshot whose step target is gone highlights expect.target, with a warning, instead of failing."
+    },
+    {
+      "id": "caption-setting",
+      "expectation": "The specification's captionInImage reaches every screenshot step unless a block sets its own; when neither does, recordScreenshots.captionInImage decides."
+    },
+    {
+      "id": "caption-warning",
+      "expectation": "A caption that would cover the target is left out of the image and reported as a capture warning."
+    },
+    {
+      "id": "text-contains",
+      "expectation": "expect.text without a target passes when the page shows that text, and fails with a message naming the text otherwise."
+    },
+    {
+      "id": "navigation-retry",
+      "expectation": "A condition measured while the page navigates waits for the new document and measures again instead of failing with 'Execution context was destroyed'."
+    },
+    {
+      "id": "assert-expect-target",
+      "expectation": "An assert with only expect waits for expect.target instead of failing with 'assert steps require url or target'."
+    },
+    {
+      "id": "hidden-stable",
+      "expectation": "state hidden or detached with stableForMs returns only after the target has been absent for that long without interruption."
+    }
+  ],
+  "evidence": [],
+  "history": []
+}

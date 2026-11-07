@@ -247,7 +247,18 @@ export async function executeStep({ page, baseUrl, module, step, env, secrets, o
           });
           break;
         }
-        throw new Error("assert steps require url or target");
+        // Without its own target, an assert checks the condition it names in expect.
+        if (step.expect?.target) {
+          const state = step.state ?? step.expect.state;
+          if (state !== "hidden" && state !== "detached") {
+            await resolveTarget(page, step.expect.target).first().waitFor({
+              state: "visible",
+              timeout: step.timeoutMs === undefined ? (step.expect.timeoutMs ?? timeoutMs) : timeoutMs
+            });
+          }
+          break;
+        }
+        throw new Error("assert steps require url, target, or expect.target");
       }
       case "custom": {
         if (typeof customAction !== "function") throw new Error("custom steps require a customAction hook");

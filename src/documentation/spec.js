@@ -163,11 +163,13 @@ export async function prepareDocumentationCapture({ spec, journey, dependencyMap
     for (const block of section.blocks.filter(b => b.kind === "screenshot")) {
       const step = module.steps.find(s => s.id === block.stepId);
       if (!step) continue;
+      // Block, then spec; when neither sets it, recordScreenshots.captionInImage decides (default on).
+      const captionInImage = block.captionInImage ?? spec.captionInImage;
       step.annotation = {
         ...step.annotation,
         caption: block.caption,
         callout: block.callout ?? 1,
-        captionInImage: block.captionInImage ?? true,
+        ...(captionInImage === undefined ? {} : { captionInImage }),
         ...(block.captionPlacement ? { captionPlacement: block.captionPlacement } : {}),
         timing: block.timing,
         ...(block.target ? { target: block.target } : {})

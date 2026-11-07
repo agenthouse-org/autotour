@@ -8,6 +8,7 @@ import {
 } from "../annotations/redaction.js";
 import { buildAnnotationAssetPath } from "../annotations/paths.js";
 import { CaptureError } from "./errors.js";
+import { describeTarget, resolveTarget } from "./execute.js";
 
 export function normalizeScreenshotOptions(value, secrets = []) {
   if (!value) return false;
@@ -51,8 +52,39 @@ export function normalizeScreenshotOptions(value, secrets = []) {
 }
 
 export function hasAnnotatableTarget(step) {
-  const target = step.annotation?.target ?? step.target;
+  return isAnnotatableTarget(step.annotation?.target ?? step.target);
+}
+
+function isAnnotatableTarget(target) {
   return !!(target && ((target.role && target.name) || target.css || target.testId || target.text));
+}
+
+async function isTargetShown(page, target) {
+  try {
+    const locator = resolveTarget(page, target);
+    if (typeof locator.count !== "function") return true;
+    if (await locator.count() === 0) return false;
+    return typeof locator.first?.().isVisible === "function" ? await locator.first().isVisible() : true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Choose what an after-action screenshot highlights. A click often closes or replaces its own
+ * target; then the step's expect.target (what the click opened) is highlighted instead.
+ */
+async function screenshotTarget(page, module, step, afterAction, warn) {
+  const declared = step.annotation?.target ?? step.target;
+  if (!afterAction || step.annotation?.target || !isAnnotatableTarget(step.target)) return declared;
+  if (await isTargetShown(page, step.target)) return declared;
+  const fallback = step.expect?.target;
+  if (isAnnotatableTarget(fallback) && await isTargetShown(page, fallback)) {
+    warn(`Screenshot for ${module.id}/${step.id} highlights expect.target (${describeTarget(fallback)}) because the step target ${describeTarget(step.target)} is gone after the action.`);
+    return fallback;
+  }
+  warn(`Screenshot for ${module.id}/${step.id} has no highlight because the step target ${describeTarget(step.target)} is gone after the action and no expect.target is shown.`);
+  return undefined;
 }
 
 export async function prepareStepScreenshot({
@@ -61,7 +93,9 @@ export async function prepareStepScreenshot({
   step,
   outputDir,
   options,
-  secrets
+  secrets,
+  afterAction = false,
+  warn = () => {}
 }) {
   const finalRelativePath = buildAnnotationAssetPath(module.id, step.id, {
     outputRoot: "modules",
@@ -75,12 +109,13 @@ export async function prepareStepScreenshot({
   const finalPath = path.resolve(outputDir, ...finalRelativePath.split("/"));
 
   try {
-    if (hasAnnotatableTarget(step)) {
-      await annotateStep({
+    const target = await screenshotTarget(page, module, step, afterAction, warn);
+    if (isAnnotatableTarget(target)) {
+      const annotation = await annotateStep({
         page,
         stepId: step.id,
         moduleId: module.id,
-        target: step.annotation?.target ?? step.target,
+        target,
         callout: step.annotation?.callout ?? 1,
         caption: step.annotation?.caption ?? step.description,
         captionInImage: step.annotation?.captionInImage ?? options.captionInImage,
@@ -92,6 +127,7 @@ export async function prepareStepScreenshot({
         redaction: options.redaction,
         restorePage: true
       });
+      if (annotation?.captionWarning) warn(annotation.captionWarning);
     } else {
       await page.setViewportSize(options.viewport);
       try {
