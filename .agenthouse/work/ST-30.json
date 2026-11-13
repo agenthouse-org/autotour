@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "id": "ST-30",
+  "title": "Create and reuse documentation blueprints from the repository or a central source",
+  "kind": "feature",
+  "stage": "discover",
+  "revision": 1,
+  "fields": {
+    "outcome": "A documentation author (developer, PO or technical writer) can create a documentation blueprint with the agent's help, keep it in the repository or in a central Git repository shared by several projects, and start new documentation from it. Blueprints cover content structure (sections, their purpose and how they map to journey modules) and a separate theme (presentation), and are pinned so the same blueprint version always produces the same output. Success: a second project builds its documentation from a central blueprint without copying files by hand, and a blueprint update shows up as a reviewable lockfile diff that marks the affected docs as stale.",
+    "parentWork": "autotour-core",
+    "scope": "In: blueprint schema (structure) and theme schema (presentation) with their own schemaVersion; `autotour blueprint init | from-spec | validate | preview | update | vendor` commands; a blueprint mode in the create-autotour skill that interviews the author or extracts a blueprint from an existing documentation spec; looking up blueprints from the repository (.autotour/blueprints), then a central Git source configured in .autotour/project.json, then built-in defaults; a lockfile (.autotour/blueprints.lock.json) with commit and content hash for central blueprints; invalidation of documentation built from a changed blueprint. Out: a template server or registry service; pushing or opening pull requests against the central repository (the author commits there with their own Git workflow); Confluence page templates as a source; arbitrary template logic (loops, conditionals, scripts); signing blueprints (follow-up, reusing agenthouse signing); migrating existing documentation specs to blueprints.",
+    "sizeRisk": "oversized",
+    "openQuestions": "1) Release target: proposed 0.8.0, after the 0.7.0 manual file and branding settings land, since the blueprint builds on both. 2) Central source formats: proposed Git repository first (URL + ref + path), local path for tests; npm package deferred. 3) Placeholder set: proposed a fixed list ({{product}}, {{version}}, {{date}}, {{language}}, {{module.title}}, {{module.id}}); confirm nothing else is needed. 4) Visual plan: proposed mermaid for the lookup and lockfile flow; not drawn yet.",
+    "notes": "Drafted on 2026-11-06 after discussing templates and blueprints. Kept as one story at the user's request on 2026-11-06; proposed split was: (1) in-repository blueprints and themes with schema, validate, preview and use from a documentation spec; (2) central Git source with lookup order, lockfile, vendor and invalidation; (3) agent-assisted authoring: init interview and from-spec extraction in create-autotour. Design decision recorded in docs/adr/0001-documentation-blueprints.md. Relation to 0.7.0: the manual file (section order across specs) and branding settings are the runtime inputs a blueprint fills in; a blueprint must not add a second way to set them. Brand values and per-manual content stay in consuming projects (docs/plans/0.7.0.md, 'Not in AutoTour'); a central blueprint repository is such a consuming location, not part of autotour.",
+    "decisions": "See docs/adr/0001-documentation-blueprints.md (proposed). Summary: separate blueprint (structure) from theme (presentation); declarative, schema-validated files with a fixed placeholder list and no template logic; lookup order repository > central Git source > built-in; central blueprints pinned by commit and content hash in a lockfile, never a floating ref; themes are CSS and assets only, no scripts.",
+    "relatedWork": [
+      "ST-29"
+    ],
+    "architectureCatalog": ".agenthouse/work/ST-30-architecture.json"
+  },
+  "criteria": [
+    {
+      "id": "init-interview",
+      "expectation": "Given an author who answers the create-autotour blueprint questions (audience, sections and their purpose, targets, theme), `.autotour/blueprints/<name>/blueprint.json` is written and `autotour blueprint validate <name>` passes."
+    },
+    {
+      "id": "from-spec",
+      "expectation": "`autotour blueprint from-spec <spec> --name <name>` writes a blueprint whose sections, headings, audience and targets match the source spec, with module-specific text replaced by placeholders and no screenshots, URLs or test data copied in."
+    },
+    {
+      "id": "validate-rejects",
+      "expectation": "`blueprint validate` exits non-zero and names the field for an unknown placeholder, a theme containing a script, event-handler attribute or remote URL, or a blueprint whose schemaVersion is newer than the installed autotour."
+    },
+    {
+      "id": "use-in-spec",
+      "expectation": "A documentation spec that references a blueprint builds with the blueprint's section order, headings and theme; values set in the spec override the blueprint; a spec without a blueprint builds byte-identical to before this change."
+    },
+    {
+      "id": "lookup-order",
+      "expectation": "When the same blueprint name exists in the repository, the central source and the built-in set, the repository copy is used, and `run-docs` and `blueprint validate` report which source and version were used."
+    },
+    {
+      "id": "central-pinned",
+      "expectation": "With a central Git source configured, the first use records the resolved commit and content hash in `.autotour/blueprints.lock.json`; later builds use exactly that version even after the central branch moves, and fail with a clear error if the fetched content does not match the hash."
+    },
+    {
+      "id": "update-invalidates",
+      "expectation": "`autotour blueprint update <name>` changes only the lockfile entry, and `invalidate` then lists every documentation spec built from that blueprint as needing regeneration."
+    },
+    {
+      "id": "vendor-offline",
+      "expectation": "`autotour blueprint vendor <name>` copies the pinned central blueprint into `.autotour/blueprints/<name>/` with its origin recorded, and the documentation then builds with networking disabled."
+    }
+  ],
+  "evidence": [],
+  "history": []
+}

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "kind": "architecture-catalog",
+  "ownerRole": "architect",
+  "entries": [
+    {
+      "id": "ADR-0001",
+      "title": "Documentation blueprints and where they are stored",
+      "path": "docs/adr/0001-documentation-blueprints.md",
+      "status": "proposed",
+      "authorityClass": "advisory"
+    }
+  ]
+}
